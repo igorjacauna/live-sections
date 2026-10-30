@@ -10,6 +10,7 @@ local M = {}
 
 M.SMOOTH_SEEK = 40390          -- Options: Toggle smooth seek
 M.STOP_AT_LOOP_END = 41834     -- Transport: stop at end of loop if repeat is disabled
+M.ALL_NOTES_OFF = 40345        -- Send all-notes-off to all MIDI outputs/plug-ins
 
 local PROJ = 0
 
@@ -110,6 +111,9 @@ end
 
 function M.play() reaper.OnPlayButton() end
 function M.stop() reaper.OnStopButton() end
+-- Solta notas presas em todos os plugins e saídas MIDI (inclusive o Kontakt).
+function M.all_notes_off() reaper.Main_OnCommand(M.ALL_NOTES_OFF, 0) end
+
 function M.move_cursor(pos) reaper.SetEditCurPos(pos, true, false) end
 
 function M.start_at(pos)

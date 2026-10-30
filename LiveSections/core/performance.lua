@@ -204,12 +204,14 @@ function M.play_stop()
   return "playing"
 end
 
--- Para tudo, esvazia a fila e volta o cursor ao início da música atual.
+-- Para tudo, solta as notas presas, esvazia a fila e volta o cursor ao
+-- início da música atual.
 function M.panic()
   local _, song = where()
   queue.cancel()
   stop_loop(song)
   transport.stop()
+  transport.all_notes_off()
   if song then transport.move_cursor(song.start_pos) end
 end
 
