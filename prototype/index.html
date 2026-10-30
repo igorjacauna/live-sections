@@ -716,7 +716,7 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
         <div class="layer${l.mute ? ' muted' : ''}${anySolo && !l.solo ? ' dim' : ''}" data-l="${i}">
           <div class="lname" title="${esc(l.name)}">${esc(l.name)}</div>
           <div class="ftrack${takeover[i] ? ' tko' : ''}" data-fader="${i}" data-map="vol:${i + 1}" style="--v:${l.vol};--hw:${hw[i] ?? 0}">
-            <span class="ffill"></span><span class="fcap"></span><span class="fghost" data-ghost="${i}" title="Posição do fader físico (arraste para simular)"></span>
+            <span class="ffill"></span><span class="fcap"></span><span class="fghost" title="Posição atual do fader físico"></span>
           </div>
           <div class="fval num">${fmtDb(l.vol)}</div>
           <div class="tko-hint" ${takeover[i] ? '' : 'hidden'}>${(hw[i] ?? 0) < l.vol ? '↑ Suba o fader' : '↓ Desça o fader'}</div>
@@ -1408,15 +1408,23 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
     setText(h, hw[i] < l.vol ? '↑ Suba o fader' : '↓ Desça o fader');
   }
 
+  // Soft takeover: o fader físico só assume a camada quando cruza o valor atual dela.
+  function moveHw(i, v) {
+    const l = cur().layers[i], prev = hw[i];
+    hw[i] = v;
+    if (takeover[i]) {
+      if ((prev - l.vol) * (v - l.vol) <= 0) { takeover[i] = false; l.vol = v; flash('vol:' + (i + 1)); toast(`Fader ${i + 1} assumiu ${l.name}.`); }
+    } else l.vol = v;
+    updateFader(i);
+  }
+
   document.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || globalLearn) return;
-    const g = e.target.closest('[data-ghost]');
-    if (g) { drag = { kind: 'ghost', i: +g.dataset.ghost, track: g.parentElement }; e.preventDefault(); return; }
+    // No protótipo, arrastar o fader simula mexer o fader físico do controlador.
     const f = e.target.closest('[data-fader]');
     if (f) {
-      drag = { kind: 'fader', i: +f.dataset.fader, track: f };
-      cur().layers[drag.i].vol = faderValue(e, f); takeover[drag.i] = Math.abs(hw[drag.i] - cur().layers[drag.i].vol) > .02;
-      updateFader(drag.i); e.preventDefault(); return;
+      drag = { kind: 'ghost', i: +f.dataset.fader, track: f };
+      moveHw(drag.i, faderValue(e, f)); e.preventDefault(); return;
     }
     if (mode !== 'edit' || !e.target.closest('#strip')) return;
     const s = cur();
@@ -1461,17 +1469,7 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
     }
     const s = cur();
     if (drag.kind === 'ghost') {
-      const i = drag.i, l = s.layers[i], prev = hw[i], v = faderValue(e, drag.track);
-      hw[i] = v;
-      if (takeover[i]) {
-        if ((prev - l.vol) * (v - l.vol) <= 0) { takeover[i] = false; l.vol = v; flash('vol:' + (i + 1)); toast(`Fader ${i + 1} assumiu ${l.name}.`); }
-      } else l.vol = v;
-      updateFader(i);
-    } else if (drag.kind === 'fader') {
-      const i = drag.i;
-      s.layers[i].vol = faderValue(e, drag.track);
-      takeover[i] = Math.abs(hw[i] - s.layers[i].vol) > .02;
-      updateFader(i);
+      moveHw(drag.i, faderValue(e, drag.track));
     } else if (drag.kind === 'edge') {
       const x = s.sections[drag.si], bar = clamp(Math.round(barAt(e)), drag.min, drag.max);
       if (drag.edge === 'R') {
