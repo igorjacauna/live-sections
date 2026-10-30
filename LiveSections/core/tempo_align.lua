@@ -53,8 +53,8 @@ end
 -- ------------------------------------------------------------------ marcadores de tempo
 
 local function tempo_marker(idx)
-  local _, time, _, _, bpm, num, denom = reaper.GetTempoTimeSigMarker(PROJ, idx)
-  return { idx = idx, time = time, bpm = bpm, num = num, denom = denom }
+  local _, time, _, _, bpm, num, denom, linear = reaper.GetTempoTimeSigMarker(PROJ, idx)
+  return { idx = idx, time = time, bpm = bpm, num = num, denom = denom, linear = linear }
 end
 
 local function tempo_markers_between(a, b)
@@ -66,22 +66,13 @@ local function tempo_markers_between(a, b)
   return out
 end
 
--- O REAPER só recalcula o mapa de tempo (TimeMap*) depois de UpdateTimeline:
--- sem isso, a entrada seguinte era calculada sobre o mapa antigo (spike 06).
-local function delete_tempo(idx)
-  reaper.DeleteTempoTimeSigMarker(PROJ, idx)
-  reaper.UpdateTimeline()
-end
-
 local function delete_tempo_from(a)
   local list = tempo_markers_between(a, math.huge)
   for i = #list, 1, -1 do reaper.DeleteTempoTimeSigMarker(PROJ, list[i].idx) end
-  reaper.UpdateTimeline()
 end
 
 local function add_tempo(time, bpm, num, denom)
   reaper.SetTempoTimeSigMarker(PROJ, -1, time, -1, -1, bpm, num or 0, denom or 0, false)
-  reaper.UpdateTimeline()
 end
 
 -- Compasso 1 já marcado na música: o primeiro marcador com fórmula de compasso.
@@ -93,24 +84,58 @@ end
 
 local function limit(next_song) return next_song and next_song.start_pos or math.huge end
 
--- Andamento de um marcador só de tempo em `from` que põe uma linha de
--- compasso exatamente em `to`, o mais perto possível de `target_bpm`.
-local function lead_in_bpm(from, to, target_bpm)
-  local _, _, bpm_now = reaper.TimeMap_GetTimeSigAtTime(PROJ, from)
-  local beat, measure = reaper.TimeMap2_timeToBeats(PROJ, from)
-  local bar_start = reaper.TimeMap2_beatsToTime(PROJ, 0, measure)
-  local next_bar = reaper.TimeMap2_beatsToTime(PROJ, 0, measure + 1)
-  local bar_len = next_bar - bar_start
-  local to_bar = beat < EPS and 0 or next_bar - from
-  -- Mudar o andamento por um fator f divide as durações por f.
-  local k = math.max(0, math.floor(((to - from) * target_bpm / bpm_now - to_bar) / bar_len + 0.5))
-  if to_bar < EPS and k == 0 then k = 1 end
-  return bpm_now * (to_bar + k * bar_len) / (to - from)
+-- ------------------------------------------------------------------ contagem de batidas
+--
+-- As contas usam a lista de marcadores, não o TimeMap: dentro da operação o
+-- REAPER continua devolvendo o mapa de antes das mudanças, mesmo com
+-- UpdateTimeline (spike 06).
+--
+-- Grade = { time, beat (semínimas desde a última linha de compasso),
+--           bar (semínimas por compasso), bpm }
+
+local function bar_qn(num, denom) return num * 4 / denom end
+
+-- Grade em `t` vista a partir de `g`, sem marcadores no meio.
+local function advance(g, t)
+  local beat = (g.beat + (t - g.time) * g.bpm / 60) % g.bar
+  if g.bar - beat < 1e-6 then beat = 0 end
+  return { time = t, beat = beat, bar = g.bar, bpm = g.bpm }
 end
 
-local function add_lead_in(from, to, target_bpm)
-  if to - from < EPS then return end
-  add_tempo(from, lead_in_bpm(from, to, target_bpm))
+-- Grade em `t` considerando só os marcadores antes de `t`. Antes do primeiro
+-- marcador valem o tempo e a fórmula do projeto (denominador 4).
+local function grid_before(t)
+  local bpm, num = reaper.GetProjectTimeSignature2(PROJ)
+  local g = { time = 0, beat = 0, bar = bar_qn(num, 4), bpm = bpm }
+  local linear = false
+  for _, m in ipairs(tempo_markers_between(-math.huge, t)) do
+    if linear then g.bpm = (g.bpm + m.bpm) / 2 end -- rampa: tempo médio do trecho
+    g = advance(g, m.time)
+    g.bpm, linear = m.bpm, m.linear
+    if m.num > 0 then g.beat, g.bar = 0, bar_qn(m.num, m.denom) end
+  end
+  return advance(g, t)
+end
+
+-- Tempo e fórmula em vigor em `t` (marcadores até `t`, inclusive).
+local function tempo_at(t)
+  local bpm, num = reaper.GetProjectTimeSignature2(PROJ)
+  local denom = 4
+  for _, m in ipairs(tempo_markers_between(-math.huge, t + 2 * EPS)) do
+    bpm = m.bpm
+    if m.num > 0 then num, denom = m.num, m.denom end
+  end
+  return bpm, num, denom
+end
+
+-- Andamento de um marcador só de tempo em `from` (grade `g`) que põe uma
+-- linha de compasso exatamente em `to`, o mais perto possível de `target_bpm`.
+local function lead_in_bpm(g, to, target_bpm)
+  local to_bar = g.beat < 1e-6 and 0 or g.bar - g.beat
+  local span = to - g.time
+  local k = math.max(0, math.floor((span * target_bpm / 60 - to_bar) / g.bar + 0.5))
+  if to_bar < 1e-6 and k == 0 then k = 1 end
+  return 60 * (to_bar + k * g.bar) / span
 end
 
 -- ------------------------------------------------------------------ preservar o que vem depois
@@ -148,38 +173,38 @@ local function with_items_locked(fn)
 end
 
 -- Recria, em ordem e na mesma posição em segundos, os marcadores de tempo que
--- vinham depois. Antes de cada mudança de fórmula, a entrada que a precede é
--- recalculada para a linha de compasso continuar no mesmo ponto.
-local function rebuild_after(later, after_time)
-  local last = nil -- último marcador recriado: { time, num }
-  for _, m in ipairs(later) do
-    if m.num > 0 then
-      if last and last.num == 0 and last.time > after_time + EPS then
-        delete_tempo(tempo_markers_between(last.time, last.time + 2 * EPS)[1].idx)
-        add_lead_in(last.time, m.time, m.bpm)
-      end
-    end
-    add_tempo(m.time, m.bpm, m.num, m.denom)
-    last = m
+-- vinham depois, a partir da grade `g`. A entrada antes de cada mudança de
+-- fórmula é recalculada para a linha de compasso continuar no mesmo ponto.
+local function rebuild_after(later, g)
+  for i, m in ipairs(later) do
+    g = advance(g, m.time)
+    local nxt = later[i + 1]
+    local bpm = m.bpm
+    if m.num == 0 and nxt and nxt.num > 0 then bpm = lead_in_bpm(g, nxt.time, nxt.bpm) end
+    add_tempo(m.time, bpm, m.num, m.denom)
+    g.bpm = bpm
+    if m.num > 0 then g.beat, g.bar = 0, bar_qn(m.num, m.denom) end
   end
 end
 
 -- Põe o compasso 1 da música em `pos` com `bpm`, trocando os marcadores que a
 -- música tinha e preservando tudo o que vem depois.
 local function place_downbeat(song, next_song, pos, bpm)
-  local num, denom = reaper.TimeMap_GetTimeSigAtTime(PROJ, pos)
+  local _, num, denom = tempo_at(pos)
   local later = tempo_markers_between(limit(next_song), math.huge)
   if next_song and not (later[1] and math.abs(later[1].time - next_song.start_pos) < EPS) then
     -- guarda o tempo que valia no início da música seguinte
-    local _, _, next_bpm = reaper.TimeMap_GetTimeSigAtTime(PROJ, next_song.start_pos)
+    local next_bpm = tempo_at(next_song.start_pos)
     table.insert(later, 1, { time = next_song.start_pos, bpm = next_bpm, num = 0, denom = 0 })
   end
   local markers = snapshot_markers()
+  local start = grid_before(song.start_pos)
 
   delete_tempo_from(song.start_pos)
-  add_lead_in(song.start_pos, pos, bpm)
+  if pos - song.start_pos > EPS then add_tempo(song.start_pos, lead_in_bpm(start, pos, bpm)) end
   add_tempo(pos, bpm, num, denom)
-  rebuild_after(later, pos)
+  rebuild_after(later, { time = pos, beat = 0, bar = bar_qn(num, denom), bpm = bpm })
+  reaper.UpdateTimeline()
   restore_markers(markers)
 end
 

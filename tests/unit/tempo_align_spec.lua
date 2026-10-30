@@ -1,7 +1,7 @@
 local stub = require("stubs.reaper")
 
--- O stub calcula compassos pelo mapa de _tempo, sem considerar os marcadores
--- criados: estes testes conferem os marcadores gerados e as contas da entrada.
+-- O tempo do projeto vem do primeiro segmento do mapa de _tempo do stub. As
+-- contas da entrada usam só a lista de marcadores de tempo.
 describe("tempo_align", function()
   local r, ta
 
@@ -23,6 +23,16 @@ describe("tempo_align", function()
       assert.near(e[2], got[i][2], 1e-6, "BPM do marcador " .. i)
       assert.same({ e[3], e[4] }, { got[i][3], got[i][4] })
     end
+  end
+
+  -- Semínimas de `a` a `b` pelos marcadores criados (tempo constante entre eles).
+  local function qn_between(a, b)
+    local total, bpm, t = 0, nil, a
+    for _, m in ipairs(r._tempo_markers) do
+      if m.time > a and m.time < b then total = total + (m.time - t) * bpm / 60; t = m.time end
+      if m.time < b then bpm = m.bpm end
+    end
+    return total + (b - t) * bpm / 60
   end
 
   before_each(function()
@@ -72,10 +82,49 @@ describe("tempo_align", function()
 
       ta.set_downbeat(song_a, song_b, 1.2, 96)
 
-      -- entrada de A: 1 compasso (2 s a 120) em 1,2 s; entrada de B: 36 compassos em 50 s a partir de 96
+      -- entrada de A: 1 compasso (4 semínimas) em 1,2 s. De 1,2 s a 100 s a 96
+      -- BPM são 158,08 semínimas: 100 s cai 2,08 dentro do compasso. A entrada
+      -- de B completa o compasso (1,92) e mais 29 compassos em 50 s.
       assert_markers({
-        { 0, 200, 0, 0 }, { 1.2, 96, 4, 4 }, { 100, 96 * 72 / 50, 0, 0 }, { 150, 140, 7, 8 },
+        { 0, 200, 0, 0 }, { 1.2, 96, 4, 4 }, { 100, 60 * (1.92 + 29 * 4) / 50, 0, 0 }, { 150, 140, 7, 8 },
       })
+      assert.near(0, qn_between(1.2, 150) % 4, 1e-6)
+    end)
+
+    it("alinhar a música anterior mantém o compasso 1 da seguinte (spike 06)", function()
+      local song_a6 = { start_pos = 0, end_pos = 60 }
+      local song_b6 = { start_pos = 60, end_pos = 120 }
+      ta.set_downbeat(song_b6, nil, 61.5, 120)
+      assert.near(160, markers()[1][2], 1e-9)
+
+      ta.set_downbeat(song_a6, song_b6, 3.1, 97.3)
+
+      assert.near(240 / 3.1, markers()[1][2], 1e-9)
+      -- de 3,1 s a 60 s a 97,3 BPM: 60 s cai no meio do compasso; a entrada de B
+      -- completa esse compasso em 1,5 s (≈149 BPM, não os 160 de antes)
+      assert.near(60 * (4 - (56.9 * 97.3 / 60) % 4) / 1.5, markers()[3][2], 1e-9)
+      assert.near(0, qn_between(3.1, 61.5) % 4, 1e-6)
+      ta.nudge(song_a6, song_b6, 0.01, 1)
+      assert.near(0, qn_between(3.101, 61.5) % 4, 1e-6)
+      assert.same({ 61.5, 120, 4, 4 }, markers()[4])
+    end)
+
+    it("não lê o TimeMap: o REAPER devolve o mapa antigo durante a operação", function()
+      r.SetTempoTimeSigMarker(0, -1, 100, -1, -1, 130, 0, 0, false)
+      r.SetTempoTimeSigMarker(0, -1, 150, -1, -1, 140, 7, 8, false)
+      r.calls = {}
+      ta.set_downbeat(song_a, song_b, 1.2, 96)
+      for _, c in ipairs(r.calls) do assert.is_nil(c.name:match("^TimeMap"), c.name) end
+      assert.equal(1, #r.calls_to("UpdateTimeline"))
+    end)
+
+    it("conta a rampa de um marcador linear pelo tempo médio", function()
+      r.SetTempoTimeSigMarker(0, -1, 0, -1, -1, 100, 4, 4, true)
+      r.SetTempoTimeSigMarker(0, -1, 6, -1, -1, 140, 0, 0, false)    -- 0–6 s: 12 semínimas
+      local song_c = { start_pos = 7.5, end_pos = 100 }               -- +3,5 semínimas: 15,5
+      ta.set_downbeat(song_c, nil, 8, 140)
+      -- 15,5 % 4 = 3,5: faltam 0,5 semínima até a linha de compasso, em 0,5 s
+      assert.near(60, markers()[3][2], 1e-9)
     end)
 
     it("todos os itens ficam em timebase de tempo durante a operação e voltam ao modo original", function()
@@ -93,24 +142,6 @@ describe("tempo_align", function()
 
       assert.same({ 0, 0, 0 }, seen)
       assert.same({ 1, 2, -1 }, { beats.info.C_BEATATTACHMODE, pos_only.info.C_BEATATTACHMODE, default.info.C_BEATATTACHMODE })
-    end)
-
-    it("atualiza o mapa de tempo depois de cada mudança, antes da próxima conta", function()
-      r.SetTempoTimeSigMarker(0, -1, 100, -1, -1, 130, 0, 0, false)
-      r.SetTempoTimeSigMarker(0, -1, 150, -1, -1, 140, 7, 8, false)
-      r.calls = {}
-      ta.set_downbeat(song_a, song_b, 1.2, 96)
-      local seq = {}
-      for _, c in ipairs(r.calls) do
-        if c.name == "SetTempoTimeSigMarker" or c.name == "DeleteTempoTimeSigMarker" or c.name == "UpdateTimeline" then
-          seq[#seq + 1] = c.name
-        end
-      end
-      for i, name in ipairs(seq) do
-        if name ~= "UpdateTimeline" and seq[i + 1] ~= "UpdateTimeline" and seq[i + 1] ~= "DeleteTempoTimeSigMarker" then
-          error("mudança sem UpdateTimeline em seguida: " .. table.concat(seq, ", "))
-        end
-      end
     end)
 
     it("a última música não cria marcador depois dela", function()

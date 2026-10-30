@@ -45,7 +45,7 @@ function M.new()
     _ext = {},                 -- ProjExtState: [section][key] = valor
     -- Marcadores de tempo da API SetTempoTimeSigMarker, por tempo. São uma
     -- lista à parte: não alteram o mapa de _tempo usado pelo TimeMap2_*.
-    _tempo_markers = {},       -- { time, bpm, num, denom }
+    _tempo_markers = {},       -- { time, bpm, num, denom, linear }
     _items = {},               -- { info = { D_POSITION, D_LENGTH, C_BEATATTACHMODE } }
   }
 
@@ -295,18 +295,18 @@ function M.new()
   function api.GetTempoTimeSigMarker(_, idx)
     local m = r._tempo_markers[idx + 1]
     if not m then return false, -1, 0, 0, 0, 0, 0, false end
-    return true, m.time, 0, 0, m.bpm, m.num, m.denom, false
+    return true, m.time, 0, 0, m.bpm, m.num, m.denom, m.linear or false
   end
 
   -- ptidx -1 cria; senão altera. num/denom 0 = sem mudança de fórmula.
   function api.SetTempoTimeSigMarker(_, ptidx, timepos, measurepos, beatpos, bpm, num, denom, linear)
     log("SetTempoTimeSigMarker", ptidx, timepos, measurepos, beatpos, bpm, num, denom, linear)
     if ptidx == -1 then
-      r._tempo_markers[#r._tempo_markers + 1] = { time = timepos, bpm = bpm, num = num, denom = denom }
+      r._tempo_markers[#r._tempo_markers + 1] = { time = timepos, bpm = bpm, num = num, denom = denom, linear = linear }
     else
       local m = r._tempo_markers[ptidx + 1]
       if not m then return false end
-      m.time, m.bpm, m.num, m.denom = timepos, bpm, num, denom
+      m.time, m.bpm, m.num, m.denom, m.linear = timepos, bpm, num, denom, linear
     end
     sort_tempo_markers()
     touch()
@@ -319,6 +319,11 @@ function M.new()
     table.remove(r._tempo_markers, idx + 1)
     touch()
     return true
+  end
+
+  -- Tempo e numerador das configurações do projeto: o primeiro segmento.
+  function api.GetProjectTimeSignature2(_)
+    return r._tempo[1].bpm, r._tempo[1].num
   end
 
   -- Fórmula e tempo em vigor em `t`: o tempo do último marcador até `t` e a
