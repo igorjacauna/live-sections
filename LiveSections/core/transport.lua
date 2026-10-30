@@ -90,6 +90,33 @@ function M.cancel_hand_off(boundary)
   reaper.SetEditCurPos(boundary, false, true)
 end
 
+-- Salto feito pelo script (modos batida e imediato). Com o smooth seek ligado
+-- o seek esperaria o compasso, então ele é desligado só durante o seek.
+-- A validar no REAPER: se o seek ainda esperar, religar no ciclo seguinte.
+function M.jump_now(pos)
+  local smooth = reaper.GetToggleCommandState(M.SMOOTH_SEEK) == 1
+  if smooth then reaper.Main_OnCommand(M.SMOOTH_SEEK, 0) end
+  reaper.SetEditCurPos(pos, false, true)
+  if smooth then reaper.Main_OnCommand(M.SMOOTH_SEEK, 0) end
+end
+
+function M.is_playing() return reaper.GetPlayState() & 1 == 1 end
+
+-- Posição de reprodução, ou o cursor de edição com o transporte parado.
+function M.position()
+  if M.is_playing() then return reaper.GetPlayPosition2() end
+  return reaper.GetCursorPosition()
+end
+
+function M.play() reaper.OnPlayButton() end
+function M.stop() reaper.OnStopButton() end
+function M.move_cursor(pos) reaper.SetEditCurPos(pos, true, false) end
+
+function M.start_at(pos)
+  M.move_cursor(pos)
+  M.play()
+end
+
 -- Prende a reprodução na seção (on) ou volta a seguir a timeline até o fim
 -- da música (off).
 function M.set_loop(section, on, song)

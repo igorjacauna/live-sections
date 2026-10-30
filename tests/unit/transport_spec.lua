@@ -115,3 +115,39 @@ describe("transport", function()
     end)
   end)
 end)
+
+describe("transport: reprodução e salto imediato", function()
+  local r, transport
+
+  before_each(function()
+    r = stub.install()
+    package.loaded["core.transport"] = nil
+    transport = require("core.transport")
+  end)
+
+  it("jump_now desliga o smooth seek só durante o seek", function()
+    r.set_toggle(40390, 1)
+    transport.jump_now(12)
+    local names = {}
+    for _, c in ipairs(r.calls) do names[#names + 1] = c.name end
+    assert.same({ "Main_OnCommand", "SetEditCurPos", "Main_OnCommand" }, names)
+    assert.equal(1, r.GetToggleCommandState(40390))
+  end)
+
+  it("jump_now com smooth seek desligado só faz o seek", function()
+    r.set_toggle(40390, 0)
+    transport.jump_now(12)
+    assert.equal(0, #r.calls_to("Main_OnCommand"))
+  end)
+
+  it("start_at move o cursor e toca; position segue o estado do transporte", function()
+    transport.start_at(8)
+    assert.same({ 8, true, false, n = 3 }, r.calls_to("SetEditCurPos")[1])
+    assert.is_true(transport.is_playing())
+    r.set_play(true, 9.5)
+    assert.equal(9.5, transport.position())
+    transport.stop()
+    assert.is_false(transport.is_playing())
+    assert.equal(8, transport.position())
+  end)
+end)

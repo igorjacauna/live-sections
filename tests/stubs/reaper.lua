@@ -39,6 +39,9 @@ function M.new()
     _project_length = 0,       -- valor devolvido por GetProjectLength
     _repeat = 0,
     _loop = { 0, 0 },          -- loop points { início, fim }
+    _play_state = 0,           -- bit 1 = tocando
+    _play_pos = 0,
+    _cursor = 0,
   }
 
   local api = {}
@@ -78,6 +81,12 @@ function M.new()
   function r.touch() touch() end
 
   function r.set_project_length(len) r._project_length = len end
+
+  -- Põe o transporte num estado: tocando (true/false) e posição de reprodução.
+  function r.set_play(playing, pos)
+    r._play_state = playing and 1 or 0
+    if pos then r._play_pos = pos end
+  end
 
   function r.set_toggle(cmd, state) r._toggles[cmd] = state end
   function r.set_config(name, value) r._config[name] = tostring(value) end
@@ -226,7 +235,15 @@ function M.new()
 
   -- --------------------------------------------------------------- transporte
   -- Os saltos só são registrados; o stub não simula a reprodução.
-  function api.SetEditCurPos(time, moveview, seekplay) log("SetEditCurPos", time, moveview, seekplay) end
+  function api.SetEditCurPos(time, moveview, seekplay)
+    log("SetEditCurPos", time, moveview, seekplay)
+    r._cursor = time
+  end
+  function api.GetCursorPosition() return r._cursor end
+  function api.GetPlayState() return r._play_state end
+  function api.GetPlayPosition2() return r._play_pos end
+  function api.OnPlayButton() log("OnPlayButton"); r._play_state = 1; r._play_pos = r._cursor end
+  function api.OnStopButton() log("OnStopButton"); r._play_state = 0 end
   function api.GoToRegion(proj, region_index, use_timeline_order) log("GoToRegion", proj, region_index, use_timeline_order) end
 
   -- val < 0 consulta; 0 desliga; 1 liga. Retorna o estado.
