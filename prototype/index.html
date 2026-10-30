@@ -127,7 +127,8 @@ input, select { user-select: text; }
 .stage .card { min-height: 190px; padding: 18px; }
 .card:hover { transform: translateY(-2px); border-color: color-mix(in oklab, var(--c) 65%, var(--line)); }
 .card .prog { position: absolute; inset: 0; z-index: -1; transform-origin: left center; transform: scaleX(var(--p, 0)); background: color-mix(in oklab, var(--c) 38%, transparent); opacity: 0; transition: opacity .3s; }
-.card.playing .prog { opacity: 1; }
+.card.playing .prog, .card.looping .prog { opacity: 1; }
+.card.looping .prog { background: color-mix(in oklab, var(--loop) 30%, transparent); }
 .card.playing { border-color: var(--c); box-shadow: 0 0 0 1px var(--c), 0 18px 40px -20px var(--c); }
 .card.cursor { border-color: color-mix(in oklab, var(--text) 45%, var(--line)); }
 .card.looping { border-color: var(--loop); box-shadow: 0 0 0 1px var(--loop), 0 18px 40px -20px var(--loop); }
