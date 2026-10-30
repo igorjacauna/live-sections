@@ -89,9 +89,9 @@ local function limit(next_song) return next_song and next_song.start_pos or math
 
 -- ------------------------------------------------------------------ contagem de batidas
 --
--- As contas usam a lista de marcadores, não o TimeMap: dentro da operação o
--- REAPER continua devolvendo o mapa de antes das mudanças, mesmo com
--- UpdateTimeline (spike 06).
+-- As contas usam a lista de marcadores, não o TimeMap: assim não dependem de
+-- quando o REAPER recalcula o mapa no meio da operação e podem ser testadas
+-- fora dele.
 --
 -- Grade = { time, beat (semínimas desde a última linha de compasso),
 --           bar (semínimas por compasso), bpm }

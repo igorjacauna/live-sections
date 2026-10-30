@@ -119,7 +119,7 @@ describe("tempo_align", function()
       assert.same({ 0, 0 }, { markers()[3][3], markers()[3][4] })
     end)
 
-    it("não lê o TimeMap: o REAPER devolve o mapa antigo durante a operação", function()
+    it("não lê o TimeMap no meio da operação", function()
       r.SetTempoTimeSigMarker(0, -1, 100, -1, -1, 130, 0, 0, false)
       r.SetTempoTimeSigMarker(0, -1, 150, -1, -1, 140, 7, 8, false)
       r.calls = {}
