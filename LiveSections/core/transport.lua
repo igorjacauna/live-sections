@@ -93,7 +93,7 @@ end
 
 -- Salto feito pelo script (modos batida e imediato). Com o smooth seek ligado
 -- o seek esperaria o compasso, então ele é desligado só durante o seek.
--- A validar no REAPER: se o seek ainda esperar, religar no ciclo seguinte.
+-- Validado no spike 05: o salto sai na hora e o smooth seek volta ligado.
 function M.jump_now(pos)
   local smooth = reaper.GetToggleCommandState(M.SMOOTH_SEEK) == 1
   if smooth then reaper.Main_OnCommand(M.SMOOTH_SEEK, 0) end
