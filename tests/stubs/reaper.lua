@@ -400,6 +400,7 @@ function M.new()
   function api.MB(msg, title, kind) log("MB", msg, title, kind); return 1 end
   function api.defer(fn) log("defer", fn) end
   function api.atexit(fn) log("atexit", fn) end
+  function api.UpdateTimeline() log("UpdateTimeline") end
   function api.Undo_BeginBlock() log("Undo_BeginBlock") end
   function api.Undo_EndBlock(desc, flags) log("Undo_EndBlock", desc, flags) end
 

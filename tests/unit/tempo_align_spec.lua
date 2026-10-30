@@ -95,6 +95,24 @@ describe("tempo_align", function()
       assert.same({ 1, 2, -1 }, { beats.info.C_BEATATTACHMODE, pos_only.info.C_BEATATTACHMODE, default.info.C_BEATATTACHMODE })
     end)
 
+    it("atualiza o mapa de tempo depois de cada mudança, antes da próxima conta", function()
+      r.SetTempoTimeSigMarker(0, -1, 100, -1, -1, 130, 0, 0, false)
+      r.SetTempoTimeSigMarker(0, -1, 150, -1, -1, 140, 7, 8, false)
+      r.calls = {}
+      ta.set_downbeat(song_a, song_b, 1.2, 96)
+      local seq = {}
+      for _, c in ipairs(r.calls) do
+        if c.name == "SetTempoTimeSigMarker" or c.name == "DeleteTempoTimeSigMarker" or c.name == "UpdateTimeline" then
+          seq[#seq + 1] = c.name
+        end
+      end
+      for i, name in ipairs(seq) do
+        if name ~= "UpdateTimeline" and seq[i + 1] ~= "UpdateTimeline" and seq[i + 1] ~= "DeleteTempoTimeSigMarker" then
+          error("mudança sem UpdateTimeline em seguida: " .. table.concat(seq, ", "))
+        end
+      end
+    end)
+
     it("a última música não cria marcador depois dela", function()
       ta.set_downbeat(song_b, nil, 101.5, 128)
       assert.equal(2, #markers())

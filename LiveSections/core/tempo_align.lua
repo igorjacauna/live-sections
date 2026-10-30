@@ -66,13 +66,22 @@ local function tempo_markers_between(a, b)
   return out
 end
 
+-- O REAPER só recalcula o mapa de tempo (TimeMap*) depois de UpdateTimeline:
+-- sem isso, a entrada seguinte era calculada sobre o mapa antigo (spike 06).
+local function delete_tempo(idx)
+  reaper.DeleteTempoTimeSigMarker(PROJ, idx)
+  reaper.UpdateTimeline()
+end
+
 local function delete_tempo_from(a)
   local list = tempo_markers_between(a, math.huge)
   for i = #list, 1, -1 do reaper.DeleteTempoTimeSigMarker(PROJ, list[i].idx) end
+  reaper.UpdateTimeline()
 end
 
 local function add_tempo(time, bpm, num, denom)
   reaper.SetTempoTimeSigMarker(PROJ, -1, time, -1, -1, bpm, num or 0, denom or 0, false)
+  reaper.UpdateTimeline()
 end
 
 -- Compasso 1 já marcado na música: o primeiro marcador com fórmula de compasso.
@@ -146,8 +155,7 @@ local function rebuild_after(later, after_time)
   for _, m in ipairs(later) do
     if m.num > 0 then
       if last and last.num == 0 and last.time > after_time + EPS then
-        local idx = tempo_markers_between(last.time, last.time + 2 * EPS)[1].idx
-        reaper.DeleteTempoTimeSigMarker(PROJ, idx)
+        delete_tempo(tempo_markers_between(last.time, last.time + 2 * EPS)[1].idx)
         add_lead_in(last.time, m.time, m.bpm)
       end
     end
