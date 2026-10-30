@@ -136,9 +136,26 @@ local function place_downbeat(song, next_song, pos, bpm)
   return num, denom
 end
 
+-- Itens com timebase de batidas próprio ignoram o do projeto e andariam com a
+-- mudança de tempo (spike 06). Ficam em tempo durante a operação e depois
+-- voltam ao modo original, sem sair do lugar.
+local function with_items_locked(fn)
+  local changed = {}
+  for i = 0, reaper.CountMediaItems(PROJ) - 1 do
+    local it = reaper.GetMediaItem(PROJ, i)
+    local mode = reaper.GetMediaItemInfo_Value(it, "C_BEATATTACHMODE")
+    if mode == 1 or mode == 2 then
+      changed[#changed + 1] = { it, mode }
+      reaper.SetMediaItemInfo_Value(it, "C_BEATATTACHMODE", 0)
+    end
+  end
+  fn()
+  for _, c in ipairs(changed) do reaper.SetMediaItemInfo_Value(c[1], "C_BEATATTACHMODE", c[2]) end
+end
+
 local function undoable(desc, fn)
   reaper.Undo_BeginBlock()
-  fn()
+  with_items_locked(fn)
   reaper.Undo_EndBlock("Live Sections: " .. desc, -1)
 end
 

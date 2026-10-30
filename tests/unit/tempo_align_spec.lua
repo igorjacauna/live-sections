@@ -78,6 +78,23 @@ describe("tempo_align", function()
       })
     end)
 
+    it("itens com timebase de batidas ficam em tempo durante a operação e voltam ao modo original", function()
+      local beats = r.add_item(70, 5, 1)
+      local pos_only = r.add_item(80, 5, 2)
+      local default = r.add_item(90, 5, -1)
+      local seen
+      local set = r.SetTempoTimeSigMarker
+      r.SetTempoTimeSigMarker = function(...)
+        seen = seen or { beats.info.C_BEATATTACHMODE, pos_only.info.C_BEATATTACHMODE, default.info.C_BEATATTACHMODE }
+        return set(...)
+      end
+
+      ta.set_downbeat(song_a, song_b, 1.2, 96)
+
+      assert.same({ 0, 0, -1 }, seen)
+      assert.same({ 1, 2, -1 }, { beats.info.C_BEATATTACHMODE, pos_only.info.C_BEATATTACHMODE, default.info.C_BEATATTACHMODE })
+    end)
+
     it("a última música não cria marcador depois dela", function()
       ta.set_downbeat(song_b, nil, 101.5, 128)
       assert.equal(2, #markers())

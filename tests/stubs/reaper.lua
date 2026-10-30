@@ -46,6 +46,7 @@ function M.new()
     -- Marcadores de tempo da API SetTempoTimeSigMarker, por tempo. São uma
     -- lista à parte: não alteram o mapa de _tempo usado pelo TimeMap2_*.
     _tempo_markers = {},       -- { time, bpm, num, denom }
+    _items = {},               -- { info = { D_POSITION, D_LENGTH, C_BEATATTACHMODE } }
   }
 
   local api = {}
@@ -84,6 +85,14 @@ function M.new()
     r._tracks[#r._tracks + 1] = t
     touch()
     return t
+  end
+
+  -- Item de mídia; beat_mode: -1 (do projeto), 0 (tempo), 1 ou 2 (batidas).
+  function r.add_item(pos, len, beat_mode)
+    local it = { info = { D_POSITION = pos, D_LENGTH = len, C_BEATATTACHMODE = beat_mode or -1 } }
+    r._items[#r._items + 1] = it
+    touch()
+    return it
   end
 
   function r.set_tempo_map(segments)
@@ -263,6 +272,17 @@ function M.new()
     local beat, measure = api.TimeMap2_timeToBeats(0, t)
     local whole = math.floor(beat + 1e-9)
     return string.format("%d.%d.%02d", measure + 1, whole + 1, math.floor((beat - whole) * 100 + 0.5))
+  end
+
+  -- ------------------------------------------------------------------ itens
+  function api.CountMediaItems(_) return #r._items end
+  function api.GetMediaItem(_, i) return r._items[i + 1] end
+  function api.GetMediaItemInfo_Value(item, key) return item.info[key] or 0 end
+  function api.SetMediaItemInfo_Value(item, key, value)
+    log("SetMediaItemInfo_Value", item, key, value)
+    item.info[key] = value
+    touch()
+    return true
   end
 
   -- ------------------------------------------------------ marcadores de tempo
