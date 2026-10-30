@@ -1,0 +1,1554 @@
+<title>Live Sections</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Manrope:wght@500;600;700;800&display=swap">
+<style>
+/* Layout: janela de palco. Barra de transporte no topo, setlist à esquerda, cards de seção no centro,
+   camadas e ações embaixo. Tema escuro único e deliberado: é o tema do app no REAPER. */
+:root {
+  color-scheme: dark;
+  --bg: #0A0D12;
+  --panel: #10151D;
+  --raise: #171E29;
+  --raise2: #1F2835;
+  --line: #222C3A;
+  --line2: #2F3B4D;
+  --text: #ECF0F6;
+  --muted: #93A0B4;
+  --faint: #5F6B7E;
+  --ink: #0A0D12;
+  --queue: #FFB547;
+  --loop: #5CD6E8;
+  --learn: #E28CFF;
+  --ok: #4BDB9C;
+  --danger: #FF6B6B;
+  --f-ui: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r1: 8px;
+  --r2: 12px;
+  --r3: 16px;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font-family: var(--f-ui); font-size: 14px; line-height: 1.4; -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .45; }
+:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+.eyebrow, .lbl { font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.faint { color: var(--faint); }
+.i { width: 1em; height: 1em; flex: none; fill: currentColor; }
+.i.s { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+.app { display: flex; flex-direction: column; gap: 12px; max-width: 1480px; margin: 0 auto; min-height: 100%;
+  padding-block: 12px 20px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  user-select: none; -webkit-user-select: none; }
+input, select { user-select: text; }
+
+/* ---------- botões e controles ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 14px; border-radius: 10px;
+  border: 1px solid var(--line2); background: var(--raise); font-weight: 700; font-size: 13px; transition: background .15s, border-color .15s, transform .1s; white-space: nowrap; }
+.btn:hover:not(:disabled) { background: var(--raise2); border-color: color-mix(in oklab, var(--text) 25%, var(--line2)); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn.sm { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
+.btn.ghost { background: transparent; }
+.btn.primary { background: var(--text); color: var(--ink); border-color: var(--text); }
+.btn.primary:hover:not(:disabled) { background: #fff; }
+.btn.danger { border-color: color-mix(in oklab, var(--danger) 50%, var(--line2)); color: var(--danger); }
+.btn[aria-pressed="true"] { background: var(--text); color: var(--ink); border-color: var(--text); }
+
+.seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 11px; background: var(--panel); border: 1px solid var(--line); }
+.seg button { border: 0; background: transparent; padding: 7px 11px; border-radius: 8px; font-weight: 700; font-size: 12.5px; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--raise2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line2); }
+.badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--queue); color: var(--ink); font: 700 11px var(--f-num); }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r3); }
+.ph { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+/* ---------- barra superior ---------- */
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 12px; }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 15px; letter-spacing: -.01em; margin-right: 4px; }
+.brand svg { width: 26px; height: 26px; }
+.readout { display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.ro { display: flex; flex-direction: column; padding: 3px 12px; min-width: 64px; }
+.ro .lbl { font-size: 9.5px; }
+.ro b { font: 700 17px var(--f-num); letter-spacing: -.02em; }
+.ro.big b { font-size: 21px; min-width: 4.2ch; }
+.ro + .ro { border-left: 1px solid var(--line); }
+.quant { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.quant .qlabel { border: 0; background: none; padding: 4px; }
+.quant .seg { overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+.topright { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); font-size: 12px; font-weight: 700; }
+.pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ok) 25%, transparent); }
+.pill.off { border-color: color-mix(in oklab, var(--danger) 60%, var(--line)); color: var(--danger); }
+.pill.off .dot { background: transparent; border: 2px solid var(--danger); box-shadow: none; }
+.pill small { color: var(--muted); font-weight: 600; }
+.banner { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--r2); border: 1px solid var(--danger); background: color-mix(in oklab, var(--danger) 12%, var(--panel)); font-weight: 600; }
+.banner .i { color: var(--danger); width: 18px; height: 18px; }
+
+/* ---------- performance ---------- */
+.perf { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 12px; align-items: start; }
+.perf.stage { grid-template-columns: minmax(0, 1fr); }
+.pmain { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+.setlist { padding: 14px 10px 10px; display: flex; flex-direction: column; gap: 8px; position: sticky; top: env(safe-area-inset-top, 0px); }
+.setlist .ph { padding: 0 6px; }
+.setlist ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.song { width: 100%; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 2px 10px; align-items: start; padding: 10px; border-radius: 12px; border: 1px solid transparent; background: transparent; text-align: left; }
+.song:hover { background: var(--raise); }
+.song .sn { grid-row: span 3; display: grid; place-items: center; height: 26px; border-radius: 8px; background: var(--raise2); font: 700 12px var(--f-num); color: var(--muted); }
+.song .sname { font-weight: 800; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.song .ssub { font-size: 11.5px; color: var(--muted); }
+.song .sst { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); min-height: 16px; }
+.song.current { background: var(--raise); border-color: var(--line2); }
+.song.current .sn { background: var(--text); color: var(--ink); }
+.song.current .sst { color: var(--text); }
+.song.queued { border-color: var(--queue); border-style: dashed; animation: qglow 1s ease-in-out infinite; }
+.song.queued .sst { color: var(--queue); }
+.song .sx { margin-left: auto; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; background: color-mix(in oklab, var(--queue) 22%, transparent); color: var(--queue); }
+
+.songhead { display: flex; align-items: end; justify-content: space-between; gap: 8px 20px; flex-wrap: wrap; padding: 4px 2px 0; }
+.songhead h1 { margin: 2px 0 0; font-size: clamp(26px, 3.2vw, 38px); line-height: 1.05; font-weight: 800; letter-spacing: -.025em; text-wrap: balance; }
+.songmeta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.tag { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; background: var(--raise); border: 1px solid var(--line); font-size: 12px; font-weight: 700; color: var(--muted); }
+.tag.now { color: var(--text); }
+.tag .sw { width: 9px; height: 9px; border-radius: 3px; background: var(--c, var(--faint)); }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
+.stage .cards { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.card { --c: #6C9AB0; position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; gap: 10px; min-height: 140px; padding: 14px;
+  text-align: left; border-radius: var(--r3); border: 1px solid color-mix(in oklab, var(--c) 30%, var(--line));
+  background: linear-gradient(160deg, color-mix(in oklab, var(--c) 22%, var(--panel)), color-mix(in oklab, var(--c) 7%, var(--panel)));
+  transition: transform .18s ease, border-color .2s, box-shadow .25s; }
+.stage .card { min-height: 190px; padding: 18px; }
+.card:hover { transform: translateY(-2px); border-color: color-mix(in oklab, var(--c) 65%, var(--line)); }
+.card .prog { position: absolute; inset: 0; z-index: -1; transform-origin: left center; transform: scaleX(var(--p, 0)); background: color-mix(in oklab, var(--c) 38%, transparent); opacity: 0; transition: opacity .3s; }
+.card.playing .prog { opacity: 1; }
+.card.playing { border-color: var(--c); box-shadow: 0 0 0 1px var(--c), 0 18px 40px -20px var(--c); }
+.card.cursor { border-color: color-mix(in oklab, var(--text) 45%, var(--line)); }
+.card.looping { border-color: var(--loop); box-shadow: 0 0 0 1px var(--loop), 0 18px 40px -20px var(--loop); }
+.card.queued { border-color: var(--queue); border-style: dashed; animation: qglow 1s ease-in-out infinite; }
+.card .top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
+.slot { display: grid; place-items: center; min-width: 28px; height: 28px; padding: 0 7px; border-radius: 8px; background: var(--c); color: var(--ink); font: 700 13px var(--f-num); }
+.card .len { font-size: 12px; color: var(--muted); }
+.card .name { margin-top: auto; font-size: 20px; font-weight: 800; letter-spacing: -.015em; line-height: 1.1; overflow-wrap: anywhere; }
+.stage .card .name { font-size: clamp(24px, 2.6vw, 34px); }
+.st { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); min-height: 16px; }
+.card.playing .st, .card.cursor .st { color: var(--text); }
+.card.queued .st { color: var(--queue); }
+.card.looping .st { color: var(--loop); }
+.qbox { display: none; align-items: center; gap: 8px; }
+.card.queued .qbox { display: flex; }
+.card.queued .len { display: none; }
+.cd { display: flex; align-items: baseline; gap: 3px; color: var(--queue); font-weight: 700; font-size: 22px; line-height: 1; }
+.cd small { font: 700 10px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; }
+.xbtn { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: color-mix(in oklab, var(--queue) 20%, var(--panel)); color: var(--queue); border: 1px solid color-mix(in oklab, var(--queue) 50%, transparent); }
+.xbtn:hover { background: var(--queue); color: var(--ink); }
+@keyframes qglow { 0%, 100% { box-shadow: 0 0 0 1px var(--queue), 0 0 0 0 color-mix(in oklab, var(--queue) 45%, transparent); } 50% { box-shadow: 0 0 0 1px var(--queue), 0 0 0 9px transparent; } }
+.empty { padding: 36px 24px; text-align: center; border: 1px dashed var(--line2); border-radius: var(--r3); color: var(--muted); display: grid; gap: 12px; justify-items: center; }
+.empty b { color: var(--text); font-size: 16px; }
+
+.enter { animation: rise .42s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+
+/* camadas */
+.layers { padding: 14px; display: grid; gap: 12px; }
+.faders { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
+.layer { flex: 0 0 96px; display: grid; justify-items: center; gap: 8px; padding: 10px 8px; border-radius: 12px; background: var(--raise); border: 1px solid var(--line); transition: opacity .2s; }
+.layer.dim { opacity: .45; }
+.layer .lname { font-weight: 800; font-size: 12.5px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ftrack { --v: .7; --hw: .7; position: relative; width: 40px; height: 132px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); cursor: ns-resize; touch-action: none; }
+.ffill { position: absolute; left: 6px; right: 6px; bottom: 6px; height: calc(var(--v) * (100% - 26px) + 7px); border-radius: 6px; background: linear-gradient(to top, color-mix(in oklab, var(--text) 30%, var(--raise2)), color-mix(in oklab, var(--text) 70%, var(--raise2))); }
+.layer.muted .ffill { background: repeating-linear-gradient(135deg, var(--line2) 0 4px, var(--raise2) 4px 8px); }
+.fcap { position: absolute; left: -4px; right: -4px; height: 14px; bottom: calc(var(--v) * (100% - 26px) + 6px); border-radius: 5px; background: var(--text); box-shadow: 0 2px 8px rgba(0, 0, 0, .5); }
+.fcap::after { content: ""; position: absolute; left: 8px; right: 8px; top: 6px; height: 2px; background: var(--ink); border-radius: 1px; }
+.fghost { display: none; position: absolute; left: -8px; right: -8px; height: 14px; bottom: calc(var(--hw) * (100% - 26px) + 6px); border-radius: 5px; border: 2px dashed var(--queue); background: color-mix(in oklab, var(--queue) 15%, transparent); cursor: grab; touch-action: none; }
+.ftrack.tko .fghost { display: block; }
+.fval { font-size: 11.5px; color: var(--muted); }
+.tko-hint { font-size: 11px; font-weight: 800; color: var(--queue); text-align: center; line-height: 1.2; }
+.ms { display: flex; gap: 4px; }
+.ms button { width: 32px; height: 26px; border-radius: 7px; border: 1px solid var(--line2); background: var(--panel); font: 700 12px var(--f-num); color: var(--muted); }
+.ms button[aria-pressed="true"] { background: var(--text); color: var(--ink); border-color: var(--text); }
+.nolayers { padding: 12px 14px; border-radius: var(--r2); border: 1px dashed var(--line2); color: var(--muted); font-size: 13px; }
+
+/* ações */
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px; }
+.actions .btn.big { padding: 12px 16px; font-size: 14px; border-radius: 12px; }
+.actions .sp { flex: 1 1 0; }
+.btn.play { min-width: 112px; }
+.btn.play.on { background: var(--text); color: var(--ink); border-color: var(--text); }
+.btn.loop[aria-pressed="true"] { background: var(--loop); border-color: var(--loop); color: var(--ink); }
+.actions .grp { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* modo palco */
+.stagestrip { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1fr) auto; gap: 8px; padding: 8px; align-items: stretch; }
+.mini { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--raise); text-align: left; min-width: 0; }
+.mini b { font-size: 15px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini.now { background: var(--text); color: var(--ink); border-color: var(--text); }
+.mini.now .eyebrow { color: color-mix(in oklab, var(--ink) 65%, var(--text)); }
+.mini.now b { font-size: 19px; }
+.mini.nx { text-align: right; align-items: flex-end; }
+.mini.queued { border: 1px dashed var(--queue); animation: qglow 1s ease-in-out infinite; }
+.mini:disabled { opacity: .35; }
+.overlay { position: fixed; inset: 0; z-index: 40; display: grid; place-items: start center; padding: max(56px, env(safe-area-inset-top, 0px)) 16px 16px; background: rgba(5, 7, 10, .72); backdrop-filter: blur(6px); }
+.sheet { width: min(520px, 100%); padding: 16px; display: grid; gap: 10px; animation: rise .3s cubic-bezier(.2, .8, .2, 1) both; }
+.sheet ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+
+/* ---------- editar ---------- */
+.edit { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 12px; align-items: start; }
+.emain { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.etool { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 8px; }
+.etool .seg { overflow-x: auto; max-width: 100%; }
+.strippanel { padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.strippanel h2 { margin: 2px 0 0; font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+.hint { margin: 0; color: var(--muted); font-size: 13px; }
+.strip-scroll { overflow-x: auto; padding-bottom: 4px; }
+.strip { position: relative; min-width: 680px; padding-top: 4px; }
+.ruler { position: relative; height: 26px; border-bottom: 1px solid var(--line); cursor: text; }
+.tk { position: absolute; bottom: 0; width: 1px; height: 5px; background: var(--line2); }
+.tk.maj { height: 11px; background: var(--faint); }
+.tk b { position: absolute; bottom: 12px; left: 3px; font: 500 10.5px var(--f-num); color: var(--muted); }
+.lane { position: relative; height: 92px; margin-top: 8px; border-radius: 12px; border: 1px dashed var(--line2); background: repeating-linear-gradient(135deg, var(--panel) 0 7px, var(--raise) 7px 8px); touch-action: none; }
+.gap { position: absolute; top: 0; bottom: 0; display: grid; place-items: center; text-align: center; color: var(--faint); font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; pointer-events: none; overflow: hidden; }
+.sec { --c: #6C9AB0; position: absolute; top: 6px; bottom: 6px; display: flex; flex-direction: column; justify-content: space-between; padding: 8px 10px; border-radius: 10px; overflow: hidden; cursor: pointer;
+  border: 1px solid color-mix(in oklab, var(--c) 60%, transparent); background: linear-gradient(170deg, color-mix(in oklab, var(--c) 42%, var(--panel)), color-mix(in oklab, var(--c) 20%, var(--panel))); transition: box-shadow .15s; }
+.sec:hover { box-shadow: inset 0 0 0 1px var(--c); }
+.sec.sel { box-shadow: 0 0 0 2px var(--text); z-index: 1; }
+.sec .sname { font-weight: 800; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sec .slen { font-size: 11px; color: color-mix(in oklab, var(--text) 70%, var(--c)); white-space: nowrap; }
+.h { position: absolute; top: 0; bottom: 0; width: 12px; cursor: ew-resize; z-index: 2; }
+.h.L { left: -2px; }
+.h.R { right: -2px; }
+.h::after { content: ""; position: absolute; top: 28%; bottom: 28%; left: 5px; width: 2px; border-radius: 2px; background: var(--text); opacity: 0; transition: opacity .15s; }
+.sec:hover .h::after, .h.drag::after { opacity: .8; }
+.tool-split .h, .tool-draw .h { display: none; }
+.tool-split .sec, .tool-draw .lane, .tool-draw .sec { cursor: crosshair; }
+.playhead { position: absolute; top: 4px; bottom: 0; width: 2px; margin-left: -1px; background: var(--text); pointer-events: none; z-index: 3; }
+.playhead::before { content: ""; position: absolute; top: 0; left: -5px; border: 6px solid transparent; border-top: 8px solid var(--text); border-bottom: 0; }
+.guide { position: absolute; top: 30px; bottom: 0; width: 0; border-left: 2px dashed var(--queue); pointer-events: none; z-index: 4; }
+.guide span { position: absolute; top: -2px; left: 6px; font: 700 10.5px var(--f-num); color: var(--queue); white-space: nowrap; }
+.drawprev { position: absolute; top: 44px; height: 80px; border: 2px dashed var(--text); border-radius: 10px; background: color-mix(in oklab, var(--text) 10%, transparent); pointer-events: none; z-index: 4; display: grid; place-items: center; font: 700 12px var(--f-num); }
+
+.egrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 12px; align-items: start; }
+.insp, .tempo { padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.field { display: grid; gap: 6px; }
+.field > span { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.field input, .field select { width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line2); background: var(--bg); font-weight: 600; }
+.field input:focus, .field select:focus { outline: none; border-color: var(--text); }
+.row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+.row > .field { flex: 1 1 120px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { --c: #888; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px 6px 8px; border-radius: 999px; border: 1px solid color-mix(in oklab, var(--c) 45%, var(--line2)); background: color-mix(in oklab, var(--c) 14%, var(--panel)); font-weight: 700; font-size: 12.5px; }
+.chip::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
+.chip:hover { background: color-mix(in oklab, var(--c) 30%, var(--panel)); }
+.insp-empty p { margin: 6px 0 0; color: var(--muted); }
+
+.tapwrap { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.tap { width: 112px; height: 112px; flex: none; border-radius: 50%; border: 2px solid var(--line2); background: radial-gradient(circle at 50% 35%, var(--raise2), var(--panel)); display: grid; place-content: center; gap: 2px; text-align: center; transition: transform .08s, border-color .2s; }
+.tap b { font-size: 22px; font-weight: 800; letter-spacing: .06em; }
+.tap small { font-size: 11px; color: var(--muted); font-weight: 600; max-width: 84px; }
+.tap.hit { transform: scale(.94); border-color: var(--text); }
+.tapres { display: grid; gap: 8px; flex: 1 1 160px; }
+.tapres .bigv { font: 700 34px var(--f-num); letter-spacing: -.03em; line-height: 1; }
+.fine { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.fine .fr { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fine .fr .lbl { width: 108px; }
+.fine .fr b { font: 700 15px var(--f-num); min-width: 86px; }
+.mdot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid currentColor; }
+.mdot.on { background: currentColor; }
+.note { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+.eside { display: grid; gap: 12px; }
+.warnp, .kcard { padding: 16px; display: grid; gap: 10px; }
+.warns { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.warn { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 4px 10px; padding: 12px; border-radius: 12px; background: var(--raise); border: 1px solid var(--line); }
+.warn .wi { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font: 800 12px var(--f-num); }
+.warn.error .wi { background: var(--danger); color: var(--ink); }
+.warn.warning .wi { background: var(--queue); color: var(--ink); }
+.warn.info .wi { background: var(--raise2); color: var(--text); border: 1px solid var(--line2); }
+.warn b { font-size: 13.5px; }
+.warn p { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
+.warn .wmeta { font-size: 11px; color: var(--faint); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.warn .btn { grid-column: 2; justify-self: start; margin-top: 4px; }
+.count { font: 700 12px var(--f-num); padding: 2px 8px; border-radius: 6px; background: var(--raise2); }
+.kline { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.kline:last-of-type { border-bottom: 0; }
+.kline span { color: var(--muted); }
+.kline b { text-align: right; }
+
+/* ---------- configurações ---------- */
+.settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 12px; align-items: start; }
+.scard { padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.scard h2 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+.scard.wide { grid-column: 1 / -1; }
+.modes2 { display: grid; gap: 8px; }
+.mopt { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 4px 10px; padding: 12px; border-radius: 12px; border: 1px solid var(--line2); background: var(--raise); cursor: pointer; }
+.mopt input { margin: 3px 0 0; accent-color: var(--text); }
+.mopt b { font-size: 13.5px; }
+.mopt p { grid-column: 2; margin: 0; font-size: 12.5px; color: var(--muted); }
+.mopt.on { border-color: var(--text); }
+.rec { display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 6px; background: var(--ok); color: var(--ink); font-size: 10.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; vertical-align: 1px; }
+.leds { display: grid; gap: 6px; }
+.led { display: grid; grid-template-columns: 30px minmax(0, 1fr) 76px auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--raise); }
+.led .pad { width: 30px; height: 30px; border-radius: 7px; background: var(--bg); border: 1px solid var(--line2); position: relative; overflow: hidden; }
+.led .pad i { position: absolute; inset: 0; background: var(--ok); }
+.led .pad.blink i { animation: blink .5s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.led input { width: 100%; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line2); background: var(--bg); font: 600 13px var(--f-num); }
+.led span { font-weight: 700; font-size: 13px; }
+.led small { display: block; color: var(--muted); font-weight: 600; font-size: 11.5px; }
+.slider { display: flex; align-items: center; gap: 12px; }
+.slider input[type=range] { flex: 1; accent-color: var(--text); }
+.slider b { font: 700 14px var(--f-num); min-width: 64px; text-align: right; }
+.okline { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: color-mix(in oklab, var(--ok) 10%, var(--raise)); border: 1px solid color-mix(in oklab, var(--ok) 35%, var(--line)); font-weight: 600; font-size: 13px; }
+.okline .i { color: var(--ok); width: 16px; height: 16px; }
+.mtable-wrap { overflow-x: auto; }
+.mtable { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 560px; }
+.mtable th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.mtable td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
+.mtable td.num { font-size: 12.5px; }
+.mtable tr:last-child td { border-bottom: 0; }
+
+/* ---------- MIDI learn ---------- */
+[data-map] { position: relative; }
+body.learn-global [data-map] { outline: 1.5px dashed color-mix(in oklab, var(--learn) 75%, transparent); outline-offset: 2px; }
+body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--learn); }
+.learning { outline: 2px solid var(--learn) !important; outline-offset: 3px; animation: lpulse .9s ease-in-out infinite !important; }
+@keyframes lpulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--learn) 60%, transparent); } 50% { box-shadow: 0 0 0 10px transparent; } }
+.learntip { position: fixed; z-index: 60; transform: translate(-50%, -100%); padding: 7px 12px; border-radius: 9px; background: var(--learn); color: var(--ink); font-weight: 800; font-size: 12.5px; white-space: nowrap; pointer-events: none; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
+.learntip::after { content: ""; position: absolute; left: 50%; bottom: -5px; margin-left: -5px; border: 5px solid transparent; border-top-color: var(--learn); border-bottom: 0; }
+[data-map].flash::after { content: ""; position: absolute; inset: -3px; border-radius: 14px; border: 2px solid var(--text); pointer-events: none; animation: ring .45s ease-out forwards; }
+@keyframes ring { from { opacity: 1; } to { opacity: 0; transform: scale(1.04); } }
+
+.ctx { position: fixed; z-index: 70; min-width: 230px; padding: 6px; border-radius: 12px; background: var(--raise); border: 1px solid var(--line2); box-shadow: 0 18px 50px rgba(0, 0, 0, .55); animation: pop .12s ease-out both; }
+@keyframes pop { from { opacity: 0; transform: scale(.97); } }
+.ctx-h { padding: 8px 10px 6px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ctx button { display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 10px; border: 0; border-radius: 8px; background: none; text-align: left; font-weight: 700; font-size: 13px; }
+.ctx button:hover:not(:disabled) { background: var(--raise2); }
+.ctx button .k { margin-left: auto; font: 500 11px var(--f-num); color: var(--faint); }
+.ctx .sep { height: 1px; background: var(--line); margin: 4px 6px; }
+.ctx-info { margin: 4px 6px 6px; padding: 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); font-size: 12.5px; }
+.ctx-info b { font-family: var(--f-num); }
+
+.toasts { position: fixed; z-index: 80; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; justify-items: end; max-width: min(420px, calc(100vw - 32px)); }
+.toast { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 12px; background: var(--text); color: var(--ink); font-weight: 700; font-size: 13px; box-shadow: 0 12px 34px rgba(0, 0, 0, .5); animation: rise .25s ease-out both; }
+.toast .btn { background: var(--ink); color: var(--text); border-color: var(--ink); }
+.toast.out { opacity: 0; transform: translateY(6px); transition: .25s; }
+
+.modal { width: min(620px, 100%); padding: 20px; display: grid; gap: 16px; animation: rise .3s cubic-bezier(.2, .8, .2, 1) both; max-height: calc(100vh - 80px); overflow: auto; }
+.modal h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: st; }
+.steps > li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px 12px; counter-increment: st; }
+.steps > li::before { content: counter(st); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--raise2); font: 700 13px var(--f-num); }
+.steps > li > div { display: grid; gap: 8px; }
+.outs { display: grid; gap: 6px; }
+.out { display: grid; grid-template-columns: 22px 64px minmax(0, 1fr); gap: 10px; align-items: center; }
+.out input[type=text] { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line2); background: var(--bg); font-weight: 600; }
+.out input[type=checkbox] { accent-color: var(--text); width: 16px; height: 16px; }
+.out .num { font-size: 12px; color: var(--muted); }
+
+.foot { color: var(--faint); font-size: 12px; text-align: center; padding-top: 4px; }
+.foot kbd { font: 600 11px var(--f-num); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--line2); color: var(--muted); }
+
+@media (max-width: 1080px) {
+  .edit { grid-template-columns: minmax(0, 1fr); }
+  .egrid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 820px) {
+  .perf { grid-template-columns: minmax(0, 1fr); }
+  .setlist { position: static; }
+  .setlist ol { flex-direction: row; overflow-x: auto; }
+  .setlist li { flex: 0 0 210px; }
+  .stagestrip { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .stagestrip .mini.now { grid-column: 1 / -1; grid-row: 1; }
+  .topright { margin-left: 0; }
+}
+@media (max-width: 480px) {
+  .cards, .stage .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .card { min-height: 118px; padding: 12px; }
+  .card .name { font-size: 17px; }
+  .readout { width: 100%; }
+  .ro { flex: 1; min-width: 0; padding: 3px 8px; }
+  .actions .btn.big { flex: 1 1 auto; }
+  .led { grid-template-columns: 30px minmax(0, 1fr) 64px; }
+  .led .btn { grid-column: 2 / -1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+}
+</style>
+
+<div class="app">
+  <header class="topbar panel" id="top"></header>
+  <div class="banner" id="banner" hidden></div>
+  <main id="view"></main>
+  <footer class="foot">Protótipo com dados de exemplo. <kbd>1</kbd>–<kbd>8</kbd> simulam os pads · <kbd>Espaço</kbd> play/stop · <kbd>L</kbd> loop · <kbd>Esc</kbd> cancela · botão direito em qualquer controle abre o MIDI learn</footer>
+</div>
+<div class="ctx" id="ctx" hidden></div>
+<div id="modal"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="learntip" id="learntip" hidden>Aguardando MIDI…</div>
+
+<script>
+(() => {
+  // ------------------------------------------------------------------ ícones
+  const ICON = {
+    play: '<path d="M4.5 2.8v10.4L13 8z"/>',
+    stop: '<rect x="3.5" y="3.5" width="9" height="9" rx="1.5"/>',
+    loop: '<path class="s" d="M2.8 7.5a5 5 0 0 1 8.7-3L13 6M13 2.5V6H9.5M13.2 8.5a5 5 0 0 1-8.7 3L3 10M3 13.5V10h3.5"/>',
+    clock: '<circle class="s" cx="8" cy="8" r="5.6"/><path class="s" d="M8 5v3.3l2.1 1.3"/>',
+    x: '<path class="s" d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>',
+    prevSong: '<path d="M3.5 3h1.6v10H3.5zM13 3.2v9.6L5.8 8z"/>',
+    nextSong: '<path d="M10.9 3h1.6v10h-1.6zM3 3.2v9.6L10.2 8z"/>',
+    left: '<path class="s" d="M10 3.5L5.5 8l4.5 4.5"/>',
+    right: '<path class="s" d="M6 3.5L10.5 8 6 12.5"/>',
+    warn: '<path class="s" d="M8 2.2l6.2 11H1.8zM8 6.5v3.2M8 11.4v.1"/>',
+    check: '<path class="s" d="M3 8.5l3.2 3L13 4.5"/>',
+    stage: '<rect class="s" x="2" y="3" width="12" height="10" rx="2"/><path class="s" d="M2 6.5h12"/>',
+    list: '<path class="s" d="M5.5 4h8M5.5 8h8M5.5 12h8M2.5 4h.1M2.5 8h.1M2.5 12h.1"/>',
+    plus: '<path class="s" d="M8 3v10M3 8h10"/>',
+    undo: '<path class="s" d="M5 3.5L2.5 6 5 8.5M2.7 6H10a3.5 3.5 0 0 1 0 7H6"/>',
+    learn: '<circle class="s" cx="8" cy="8" r="5.6"/><circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none"/>',
+    cursor: '<path class="s" d="M8 2v12"/>',
+  };
+  const ic = (n) => {
+    const body = ICON[n];
+    const stroke = body.includes('class="s"');
+    return `<svg class="i${stroke ? ' s' : ''}" viewBox="0 0 16 16" aria-hidden="true">${body.replace(/ class="s"/g, '')}</svg>`;
+  };
+
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const ptNum = (v, d = 2) => v.toLocaleString('pt-BR', { minimumFractionDigits: v % 1 ? d : 0, maximumFractionDigits: d });
+
+  // ------------------------------------------------------------------ dados de exemplo
+  const CHIPS = [
+    { name: 'Intro', color: '#5B8DEF' }, { name: 'Verso', color: '#2BB39A' }, { name: 'Pré', color: '#E0A43A' },
+    { name: 'Refrão', color: '#E5566B' }, { name: 'Ponte', color: '#9B6BE8' }, { name: 'Solo', color: '#E8C547' },
+    { name: 'Drop', color: '#E3559F' }, { name: 'Outro', color: '#7A8AA6' },
+  ];
+  const DEFAULT_COLOR = '#6C9AB0';
+  const baseName = (n) => n.replace(/\s+\d+$/, '');
+  const chipColor = (n) => (CHIPS.find((c) => c.name === baseName(n)) || { color: DEFAULT_COLOR }).color;
+  const S = (name, start, len) => ({ name, start, len, color: chipColor(name) });
+  const L = (name, vol) => ({ name, vol, mute: false, solo: false });
+
+  let songs = [
+    { name: 'Rua Augusta', bpm: 96, sig: [4, 4], bars: 56, bar1: 0,
+      kontakt: { track: 'Kontakt 7 · Rua Augusta' },
+      layers: [L('Piano', .78), L('Pad', .55), L('Cordas', .62), L('Synth', .4)],
+      sections: [S('Intro', 0, 4), S('Verso', 4, 8), S('Pré', 12, 4), S('Refrão', 16, 8), S('Verso 2', 24, 8), S('Refrão 2', 32, 8), S('Ponte', 40, 4), S('Refrão 3', 44, 8), S('Outro', 52, 4)] },
+    { name: 'Maré Alta', bpm: 128, sig: [4, 4], bars: 64, bar1: 0,
+      kontakt: { track: 'Kontakt 7 · Maré Alta' },
+      layers: [L('Rhodes', .7), L('Baixo synth', .82), L('Pluck', .5)],
+      sections: [S('Intro', 0, 8), S('Verso', 8, 16), S('Refrão', 24, 8), S('Drop', 36, 8), S('Ponte', 44, 8), S('Refrão 2', 52, 8), S('Outro', 60, 4)] },
+    { name: 'Sete Oitavos', bpm: 140, sig: [7, 8], bars: 40, bar1: 0, kontakt: null, layers: [],
+      sections: [S('Intro', 0, 4), S('Verso', 4, 8), S('Refrão', 12, 8), S('Solo', 20, 8), S('Refrão 2', 28, 8), S('Outro', 36, 4)] },
+  ];
+
+  const QUANT = [
+    { id: 'now', label: 'Imediato' }, { id: 'beat', label: 'Batida' },
+    { id: 'bar1', label: '1 comp.', bars: 1 }, { id: 'bar2', label: '2 comp.', bars: 2 },
+    { id: 'bar4', label: '4 comp.', bars: 4 }, { id: 'bar8', label: '8 comp.', bars: 8 },
+    { id: 'end', label: 'Fim da seção' },
+  ];
+
+  const PAD = 'SMC-PAD Pocket';
+  const FAD = 'Faders USB';
+  const maps = {};
+  for (let i = 1; i <= 8; i++) maps['slot:' + i] = { t: 'note', n: 35 + i, ch: 10, dev: PAD };
+  for (let i = 1; i <= 4; i++) maps['vol:' + i] = { t: 'cc', n: 19 + i, ch: 1, dev: FAD };
+  maps.loop = { t: 'cc', n: 80, ch: 10, dev: PAD };
+  maps.cancel = { t: 'cc', n: 81, ch: 10, dev: PAD };
+  maps.next = { t: 'cc', n: 82, ch: 10, dev: PAD };
+
+  const settings = { ctlPort: PAD, ctlMode: 'control', kbd: 'Keystation 61', fbOut: 'auto',
+    vel: { empty: 0, idle: 15, playing: 127, queued: 60, loop: 90 }, tol: 30, tail: 5 };
+
+  let warnings = [
+    { id: 'w1', song: 0, sev: 'warning', title: 'Início fora do compasso', detail: 'A região "Ponte" começa no compasso 41.2.', fix: 'Alinhar ao compasso 41' },
+    { id: 'w2', song: 1, sev: 'error', title: 'Sobreposição', detail: '"Drop" e "Ponte" se sobrepõem por 2 compassos (régua do REAPER).', fix: 'Cortar "Drop" no compasso 45' },
+    { id: 'w3', song: 1, sev: 'warning', title: 'Kontakt recebe todas as entradas', detail: 'A track "Kontakt 7 · Maré Alta" está em All MIDI inputs. Os pads também tocariam notas.', fix: 'Usar só o teclado' },
+    { id: 'w4', song: null, sev: 'warning', title: 'Região fora de música', detail: '"Bis" está antes do primeiro marcador SONG:.', fix: 'Remover a região' },
+  ];
+
+  // ------------------------------------------------------------------ estado
+  const T = { playing: false, song: 0, pos: 0, loop: false, loopSec: -1 };
+  let queue = null; // { kind: 'section'|'song', song, sec, jumpAt }
+  let quant = 'bar1';
+  let mode = 'perf';
+  let stage = false;
+  let setlistOpen = false;
+  let tool = 'select';
+  let selSec = null;
+  let learning = null;
+  let learnTimer = null;
+  let globalLearn = false;
+  let midiOk = true;
+  let undoStack = [];
+  let enterAnim = false;
+  const hw = [.78, .55, .62, .4];
+  let takeover = [false, false, false, false];
+  let tail = null; // { song, until }
+  const tap = { times: [], round: 'int' };
+  let metro = false;
+  let drag = null;
+  let suppressClick = false;
+
+  const cur = () => songs[T.song];
+  const bpb = (s) => s.sig[0];
+  const songBeats = (s) => s.bars * bpb(s);
+  const secAt = (s, pos) => {
+    const bar = pos / bpb(s);
+    return s.sections.findIndex((x) => bar >= x.start - 1e-9 && bar < x.start + x.len - 1e-9);
+  };
+  const qInfo = () => QUANT.find((q) => q.id === quant);
+
+  // ------------------------------------------------------------------ transporte
+  function computeJump() {
+    const s = cur(), b = bpb(s), p = T.pos, q = qInfo();
+    let j;
+    if (q.id === 'now') j = p;
+    else if (q.id === 'beat') j = Math.floor(p + 1e-6) + 1;
+    else if (q.bars) { const u = b * q.bars; j = (Math.floor(p / u + 1e-6) + 1) * u; }
+    else {
+      const i = secAt(s, p);
+      j = i >= 0 ? (s.sections[i].start + s.sections[i].len) * b : (Math.floor(p / b + 1e-6) + 1) * b;
+    }
+    return Math.min(j, songBeats(s));
+  }
+
+  function executeJump(over) {
+    const q = queue; queue = null;
+    const s2 = songs[q.song];
+    const x = s2.sections[q.sec];
+    const changed = q.song !== T.song;
+    if (changed) leaveSong(T.song);
+    T.song = q.song;
+    T.pos = (x ? x.start * bpb(s2) : 0) + over;
+    T.loop = false;
+    if (changed) enterSong();
+  }
+
+  function leaveSong(i) { if (songs[i] && songs[i].kontakt) tail = { song: i, until: performance.now() + settings.tail * 1000 }; }
+
+  function enterSong() {
+    const s = cur();
+    takeover = s.layers.map((l, i) => Math.abs((hw[i] ?? 0) - l.vol) > .02);
+    selSec = null;
+    enterAnim = true;
+    renderView();
+  }
+
+  function triggerSection(i) {
+    const s = cur();
+    if (!s.sections[i]) return; // pad sem seção: ignorado
+    if (!T.playing) {
+      T.pos = s.sections[i].start * bpb(s); T.playing = true; queue = null; T.loop = false;
+      return;
+    }
+    if (queue && queue.kind === 'section' && queue.song === T.song && queue.sec === i) {
+      queue = null; toast('Salto cancelado. A música segue.'); return;
+    }
+    if (T.loop) T.loop = false;
+    queue = { kind: 'section', song: T.song, sec: i, jumpAt: computeJump() };
+    if (quant === 'now') executeJump(0);
+  }
+
+  function goSong(k) {
+    if (k < 0 || k >= songs.length) return;
+    if (!T.playing) {
+      if (k !== T.song) { T.song = k; T.pos = 0; queue = null; T.loop = false; enterSong(); }
+      return;
+    }
+    if (queue && queue.kind === 'song' && queue.song === k) { queue = null; toast('Troca de música cancelada.'); return; }
+    T.loop = false;
+    queue = { kind: 'song', song: k, sec: 0, jumpAt: computeJump() };
+    if (quant === 'now') executeJump(0);
+  }
+
+  function stepSection(d) {
+    const s = cur();
+    let i = secAt(s, T.pos);
+    if (i < 0) {
+      const bar = T.pos / bpb(s);
+      i = d > 0 ? s.sections.findIndex((x) => x.start > bar) : s.sections.map((x) => x.start + x.len <= bar).lastIndexOf(true);
+      if (i >= 0) triggerSection(i);
+      return;
+    }
+    if (s.sections[i + d]) triggerSection(i + d);
+  }
+
+  function cancelQueue() { if (queue) { queue = null; toast('Salto cancelado. A música segue.'); } }
+
+  function togglePlay() {
+    if (T.playing) { T.playing = false; queue = null; T.loop = false; return; }
+    if (T.pos >= songBeats(cur())) T.pos = 0;
+    T.playing = true;
+  }
+
+  function toggleLoop() {
+    if (T.loop) { T.loop = false; return; }
+    const i = secAt(cur(), T.pos);
+    if (i < 0) { toast('Coloque o cursor numa seção para ligar o loop.'); return; }
+    queue = null; T.loop = true; T.loopSec = i;
+  }
+
+  // ------------------------------------------------------------------ loop por frame
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(.1, (now - last) / 1000); last = now;
+    if (T.playing) {
+      const s = cur();
+      T.pos += dt * s.bpm / 60;
+      if (queue && T.pos >= queue.jumpAt - 1e-9) {
+        executeJump(T.pos - queue.jumpAt);
+      } else if (T.loop && s.sections[T.loopSec]) {
+        const x = s.sections[T.loopSec], end = (x.start + x.len) * bpb(s);
+        if (T.pos >= end) T.pos -= x.len * bpb(s);
+      } else if (T.pos >= songBeats(s)) {
+        T.playing = false; T.loop = false;
+        if (T.song < songs.length - 1) {
+          const prev = T.song;
+          leaveSong(prev); T.song++; T.pos = 0; enterSong();
+          toast(`Fim de ${songs[prev].name}. Cursor no início de ${cur().name}.`);
+        } else { T.pos = songBeats(s); toast('Fim do show.'); }
+      }
+    }
+    if (tail && now > tail.until) tail = null;
+    updateLive();
+    requestAnimationFrame(frame);
+  }
+
+  // ------------------------------------------------------------------ helpers de texto
+  const setText = (el, s) => { if (el && el._t !== s) { el.textContent = s; el._t = s; } };
+  const setHTML = (el, s) => { if (el && el._h !== s) { el.innerHTML = s; el._h = s; } };
+  const fmtTime = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+  const fmtDb = (v) => {
+    if (v < .005) return '−∞ dB';
+    const d = 40 * Math.log10(v);
+    return `${d >= 0 ? '+' : '−'}${Math.abs(d).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} dB`;
+  };
+  const fmtMsg = (m) => `${m.t === 'note' ? 'Nota' : m.t === 'cc' ? 'CC' : 'Program'} ${m.n} · canal ${m.ch}`;
+  const beatsLeft = () => Math.max(1, Math.ceil(queue.jumpAt - T.pos - 1e-6));
+
+  function mapLabel(id) {
+    const [k, a] = id.split(':');
+    const q = QUANT.find((x) => x.id === a);
+    return ({
+      slot: `Disparar seção · slot ${a}`, q: `Quantize: ${q ? q.label : a}`, qcycle: 'Quantize: percorrer valores',
+      loop: 'Ligar/desligar loop', cancel: 'Cancelar fila', prev: 'Música anterior', next: 'Próxima música',
+      prevsec: 'Seção anterior', nextsec: 'Próxima seção', play: 'Play/Stop', panic: 'Panic',
+      song: `Ir para a música ${a}`, vol: `Volume da camada ${a}`, mute: `Mute da camada ${a}`, solo: `Solo da camada ${a}`,
+      setlist: 'Expandir setlist',
+    })[k] || id;
+  }
+
+  // ------------------------------------------------------------------ render: barra superior
+  function allWarnings() {
+    const nk = songs.map((s, k) => (s.kontakt ? null : { id: 'nk' + k, song: k, sev: 'info', title: 'Sem Kontakt vinculado', detail: 'As camadas ficam ocultas e o teclado não é roteado nesta música.', fix: 'Abrir assistente' })).filter(Boolean);
+    return [...warnings, ...nk];
+  }
+
+  function renderTop() {
+    const s = cur();
+    const nw = allWarnings().length;
+    $('#top').innerHTML = `
+      <div class="brand"><svg viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="7" fill="#ECF0F6"/><rect x="5" y="7" width="5" height="12" rx="1.5" fill="#5B8DEF"/><rect x="11" y="7" width="10" height="12" rx="1.5" fill="#E5566B"/><rect x="13.5" y="5" width="1.6" height="16" rx=".8" fill="#0A0D12"/></svg>Live Sections</div>
+      <nav class="seg" aria-label="Modo">
+        <button data-act="mode" data-arg="perf" aria-pressed="${mode === 'perf'}">Performance</button>
+        <button data-act="mode" data-arg="edit" aria-pressed="${mode === 'edit'}">Editar${nw ? ` <span class="badge" title="${nw} avisos">${nw}</span>` : ''}</button>
+        <button data-act="mode" data-arg="settings" aria-pressed="${mode === 'settings'}">Configurações</button>
+      </nav>
+      <div class="readout">
+        <div class="ro big"><span class="lbl">Compasso</span><b id="clk-bar">1.1</b></div>
+        <div class="ro"><span class="lbl">Tempo</span><b id="clk-time">0:00</b></div>
+        <div class="ro"><span class="lbl">BPM</span><b>${ptNum(s.bpm)}</b></div>
+        <div class="ro"><span class="lbl">Fórmula</span><b>${s.sig[0]}/${s.sig[1]}</b></div>
+      </div>
+      <div class="quant">
+        <button class="qlabel lbl" data-act="qcycle" data-map="qcycle" title="Percorrer valores">Quantize</button>
+        <div class="seg" role="group" aria-label="Quantize">${QUANT.map((q) => `<button data-act="q" data-arg="${q.id}" data-map="q:${q.id}" aria-pressed="${quant === q.id}">${q.label}</button>`).join('')}</div>
+      </div>
+      <div class="topright">
+        <button class="pill ${midiOk ? '' : 'off'}" data-act="midi" title="Clique para simular desconexão"><span class="dot"></span>${PAD}<small>${midiOk ? 'conectado' : 'desconectado'}</small></button>
+        <button class="btn sm" data-act="glearn" aria-pressed="${globalLearn}">${ic('learn')} Learn global</button>
+        ${mode === 'perf' ? `<button class="btn sm" data-act="stage" aria-pressed="${stage}">${ic('stage')} Modo palco</button>` : ''}
+      </div>`;
+    const ban = $('#banner');
+    ban.hidden = midiOk;
+    ban.innerHTML = midiOk ? '' : `${ic('warn')}<span>${PAD} desconectado. Os mapeamentos ficam guardados e voltam a funcionar quando você reconectar.</span>`;
+  }
+
+  // ------------------------------------------------------------------ render: performance
+  function songItem(k, inSheet) {
+    const s = songs[k];
+    return `<li><button class="song" data-act="song" data-arg="${k}" data-map="song:${k + 1}" data-k="${k}">
+      <span class="sn">${k + 1}</span>
+      <span class="sname">${esc(s.name)}</span>
+      <span class="ssub">${ptNum(s.bpm)} BPM · ${s.sig[0]}/${s.sig[1]} · ${s.sections.length} seções</span>
+      <span class="sst"></span>
+    </button></li>`;
+  }
+
+  function cardHTML(x, i) {
+    return `<button class="card${enterAnim ? ' enter' : ''}" style="--c:${x.color};${enterAnim ? `animation-delay:${i * 30}ms` : ''}" data-i="${i}" data-act="trigger" data-arg="${i}" data-map="slot:${i + 1}">
+      <span class="prog"></span>
+      <span class="top"><span class="slot">${i + 1}</span><span class="len num">${x.len} comp.</span>
+        <span class="qbox"><span class="cd num"><span class="cdn">4</span><small>bat.</small></span><span class="xbtn" role="button" aria-label="Cancelar salto" data-act="cancel">${ic('x')}</span></span></span>
+      <span class="name">${esc(x.name)}</span>
+      <span class="st"><span class="sti"></span><span class="stt">Pronta</span></span>
+    </button>`;
+  }
+
+  function layersHTML(s) {
+    if (!s.kontakt) return `<div class="nolayers">Esta música não tem Kontakt vinculado, então não há camadas. Vincule um no modo Editar.</div>`;
+    const anySolo = s.layers.some((l) => l.solo);
+    return `<section class="layers panel">
+      <div class="ph"><span class="eyebrow">Camadas</span><span class="faint">${esc(s.kontakt.track)} · ${s.layers.length} saídas · teclado: ${esc(settings.kbd)}</span></div>
+      <div class="faders">${s.layers.map((l, i) => `
+        <div class="layer${l.mute ? ' muted' : ''}${anySolo && !l.solo ? ' dim' : ''}" data-l="${i}">
+          <div class="lname" title="${esc(l.name)}">${esc(l.name)}</div>
+          <div class="ftrack${takeover[i] ? ' tko' : ''}" data-fader="${i}" data-map="vol:${i + 1}" style="--v:${l.vol};--hw:${hw[i] ?? 0}">
+            <span class="ffill"></span><span class="fcap"></span><span class="fghost" data-ghost="${i}" title="Posição do fader físico (arraste para simular)"></span>
+          </div>
+          <div class="fval num">${fmtDb(l.vol)}</div>
+          <div class="tko-hint" ${takeover[i] ? '' : 'hidden'}>${(hw[i] ?? 0) < l.vol ? '↑ Suba o fader' : '↓ Desça o fader'}</div>
+          <div class="ms">
+            <button data-act="mute" data-arg="${i}" data-map="mute:${i + 1}" aria-pressed="${l.mute}" title="Mute">M</button>
+            <button data-act="solo" data-arg="${i}" data-map="solo:${i + 1}" aria-pressed="${l.solo}" title="Solo">S</button>
+          </div>
+        </div>`).join('')}
+      </div></section>`;
+  }
+
+  function actionsHTML() {
+    return `<div class="actions panel">
+      <button class="btn big play" data-act="play" data-map="play"><span class="pli">${ic('play')}</span><span class="plt">Play</span></button>
+      <button class="btn big loop" data-act="loop" data-map="loop" aria-pressed="false">${ic('loop')}<span class="lpt">Loop</span></button>
+      <button class="btn big" data-act="cancel" data-map="cancel">${ic('x')} Cancelar fila</button>
+      <span class="sp"></span>
+      <div class="grp">
+        <button class="btn" data-act="prevsec" data-map="prevsec" title="Seção anterior">${ic('left')} Seção</button>
+        <button class="btn" data-act="nextsec" data-map="nextsec" title="Próxima seção">Seção ${ic('right')}</button>
+        <button class="btn" data-act="prev" data-map="prev">${ic('prevSong')} Música</button>
+        <button class="btn" data-act="next" data-map="next">Música ${ic('nextSong')}</button>
+      </div>
+      <button class="btn big danger" data-act="panic" data-map="panic">Panic</button>
+    </div>`;
+  }
+
+  function perfHTML() {
+    const s = cur(), n = songs.length;
+    const prev = songs[T.song - 1], next = songs[T.song + 1];
+    const side = stage
+      ? `<div class="stagestrip panel">
+          <button class="mini" data-act="prev" data-map="prev" ${prev ? '' : 'disabled'}><span class="eyebrow">Anterior</span><b>${prev ? esc(prev.name) : '—'}</b></button>
+          <div class="mini now"><span class="eyebrow">Agora · ${T.song + 1} de ${n}</span><b>${esc(s.name)}</b></div>
+          <button class="mini nx" data-act="next" data-map="next" data-k="${T.song + 1}" ${next ? '' : 'disabled'}><span class="eyebrow nxl">Próxima</span><b>${next ? esc(next.name) : 'Fim do show'}</b></button>
+          <button class="btn" data-act="setlist" data-map="setlist">${ic('list')} Setlist</button>
+        </div>`
+      : `<aside class="setlist panel"><div class="ph"><span class="eyebrow">Setlist</span><span class="faint num">${n} músicas</span></div><ol>${songs.map((_, k) => songItem(k)).join('')}</ol></aside>`;
+    const body = s.sections.length
+      ? `<div class="cards">${s.sections.map(cardHTML).join('')}</div>`
+      : `<div class="empty"><b>Esta música ainda não tem seções</b><span>Crie as seções no modo Editar: desenhe na régua ou divida a música em partes.</span><button class="btn" data-act="mode" data-arg="edit">Ir para Editar</button></div>`;
+    return `<div class="perf${stage ? ' stage' : ''}">
+      ${side}
+      <section class="pmain">
+        <div class="songhead${enterAnim ? ' enter' : ''}">
+          <div><span class="eyebrow">Música ${T.song + 1} de ${n}</span><h1>${esc(s.name)}</h1></div>
+          <div class="songmeta"><span class="tag num">${ptNum(s.bpm)} BPM · ${s.sig[0]}/${s.sig[1]}</span><span class="tag now" id="cursec"></span></div>
+        </div>
+        ${body}
+        ${layersHTML(s)}
+        ${actionsHTML()}
+      </section>
+    </div>
+    ${setlistOpen ? `<div class="overlay" data-act="closeset"><div class="sheet panel" data-stop="1"><div class="ph"><span class="eyebrow">Setlist completa</span><button class="btn sm ghost" data-act="closeset">${ic('x')} Fechar</button></div><ol class="setlist-full">${songs.map((_, k) => songItem(k)).join('')}</ol></div></div>` : ''}`;
+  }
+
+  // ------------------------------------------------------------------ render: editar
+  const TOOL_HINT = {
+    select: 'Clique numa seção para tocar a partir dela e editar. Arraste a borda entre duas seções para mover as duas juntas. Clique na régua para mover o cursor.',
+    split: 'Clique num compasso dentro de uma seção para dividir ali. Atalho: S divide no cursor.',
+    draw: 'Arraste sobre a faixa para criar uma seção, com snap no compasso. Se ela invadir outra, a vizinha é recortada.',
+  };
+
+  function gapsOf(s) {
+    const out = []; let p = 0;
+    for (const x of s.sections) { if (x.start > p) out.push([p, x.start]); p = Math.max(p, x.start + x.len); }
+    if (p < s.bars) out.push([p, s.bars]);
+    return out;
+  }
+
+  function stripHTML(s) {
+    const pct = (b) => (b / s.bars * 100).toFixed(4) + '%';
+    let ticks = '';
+    const step = s.bars > 48 ? 4 : 2;
+    for (let b = 0; b <= s.bars; b++) ticks += `<span class="tk${b % step === 0 ? ' maj' : ''}" style="left:${pct(b)}">${b % step === 0 && b < s.bars ? `<b>${b + 1}</b>` : ''}</span>`;
+    const gaps = gapsOf(s).map(([a, b]) => `<div class="gap" style="left:${pct(a)};width:${pct(b - a)}">${b - a >= 3 ? 'sem seção' : ''}</div>`).join('');
+    const secs = s.sections.map((x, i) => `<div class="sec${selSec === i ? ' sel' : ''}" data-act="selsec" data-arg="${i}" data-si="${i}" style="--c:${x.color};left:${pct(x.start)};width:${pct(x.len)}">
+        <span class="sname">${esc(x.name)}</span><span class="slen num">${x.len} comp.</span>
+        <span class="h L" data-edge="L" data-si="${i}"></span><span class="h R" data-edge="R" data-si="${i}"></span></div>`).join('');
+    return `<div class="strip tool-${tool}" id="strip">
+      <div class="ruler" data-act="ruler">${ticks}</div>
+      <div class="lane" id="lane">${gaps}${secs}</div>
+      <div class="playhead" id="ph"></div>
+      <div class="guide" id="guide" hidden><span></span></div>
+      <div class="drawprev" id="drawprev" hidden></div>
+    </div>`;
+  }
+
+  function inspectorHTML(s) {
+    const x = selSec != null ? s.sections[selSec] : null;
+    if (!x) return `<div class="panel insp"><div class="insp-empty"><span class="eyebrow">Seção</span><p>Selecione uma seção para mudar o nome, a duração e a cor. Os chips dão nome e cor num clique.</p></div>
+      <div class="chips" aria-hidden="true" style="opacity:.5">${CHIPS.map((c) => `<span class="chip" style="--c:${c.color}">${c.name}</span>`).join('')}</div></div>`;
+    const nx = s.sections[selSec + 1];
+    return `<div class="panel insp">
+      <div class="ph"><span class="eyebrow">Seção selecionada</span><span class="faint num">comp. ${x.start + 1}–${x.start + x.len}</span></div>
+      <label class="field"><span>Nome</span><input id="secname" value="${esc(x.name)}" autocomplete="off"></label>
+      <div class="chips">${CHIPS.map((c) => `<button class="chip" style="--c:${c.color}" data-act="chip" data-arg="${c.name}">${c.name}</button>`).join('')}</div>
+      <div class="row">
+        <label class="field"><span>Duração (compassos)</span><input id="seclen" type="number" min="1" step="1" value="${x.len}" inputmode="numeric"></label>
+        <button class="btn" data-act="playfrom">${ic('play')} Tocar daqui</button>
+      </div>
+      <div class="row">
+        <button class="btn sm" data-act="join" ${nx ? '' : 'disabled'}>Juntar com a próxima</button>
+        <button class="btn sm" data-act="splitcursor">Dividir no cursor <span class="faint num">S</span></button>
+        <button class="btn sm danger" data-act="remove">Remover</button>
+      </div>
+    </div>`;
+  }
+
+  function tempoHTML(s) {
+    return `<div class="panel tempo">
+      <div class="ph"><span class="eyebrow">Tempo e grid</span><span class="faint">assume tempo constante</span></div>
+      <div class="tapwrap">
+        <button class="tap" data-act="tap" id="tapbtn"><b>TAP</b><small id="tapn">toque 4 vezes no ritmo</small></button>
+        <div class="tapres">
+          <span class="lbl">BPM medido</span>
+          <span class="bigv" id="tapbpm">—</span>
+          <div class="seg" role="group" aria-label="Arredondar">
+            ${[['exact', 'Exato'], ['int', 'Inteiro'], ['half', 'Meio BPM']].map(([id, l]) => `<button data-act="round" data-arg="${id}" aria-pressed="${tap.round === id}">${l}</button>`).join('')}
+          </div>
+          <button class="btn" data-act="applybpm" id="applybpm" disabled>Usar este BPM</button>
+        </div>
+      </div>
+      <div class="fine">
+        <div class="fr"><span class="lbl">BPM da música</span><b>${ptNum(s.bpm)}</b><button class="btn sm" data-act="bpm" data-arg="-0.01">−0,01</button><button class="btn sm" data-act="bpm" data-arg="0.01">+0,01</button></div>
+        <div class="fr"><span class="lbl">Compasso 1</span><b>${s.bar1} ms</b><button class="btn sm" data-act="bar1" data-arg="-1">−1 ms</button><button class="btn sm" data-act="bar1" data-arg="1">+1 ms</button></div>
+        <div class="fr">
+          <button class="btn sm" data-act="markbar1">${ic('cursor')} Marcar compasso 1 no cursor</button>
+          <button class="btn sm ghost" data-act="metro" aria-pressed="${metro}">Metrônomo <span class="mdot" id="mdot"></span></button>
+        </div>
+      </div>
+      <p class="note">O áudio não é esticado: o grid é que passa a seguir o áudio. O ajuste desta música não muda o tempo das outras.</p>
+    </div>`;
+  }
+
+  function sideEditHTML(s) {
+    const ws = allWarnings().sort((a, b) => (b.song === T.song) - (a.song === T.song));
+    const sevL = { error: ['!', 'Erro'], warning: ['!', 'Aviso'], info: ['i', 'Info'] };
+    return `<aside class="eside">
+      <section class="panel warnp">
+        <div class="ph"><span class="eyebrow">Avisos</span><span class="count">${ws.length}</span></div>
+        ${ws.length ? `<ul class="warns">${ws.map((w) => `<li class="warn ${w.sev}"><span class="wi" aria-hidden="true">${sevL[w.sev][0]}</span>
+          <div><span class="wmeta">${sevL[w.sev][1]} · ${w.song == null ? 'Projeto' : esc(songs[w.song].name)}</span><br><b>${esc(w.title)}</b><p>${esc(w.detail)}</p></div>
+          <button class="btn sm" data-act="fix" data-arg="${w.id}">${esc(w.fix)}</button></li>`).join('')}</ul>`
+        : `<p class="note">Nenhum problema. Se uma edição manual na régua do REAPER criar sobreposição ou seção fora do compasso, o aviso aparece aqui com a correção.</p>`}
+      </section>
+      <section class="panel kcard">
+        <div class="ph"><span class="eyebrow">Kontakt desta música</span></div>
+        ${s.kontakt ? `<div class="kline"><span>Track</span><b>${esc(s.kontakt.track)}</b></div>
+          <div class="kline"><span>Camadas</span><b>${s.layers.map((l) => esc(l.name)).join(', ')}</b></div>
+          <div class="kline"><span>Entrada MIDI</span><b>${esc(settings.kbd)}</b></div>`
+        : `<p class="note">Nenhum Kontakt vinculado. O assistente vincula a track e cria as camadas a partir das saídas (multi-out).</p>`}
+        <button class="btn" data-act="wizard">${s.kontakt ? 'Refazer vínculo' : 'Assistente de Kontakt'}</button>
+      </section>
+    </aside>`;
+  }
+
+  function editHTML() {
+    const s = cur();
+    const lastU = undoStack[undoStack.length - 1];
+    return `<div class="edit">
+      <section class="emain">
+        <div class="etool panel">
+          <div class="seg" role="tablist" aria-label="Música">${songs.map((x, k) => `<button data-act="esong" data-arg="${k}" aria-pressed="${k === T.song}">${k + 1}. ${esc(x.name)}</button>`).join('')}</div>
+          <button class="btn sm" data-act="addsong">${ic('plus')} Música</button>
+        </div>
+        <div class="panel strippanel">
+          <div class="ph">
+            <div><span class="eyebrow">Estrutura · ${s.bars} compassos · ${s.sig[0]}/${s.sig[1]}</span><h2>${esc(s.name)}</h2></div>
+            <div class="row">
+              <div class="seg" role="group" aria-label="Ferramenta">
+                ${[['select', 'Selecionar'], ['split', 'Dividir'], ['draw', 'Desenhar']].map(([id, l]) => `<button data-act="tool" data-arg="${id}" aria-pressed="${tool === id}">${l}</button>`).join('')}
+              </div>
+              <button class="btn sm ghost" data-act="undo" ${lastU ? '' : 'disabled'} title="⌘Z">${ic('undo')} ${lastU ? 'Desfazer: ' + esc(lastU.label) : 'Desfazer'}</button>
+            </div>
+          </div>
+          <p class="hint">${TOOL_HINT[tool]}</p>
+          <div class="strip-scroll">${stripHTML(s)}</div>
+          ${s.sections.length ? '' : `<div class="empty"><b>Esta música ainda não tem seções</b><span>Desenhe na faixa acima ou crie uma seção com a música inteira e divida depois.</span><button class="btn" data-act="addsec">${ic('plus')} Seção</button></div>`}
+        </div>
+        <div class="egrid">${inspectorHTML(s)}${tempoHTML(s)}</div>
+      </section>
+      ${sideEditHTML(s)}
+    </div>`;
+  }
+
+  // ------------------------------------------------------------------ render: configurações
+  function settingsHTML() {
+    const LEDS = [['empty', 'Vazio', 'pad sem seção'], ['idle', 'Parado', 'seção disponível'], ['playing', 'Tocando', 'seção atual'], ['queued', 'Na fila', 'pisca até a virada'], ['loop', 'Loop', 'seção presa em loop']];
+    const rows = Object.keys(maps).sort((a, b) => mapLabel(a).localeCompare(mapLabel(b), 'pt-BR', { numeric: true }));
+    return `<div class="settings">
+      <section class="panel scard">
+        <h2>Controlador de performance</h2>
+        <label class="field"><span>Porta de entrada</span><select id="st-ctl"><option>${PAD}</option><option>${FAD}</option></select></label>
+        <div class="modes2">
+          <label class="mopt ${settings.ctlMode === 'control' ? 'on' : ''}"><input type="radio" name="ctlmode" value="control" ${settings.ctlMode === 'control' ? 'checked' : ''}>
+            <b>Enable input for control messages <span class="rec">Recomendado</span></b>
+            <p>Pads e faders controlam só o Live Sections e não chegam às tracks. Nenhuma nota dos pads vaza para o Kontakt.</p></label>
+          <label class="mopt ${settings.ctlMode === 'input' ? 'on' : ''}"><input type="radio" name="ctlmode" value="input" ${settings.ctlMode === 'input' ? 'checked' : ''}>
+            <b>Enable input</b>
+            <p>As mensagens também chegam às tracks. Funciona, mas os pads tocariam notas numa track em All MIDI inputs.</p></label>
+        </div>
+        <p class="note">O modo é escolhido no REAPER: Preferences → MIDI Devices, clique com o botão direito na porta.</p>
+      </section>
+
+      <section class="panel scard">
+        <h2>Teclado do Kontakt</h2>
+        <label class="field"><span>Porta do teclado</span><select id="st-kbd"><option>Keystation 61</option><option>${PAD}</option></select></label>
+        <p class="note">A track do Kontakt de cada música recebe só este teclado, nunca All MIDI inputs. Só a música atual fica armada; as outras entram em bypass depois da cauda.</p>
+        <div class="field"><span>Cauda antes do bypass</span>
+          <div class="slider"><input type="range" id="st-tail" min="0" max="15" step="0.5" value="${settings.tail}"><b id="st-tail-v">${ptNum(settings.tail, 1)} s</b></div></div>
+      </section>
+
+      <section class="panel scard">
+        <h2>Feedback dos LEDs</h2>
+        <label class="field"><span>Saída MIDI</span><select id="st-fb"><option value="auto">Automática: ${PAD} (mesmo nome da entrada)</option><option>${PAD}</option><option>${FAD}</option></select></label>
+        <div class="leds">${LEDS.map(([k, l, d]) => `<div class="led"><span class="pad${k === 'queued' ? ' blink' : ''}" id="pad-${k}"><i style="opacity:${settings.vel[k] / 127}"></i></span>
+          <span>${l}<small>${d}</small></span><input type="number" min="0" max="127" value="${settings.vel[k]}" data-vel="${k}" aria-label="Velocity ${l}">
+          <button class="btn sm" data-act="ledtest" data-arg="${k}">Testar</button></div>`).join('')}</div>
+        <p class="note">A velocity de cada cor depende do controlador. Confira na tabela do manual e use Testar para ver no aparelho.</p>
+      </section>
+
+      <section class="panel scard">
+        <h2>Transporte</h2>
+        <div class="okline">${ic('check')} Smooth seek ligado em 1 compasso</div>
+        <div class="field"><span>Janela de tolerância</span>
+          <div class="slider"><input type="range" id="st-tol" min="0" max="100" step="5" value="${settings.tol}"><b id="st-tol-v">${settings.tol} ms</b></div></div>
+        <p class="note">Um disparo que chega até ${settings.tol} ms depois da virada conta como se tivesse chegado antes dela.</p>
+      </section>
+
+      <section class="panel scard wide">
+        <div class="ph"><h2>Mapeamentos MIDI</h2><button class="btn sm" data-act="glearn" aria-pressed="${globalLearn}">${ic('learn')} Learn global</button></div>
+        <div class="mtable-wrap"><table class="mtable">
+          <thead><tr><th>Controle</th><th>Mensagem</th><th>Dispositivo</th><th></th></tr></thead>
+          <tbody>${rows.map((id) => `<tr><td>${esc(mapLabel(id))}</td><td class="num">${fmtMsg(maps[id])}</td><td>${esc(maps[id].dev)}</td><td style="text-align:right"><button class="btn sm ghost" data-act="unmap" data-arg="${id}">Remover</button></td></tr>`).join('')}</tbody>
+        </table></div>
+        <p class="note">Os mapeamentos valem para todos os projetos. Cada um responde só à porta em que foi aprendido. Para mapear, clique com o botão direito num controle e escolha Learn MIDI.</p>
+      </section>
+    </div>`;
+  }
+
+  // ------------------------------------------------------------------ render geral
+  function renderView() {
+    renderTop();
+    const v = $('#view');
+    v.innerHTML = mode === 'perf' ? perfHTML() : mode === 'edit' ? editHTML() : settingsHTML();
+    enterAnim = false;
+    if (mode === 'edit') updateTap();
+    applyLearn();
+    updateLive();
+  }
+
+  function updateLive() {
+    const s = cur(), b = bpb(s);
+    const bar = Math.floor(T.pos / b + 1e-9), beat = Math.floor(T.pos - bar * b + 1e-9);
+    setText($('#clk-bar'), `${Math.min(bar, s.bars - 1) + 1}.${(T.pos >= songBeats(s) ? b - 1 : beat) + 1}`);
+    setText($('#clk-time'), fmtTime(T.pos * 60 / s.bpm));
+    const ci = secAt(s, T.pos);
+
+    if (mode === 'perf') {
+      const cs = $('#cursec');
+      if (cs) {
+        const x = s.sections[ci];
+        const label = !T.playing ? (x ? `Parado em ${x.name}` : 'Parado') : x ? `Tocando ${x.name}` : 'Trecho sem seção';
+        setHTML(cs, `<span class="sw" style="--c:${x ? x.color : 'var(--faint)'}"></span>${esc(label)}`);
+      }
+      $$('.card').forEach((el) => {
+        const k = +el.dataset.i, x = s.sections[k];
+        if (!x) return;
+        const playing = T.playing && ci === k;
+        const cursor = !T.playing && ci === k;
+        const queued = !!queue && queue.kind === 'section' && queue.song === T.song && queue.sec === k;
+        const looping = T.loop && T.loopSec === k;
+        el.classList.toggle('playing', playing && !looping);
+        el.classList.toggle('looping', looping);
+        el.classList.toggle('cursor', cursor);
+        el.classList.toggle('queued', queued);
+        if (playing) el.style.setProperty('--p', clamp((T.pos / b - x.start) / x.len, 0, 1).toFixed(4));
+        const [icn, txt] = looping ? ['loop', 'Loop'] : queued ? ['clock', 'Na fila'] : playing ? ['play', 'Tocando'] : cursor ? ['cursor', 'No cursor'] : ['', 'Pronta'];
+        setHTML(el.querySelector('.sti'), icn ? ic(icn) : '');
+        setText(el.querySelector('.stt'), txt);
+        if (queued) setText(el.querySelector('.cdn'), String(beatsLeft()));
+      });
+      $$('.song[data-k]').forEach((el) => {
+        const k = +el.dataset.k;
+        const isCur = k === T.song;
+        const q = !!queue && queue.kind === 'song' && queue.song === k;
+        el.classList.toggle('current', isCur);
+        el.classList.toggle('queued', q);
+        let html;
+        if (q) html = `${ic('clock')} Na fila · em ${beatsLeft()} bat.<span class="sx" role="button" aria-label="Cancelar" data-act="cancel">${ic('x')}</span>`;
+        else if (isCur) html = T.playing ? `${ic('play')} Tocando` : 'Atual · pronta';
+        else if (!songs[k].kontakt) html = 'Sem Kontakt';
+        else if (tail && tail.song === k) html = `Cauda · bypass em ${Math.ceil((tail.until - performance.now()) / 1000)} s`;
+        else html = 'Kontakt em bypass';
+        setHTML(el.querySelector('.sst'), html);
+      });
+      const nxBtn = $('.mini.nx');
+      if (nxBtn) {
+        const q = !!queue && queue.kind === 'song' && queue.song === T.song + 1;
+        nxBtn.classList.toggle('queued', q);
+        setText($('.nxl', nxBtn), q ? `Na fila · em ${beatsLeft()} bat.` : 'Próxima');
+      }
+      const play = $('.btn.play');
+      if (play) {
+        play.classList.toggle('on', T.playing);
+        setHTML($('.pli', play), ic(T.playing ? 'stop' : 'play'));
+        setText($('.plt', play), T.playing ? 'Stop' : 'Play');
+      }
+      const lp = $('.btn.loop');
+      if (lp) { lp.setAttribute('aria-pressed', T.loop); setText($('.lpt', lp), T.loop ? 'Loop ligado' : 'Loop'); }
+    }
+
+    if (mode === 'edit') {
+      const ph = $('#ph');
+      if (ph) ph.style.left = (clamp(T.pos / b / s.bars, 0, 1) * 100).toFixed(3) + '%';
+      const md = $('#mdot');
+      if (md) md.classList.toggle('on', metro && T.playing && (T.pos % 1) < .18);
+    }
+
+    const tip = $('#learntip');
+    const lel = learning && $$(`[data-map="${learning}"]`).find((e) => e.offsetParent);
+    tip.hidden = !lel;
+    if (lel) {
+      const r = lel.getBoundingClientRect();
+      tip.style.left = clamp(r.left + r.width / 2, 120, innerWidth - 120) + 'px';
+      tip.style.top = Math.max(40, r.top - 10) + 'px';
+    }
+  }
+
+  // ------------------------------------------------------------------ MIDI learn
+  function applyLearn() {
+    document.body.classList.toggle('learn-global', globalLearn);
+    $$('.learning').forEach((e) => e.classList.remove('learning'));
+    if (learning) $$(`[data-map="${learning}"]`).forEach((e) => e.classList.add('learning'));
+  }
+
+  function startLearn(id) {
+    clearTimeout(learnTimer);
+    learning = id;
+    applyLearn();
+    toast(`Learn: ${mapLabel(id)}. Toque o controle no controlador. Esc cancela.`, { label: 'Simular mensagem', fn: captureLearn });
+    learnTimer = setTimeout(captureLearn, 2600);
+  }
+
+  function cancelLearn() {
+    if (!learning) return false;
+    clearTimeout(learnTimer); learning = null; applyLearn(); toast('Learn cancelado.');
+    return true;
+  }
+
+  function fakeMsg(id) {
+    const used = Object.values(maps);
+    const isCC = /^vol:/.test(id);
+    let n = isCC ? 20 : 44;
+    while (used.some((m) => m.t === (isCC ? 'cc' : 'note') && m.n === n && m.dev === (isCC ? FAD : PAD))) n++;
+    return isCC ? { t: 'cc', n, ch: 1, dev: FAD } : { t: 'note', n, ch: 10, dev: PAD };
+  }
+
+  function captureLearn() {
+    if (!learning) return;
+    const id = learning;
+    clearTimeout(learnTimer);
+    const m = fakeMsg(id);
+    maps[id] = m;
+    learning = null;
+    applyLearn();
+    flash(id);
+    toast(`Mapeado: ${mapLabel(id)} ← ${fmtMsg(m)} (${m.dev})`);
+    if (mode === 'settings') renderView();
+  }
+
+  function flash(id) {
+    $$(`[data-map="${id}"]`).forEach((el) => { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); });
+  }
+
+  // ------------------------------------------------------------------ menus de contexto
+  const ctx = $('#ctx');
+  function placeCtx(x, y) {
+    ctx.hidden = false;
+    const w = ctx.offsetWidth, h = ctx.offsetHeight;
+    ctx.style.left = clamp(x, 8, innerWidth - w - 8) + 'px';
+    ctx.style.top = clamp(y, 8, innerHeight - h - 8) + 'px';
+  }
+  function hideCtx() { ctx.hidden = true; }
+
+  function showMidiMenu(id, x, y) {
+    const m = maps[id];
+    ctx.dataset.kind = 'midi'; ctx.dataset.id = id;
+    ctx.innerHTML = `<div class="ctx-h">${esc(mapLabel(id))}</div>
+      <button data-cx="learn">${ic('learn')} Learn MIDI</button>
+      <button data-cx="unmap" ${m ? '' : 'disabled'}>${ic('x')} Remover mapeamento</button>
+      <button data-cx="view" ${m ? '' : 'disabled'}>${ic('list')} Ver mapeamento</button>
+      <div class="ctx-info" hidden>${m ? `<b>${fmtMsg(m)}</b><br><span class="faint">${esc(m.dev)}</span>` : ''}</div>`;
+    placeCtx(x, y);
+  }
+
+  function showSecMenu(si, x, y) {
+    const s = cur();
+    ctx.dataset.kind = 'sec'; ctx.dataset.id = si;
+    ctx.innerHTML = `<div class="ctx-h">${esc(s.sections[si].name)}</div>
+      <button data-cx="playfrom">${ic('play')} Tocar daqui</button>
+      <button data-cx="join" ${s.sections[si + 1] ? '' : 'disabled'}>Juntar com a próxima</button>
+      <button data-cx="splitcursor">Dividir no cursor <span class="k">S</span></button>
+      <div class="sep"></div>
+      <button data-cx="remove">${ic('x')} Remover seção</button>`;
+    placeCtx(x, y);
+  }
+
+  ctx.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const b = e.target.closest('[data-cx]');
+    if (!b || b.disabled) return;
+    const id = ctx.dataset.id, c = b.dataset.cx;
+    if (ctx.dataset.kind === 'midi') {
+      if (c === 'learn') { hideCtx(); startLearn(id); }
+      if (c === 'unmap') { delete maps[id]; hideCtx(); toast(`Mapeamento removido: ${mapLabel(id)}`); if (mode === 'settings') renderView(); }
+      if (c === 'view') { const info = $('.ctx-info', ctx); info.hidden = !info.hidden; }
+    } else {
+      selSec = +id; hideCtx();
+      editAction(c);
+    }
+  });
+
+  // ------------------------------------------------------------------ operações do editor
+  function snapshot(label) {
+    undoStack.push({ label, data: JSON.stringify(songs), song: T.song });
+    if (undoStack.length > 60) undoStack.shift();
+  }
+  function undo() {
+    const u = undoStack.pop();
+    if (!u) return;
+    songs = JSON.parse(u.data); T.song = Math.min(u.song, songs.length - 1); selSec = null;
+    renderView(); toast(`Desfeito: ${u.label}`);
+  }
+
+  function uniqueName(s, base, except) {
+    const names = new Set(s.sections.filter((x) => x !== except).map((x) => x.name));
+    if (!names.has(base)) return base;
+    let k = 2; while (names.has(`${base} ${k}`)) k++;
+    return `${base} ${k}`;
+  }
+
+  function splitAt(si, bar) {
+    const s = cur(), x = s.sections[si];
+    if (!x || bar <= x.start || bar >= x.start + x.len) { toast('Escolha um compasso dentro da seção, depois do início dela.'); return; }
+    snapshot('Dividir');
+    const right = { name: uniqueName(s, baseName(x.name)), color: x.color, start: bar, len: x.start + x.len - bar };
+    x.len = bar - x.start;
+    s.sections.splice(si + 1, 0, right);
+    selSec = si + 1;
+    renderView(); toast(`Dividida no compasso ${bar + 1}. Um passo de undo.`);
+  }
+
+  function drawSection(a, b) {
+    const s = cur();
+    snapshot('Desenhar seção');
+    const out = [];
+    for (const x of s.sections) {
+      const e = x.start + x.len;
+      if (e <= a || x.start >= b) { out.push(x); continue; }
+      if (x.start >= a && e <= b) continue; // coberta: sai
+      if (x.start < a && e > b) { // a nova fica no meio: divide
+        out.push({ ...x, len: a - x.start });
+        out.push({ ...x, name: '__split__', start: b, len: e - b });
+        continue;
+      }
+      if (x.start < a) out.push({ ...x, len: a - x.start });
+      else out.push({ ...x, start: b, len: e - b });
+    }
+    const nw = { name: '', color: DEFAULT_COLOR, start: a, len: b - a };
+    out.push(nw);
+    out.sort((p, q) => p.start - q.start);
+    s.sections = out;
+    for (const x of out) if (x.name === '__split__') { const orig = out.find((y) => y !== x && y.color === x.color && y.start + y.len === a); x.name = uniqueName(s, baseName(orig ? orig.name : 'Seção'), x); }
+    nw.name = uniqueName(s, 'Seção', nw);
+    selSec = out.indexOf(nw);
+    renderView(); toast(`Seção criada nos compassos ${a + 1}–${b}. Vizinhas recortadas. Um passo de undo.`);
+  }
+
+  function setLen(si, n) {
+    const s = cur(), x = s.sections[si];
+    if (!x) return;
+    const nx = s.sections[si + 1];
+    const linked = nx && nx.start === x.start + x.len;
+    const max = nx ? (linked ? nx.start + nx.len - 1 : nx.start) : s.bars;
+    const end = clamp(x.start + Math.round(n), x.start + 1, max);
+    if (end === x.start + x.len) { renderView(); return; }
+    snapshot('Mudar duração');
+    if (linked) { nx.len = nx.start + nx.len - end; nx.start = end; }
+    x.len = end - x.start;
+    renderView();
+    if (end - x.start !== Math.round(n)) toast(`A duração ficou em ${x.len} compassos: é o máximo antes da próxima seção.`);
+  }
+
+  function editAction(c) {
+    const s = cur(), x = s.sections[selSec];
+    if (c === 'playfrom' && x) { T.pos = x.start * bpb(s); T.playing = true; queue = null; T.loop = false; toast(`Tocando a partir de ${x.name}.`); }
+    if (c === 'join' && x) {
+      const nx = s.sections[selSec + 1];
+      if (!nx) return;
+      snapshot('Juntar'); x.len = nx.start + nx.len - x.start; s.sections.splice(selSec + 1, 1);
+      renderView(); toast(`${x.name} agora vai até o compasso ${x.start + x.len}.`);
+    }
+    if (c === 'splitcursor') splitCursor();
+    if (c === 'remove' && x) { snapshot('Remover seção'); s.sections.splice(selSec, 1); selSec = null; renderView(); toast(`${x.name} removida. O trecho fica sem seção e toca normalmente.`); }
+  }
+
+  function splitCursor() {
+    const s = cur();
+    const bar = Math.round(T.pos / bpb(s));
+    const si = s.sections.findIndex((x) => bar > x.start && bar < x.start + x.len);
+    if (si < 0) { toast('O cursor precisa estar dentro de uma seção, fora do início dela.'); return; }
+    splitAt(si, bar);
+  }
+
+  function barAt(e) {
+    const r = $('#lane').getBoundingClientRect();
+    return clamp((e.clientX - r.left) / r.width * cur().bars, 0, cur().bars);
+  }
+
+  // ------------------------------------------------------------------ tap tempo
+  function tapBpm() {
+    const t = tap.times;
+    if (t.length < 4) return null;
+    const raw = 60000 / ((t[t.length - 1] - t[0]) / (t.length - 1));
+    return tap.round === 'int' ? Math.round(raw) : tap.round === 'half' ? Math.round(raw * 2) / 2 : Math.round(raw * 100) / 100;
+  }
+  function updateTap() {
+    const n = tap.times.length, v = tapBpm();
+    setText($('#tapn'), n < 4 ? (n === 0 ? 'toque 4 vezes no ritmo' : `mais ${4 - n} ${4 - n === 1 ? 'toque' : 'toques'}`) : `${n} toques`);
+    setText($('#tapbpm'), v == null ? '—' : ptNum(v));
+    const ab = $('#applybpm'); if (ab) ab.disabled = v == null;
+  }
+
+  // ------------------------------------------------------------------ assistente de Kontakt
+  function openWizard(k = T.song) {
+    const s = songs[k];
+    const outs = s.kontakt ? s.layers.map((l) => l.name) : ['Piano', 'Baixo', 'Pad'];
+    $('#modal').innerHTML = `<div class="overlay" data-act="closemodal"><div class="modal panel" role="dialog" aria-label="Assistente de Kontakt" data-stop="1">
+      <div><span class="eyebrow">Assistente de Kontakt · ${esc(s.name)}</span><h2>Vincular o Kontakt e criar as camadas</h2></div>
+      <ol class="steps">
+        <li><div><b>Track do Kontakt</b><label class="field"><select id="kz-track"><option>Kontakt 7 · ${esc(s.name)}</option><option>Kontakt 7 (sem nome)</option></select></label></div></li>
+        <li><div><b>Camadas (saídas multi-out)</b><span class="note">Cada par de canais vira uma track filha. Os faders seguem esta ordem.</span>
+          <div class="outs" id="kz-outs">${outs.map((n, i) => `<label class="out"><input type="checkbox" checked><span class="num">st. ${i * 2 + 1}/${i * 2 + 2}</span><input type="text" value="${esc(n)}" aria-label="Nome da camada ${i + 1}"></label>`).join('')}</div>
+          <button class="btn sm ghost" data-act="kzadd" style="justify-self:start">${ic('plus')} Saída</button></div></li>
+        <li><div><b>Teclado</b><span class="note">A entrada MIDI da track fica só em <b>${esc(settings.kbd)}</b>, nunca All MIDI inputs. Troque o teclado em Configurações.</span></div></li>
+      </ol>
+      <div class="row" style="justify-content:flex-end"><button class="btn ghost" data-act="closemodal">Cancelar</button><button class="btn primary" data-act="kzdone" data-arg="${k}">Vincular e criar camadas</button></div>
+    </div></div>`;
+  }
+
+  // ------------------------------------------------------------------ ações
+  function act(a, arg, e, el) {
+    const s = cur();
+    switch (a) {
+      case 'mode': mode = arg; setlistOpen = false; hideCtx(); renderView(); break;
+      case 'stage': stage = !stage; setlistOpen = false; renderView(); break;
+      case 'setlist': setlistOpen = !setlistOpen; renderView(); break;
+      case 'closeset': if (!e.target.closest('[data-stop]') || el.tagName === 'BUTTON') { setlistOpen = false; renderView(); } break;
+      case 'q': quant = arg; renderTop(); applyLearn(); break;
+      case 'qcycle': quant = QUANT[(QUANT.indexOf(qInfo()) + 1) % QUANT.length].id; renderTop(); applyLearn(); break;
+      case 'glearn':
+        globalLearn = !globalLearn; if (!globalLearn && learning) cancelLearn();
+        renderView();
+        toast(globalLearn ? 'Learn global ligado: clique num controle e toque o controlador. Esc sai.' : 'Learn global desligado.');
+        break;
+      case 'midi': midiOk = !midiOk; renderTop(); applyLearn(); toast(midiOk ? `${PAD} reconectado. Mapeamentos ativos de novo.` : `${PAD} desconectado.`); break;
+      case 'trigger': triggerSection(+arg); break;
+      case 'cancel': cancelQueue(); break;
+      case 'play': togglePlay(); break;
+      case 'loop': toggleLoop(); break;
+      case 'prev': goSong(T.song - 1); break;
+      case 'next': goSong(T.song + 1); break;
+      case 'song': { const k = +arg; if (setlistOpen) { setlistOpen = false; renderView(); } goSong(k); break; }
+      case 'prevsec': stepSection(-1); break;
+      case 'nextsec': stepSection(1); break;
+      case 'panic': toast('Panic: All Notes Off e sustain solto em todos os canais.'); break;
+      case 'mute': s.layers[+arg].mute = !s.layers[+arg].mute; renderView(); break;
+      case 'solo': s.layers[+arg].solo = !s.layers[+arg].solo; renderView(); break;
+      // editar
+      case 'esong': T.song = +arg; T.playing = false; queue = null; T.loop = false; T.pos = 0; enterSong(); break;
+      case 'addsong': {
+        snapshot('Nova música');
+        const n = songs.filter((x) => x.name.startsWith('Nova música')).length;
+        songs.splice(T.song + 1, 0, { name: n ? `Nova música ${n + 1}` : 'Nova música', bpm: 120, sig: [4, 4], bars: 32, bar1: 0, kontakt: null, layers: [], sections: [{ name: 'Seção', color: DEFAULT_COLOR, start: 0, len: 32 }] });
+        T.song++; T.pos = 0; T.playing = false; queue = null; enterSong();
+        toast('Marcador SONG: criado no cursor, com uma seção até a próxima música.');
+        break;
+      }
+      case 'addsec': snapshot('Nova seção'); s.sections = [{ name: 'Seção', color: DEFAULT_COLOR, start: 0, len: s.bars }]; selSec = 0; renderView(); break;
+      case 'tool': tool = arg; renderView(); break;
+      case 'undo': undo(); break;
+      case 'ruler': if (tool === 'select') { T.pos = Math.round(barAt(e)) * bpb(s); queue = null; } break;
+      case 'selsec': {
+        if (suppressClick || e.target.closest('.h')) break;
+        if (tool === 'split') { splitAt(+arg, Math.round(barAt(e))); break; }
+        if (tool !== 'select') break;
+        selSec = +arg; const x = s.sections[selSec];
+        T.pos = x.start * bpb(s); T.playing = true; queue = null; T.loop = false;
+        renderView();
+        break;
+      }
+      case 'chip': {
+        const x = s.sections[selSec]; if (!x) break;
+        snapshot('Renomear'); x.name = uniqueName(s, arg, x); x.color = chipColor(arg); renderView(); break;
+      }
+      case 'playfrom': case 'join': case 'splitcursor': case 'remove': editAction(a); break;
+      case 'tap': {
+        const now = performance.now();
+        if (tap.times.length && now - tap.times[tap.times.length - 1] > 2000) tap.times = [];
+        tap.times.push(now); if (tap.times.length > 12) tap.times.shift();
+        const tb = $('#tapbtn'); tb.classList.add('hit'); setTimeout(() => tb.classList.remove('hit'), 90);
+        updateTap(); break;
+      }
+      case 'round': tap.round = arg; $$('[data-act="round"]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.arg === arg)); updateTap(); break;
+      case 'applybpm': { const v = tapBpm(); if (v == null) break; snapshot('Mudar BPM'); s.bpm = v; tap.times = []; renderView(); toast(`${s.name} agora em ${ptNum(v)} BPM. As outras músicas não mudam.`); break; }
+      case 'bpm': s.bpm = Math.round((s.bpm + +arg) * 100) / 100; renderView(); break;
+      case 'bar1': s.bar1 = Math.max(0, s.bar1 + +arg); renderView(); break;
+      case 'markbar1': {
+        snapshot('Marcar compasso 1');
+        s.bar1 = Math.round(T.pos * 60 / s.bpm * 1000) || 1284;
+        renderView(); toast(`Compasso 1 marcado em ${s.bar1} ms com ${ptNum(s.bpm)} BPM. O áudio não foi alterado.`); break;
+      }
+      case 'metro': metro = !metro; el.setAttribute('aria-pressed', metro); break;
+      case 'fix': {
+        if (arg.startsWith('nk')) { openWizard(+arg.slice(2)); break; }
+        const w = warnings.find((x) => x.id === arg);
+        warnings = warnings.filter((x) => x.id !== arg);
+        renderView(); if (w) toast(`Corrigido: ${w.fix}. Um passo de undo.`); break;
+      }
+      case 'wizard': openWizard(); break;
+      case 'closemodal': if (!e.target.closest('[data-stop]') || el.tagName === 'BUTTON') $('#modal').innerHTML = ''; break;
+      case 'kzadd': {
+        const box = $('#kz-outs'), i = box.children.length;
+        box.insertAdjacentHTML('beforeend', `<label class="out"><input type="checkbox" checked><span class="num">st. ${i * 2 + 1}/${i * 2 + 2}</span><input type="text" value="Camada ${i + 1}" aria-label="Nome da camada ${i + 1}"></label>`);
+        break;
+      }
+      case 'kzdone': {
+        const k = +arg, song = songs[k];
+        const names = $$('#kz-outs .out').filter((o) => o.querySelector('[type=checkbox]').checked).map((o) => o.querySelector('[type=text]').value.trim() || 'Camada');
+        snapshot('Vincular Kontakt');
+        song.kontakt = { track: $('#kz-track').value };
+        song.layers = names.map((n, i) => L(n, .7 + (i % 2) * .1));
+        $('#modal').innerHTML = '';
+        if (k === T.song) takeover = song.layers.map((l, i) => Math.abs((hw[i] ?? 0) - l.vol) > .02);
+        renderView(); toast(`Kontakt vinculado a ${song.name} com ${names.length} camadas.`);
+        break;
+      }
+      // configurações
+      case 'unmap': delete maps[arg]; renderView(); toast(`Mapeamento removido: ${mapLabel(arg)}`); break;
+      case 'ledtest': flashEl($('#pad-' + arg)); toast(`Velocity ${settings.vel[arg]} enviada para o pad 1.`); break;
+    }
+  }
+
+  function flashEl(el) { if (!el) return; el.animate([{ transform: 'scale(1.25)' }, { transform: 'scale(1)' }], { duration: 300 }); }
+
+  // ------------------------------------------------------------------ eventos
+  document.addEventListener('click', (e) => {
+    if (!ctx.hidden && !ctx.contains(e.target)) hideCtx();
+    const m = e.target.closest('[data-map]');
+    if (globalLearn && m) { e.preventDefault(); startLearn(m.dataset.map); return; }
+    const a = e.target.closest('[data-act]');
+    if (a && !a.disabled) act(a.dataset.act, a.dataset.arg, e, a);
+  });
+
+  document.addEventListener('contextmenu', (e) => {
+    const m = e.target.closest('[data-map]');
+    if (m) { e.preventDefault(); showMidiMenu(m.dataset.map, e.clientX, e.clientY); return; }
+    const sec = mode === 'edit' && e.target.closest('.sec');
+    if (sec) { e.preventDefault(); showSecMenu(+sec.dataset.si, e.clientX, e.clientY); }
+  });
+
+  function faderValue(e, track) {
+    const r = track.getBoundingClientRect();
+    return clamp(1 - (e.clientY - r.top - 13) / (r.height - 26), 0, 1);
+  }
+
+  function updateFader(i) {
+    const s = cur(), l = s.layers[i];
+    const tr = $(`.ftrack[data-fader="${i}"]`);
+    if (!tr) return;
+    tr.style.setProperty('--v', l.vol); tr.style.setProperty('--hw', hw[i]);
+    tr.classList.toggle('tko', takeover[i]);
+    const lay = tr.closest('.layer');
+    setText($('.fval', lay), fmtDb(l.vol));
+    const h = $('.tko-hint', lay);
+    h.hidden = !takeover[i];
+    setText(h, hw[i] < l.vol ? '↑ Suba o fader' : '↓ Desça o fader');
+  }
+
+  document.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || globalLearn) return;
+    const g = e.target.closest('[data-ghost]');
+    if (g) { drag = { kind: 'ghost', i: +g.dataset.ghost, track: g.parentElement }; e.preventDefault(); return; }
+    const f = e.target.closest('[data-fader]');
+    if (f) {
+      drag = { kind: 'fader', i: +f.dataset.fader, track: f };
+      cur().layers[drag.i].vol = faderValue(e, f); takeover[drag.i] = Math.abs(hw[drag.i] - cur().layers[drag.i].vol) > .02;
+      updateFader(drag.i); e.preventDefault(); return;
+    }
+    if (mode !== 'edit' || !e.target.closest('#strip')) return;
+    const s = cur();
+    const h = e.target.closest('.h');
+    if (h && tool === 'select') {
+      const si = +h.dataset.si, x = s.sections[si], edge = h.dataset.edge;
+      const pv = s.sections[si - 1], nx = s.sections[si + 1];
+      let linked, min, max;
+      if (edge === 'R') { linked = nx && nx.start === x.start + x.len; min = x.start + 1; max = nx ? (linked ? nx.start + nx.len - 1 : nx.start) : s.bars; }
+      else { linked = pv && pv.start + pv.len === x.start; max = x.start + x.len - 1; min = pv ? (linked ? pv.start + 1 : pv.start + pv.len) : 0; }
+      snapshot('Mover borda');
+      drag = { kind: 'edge', si, edge, linked, min, max, moved: false };
+      h.classList.add('drag'); e.preventDefault(); return;
+    }
+    if (tool === 'draw' && e.target.closest('#lane')) {
+      const b = Math.floor(barAt(e));
+      drag = { kind: 'draw', a0: b, a: b, b: b + 1 };
+      showDrawPrev(); e.preventDefault();
+    }
+  });
+
+  function showDrawPrev() {
+    const s = cur(), p = $('#drawprev');
+    p.hidden = false;
+    p.style.left = (drag.a / s.bars * 100) + '%';
+    p.style.width = ((drag.b - drag.a) / s.bars * 100) + '%';
+    p.textContent = `${drag.b - drag.a} comp.`;
+  }
+
+  document.addEventListener('pointermove', (e) => {
+    if (!drag) {
+      if (mode === 'edit' && tool === 'split') {
+        const gd = $('#guide'), sec = e.target.closest('.sec');
+        if (!gd) return;
+        if (!sec) { gd.hidden = true; return; }
+        const s = cur(), bar = Math.round(barAt(e)), x = s.sections[+sec.dataset.si];
+        const ok = bar > x.start && bar < x.start + x.len;
+        gd.hidden = !ok;
+        if (ok) { gd.style.left = (bar / s.bars * 100) + '%'; setText($('span', gd), `comp. ${bar + 1}`); }
+      }
+      return;
+    }
+    const s = cur();
+    if (drag.kind === 'ghost') {
+      const i = drag.i, l = s.layers[i], prev = hw[i], v = faderValue(e, drag.track);
+      hw[i] = v;
+      if (takeover[i]) {
+        if ((prev - l.vol) * (v - l.vol) <= 0) { takeover[i] = false; l.vol = v; flash('vol:' + (i + 1)); toast(`Fader ${i + 1} assumiu ${l.name}.`); }
+      } else l.vol = v;
+      updateFader(i);
+    } else if (drag.kind === 'fader') {
+      const i = drag.i;
+      s.layers[i].vol = faderValue(e, drag.track);
+      takeover[i] = Math.abs(hw[i] - s.layers[i].vol) > .02;
+      updateFader(i);
+    } else if (drag.kind === 'edge') {
+      const x = s.sections[drag.si], bar = clamp(Math.round(barAt(e)), drag.min, drag.max);
+      if (drag.edge === 'R') {
+        if (bar === x.start + x.len) return;
+        const nx = s.sections[drag.si + 1];
+        if (drag.linked) { nx.len = nx.start + nx.len - bar; nx.start = bar; }
+        x.len = bar - x.start;
+      } else {
+        if (bar === x.start) return;
+        const pv = s.sections[drag.si - 1];
+        if (drag.linked) pv.len = bar - pv.start;
+        x.len = x.start + x.len - bar; x.start = bar;
+      }
+      drag.moved = true;
+      const pct = (b) => (b / s.bars * 100) + '%';
+      const paint = (si) => { const el = $(`.sec[data-si="${si}"]`), y = s.sections[si]; if (!el || !y) return; el.style.left = pct(y.start); el.style.width = pct(y.len); setText($('.slen', el), `${y.len} comp.`); };
+      paint(drag.si); paint(drag.si - 1); paint(drag.si + 1);
+    } else if (drag.kind === 'draw') {
+      const b = barAt(e);
+      if (b >= drag.a0 + 1) { drag.a = drag.a0; drag.b = clamp(Math.ceil(b), drag.a0 + 1, s.bars); }
+      else { drag.b = drag.a0 + 1; drag.a = clamp(Math.floor(b), 0, drag.a0); }
+      showDrawPrev();
+    }
+  });
+
+  document.addEventListener('pointerup', () => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    setTimeout(() => { suppressClick = false; }, 0);
+    if (d.kind === 'edge') {
+      if (d.moved) { suppressClick = true; renderView(); } else undoStack.pop();
+    } else if (d.kind === 'draw') {
+      suppressClick = true;
+      drawSection(d.a, d.b);
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const typing = /INPUT|SELECT|TEXTAREA/.test(e.target.tagName);
+    if (e.key === 'Escape') {
+      if (cancelLearn()) return;
+      if (!ctx.hidden) { hideCtx(); return; }
+      if ($('#modal').innerHTML) { $('#modal').innerHTML = ''; return; }
+      if (setlistOpen) { setlistOpen = false; renderView(); return; }
+      if (globalLearn) { globalLearn = false; renderView(); toast('Learn global desligado.'); return; }
+      cancelQueue(); return;
+    }
+    if (typing) { if (e.key === 'Enter') e.target.blur(); return; }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (learning) { e.preventDefault(); captureLearn(); return; }
+    if (e.key === ' ') { e.preventDefault(); flash('play'); togglePlay(); return; }
+    if (e.key.toLowerCase() === 'l') { flash('loop'); toggleLoop(); return; }
+    if (mode === 'perf' && /^[1-8]$/.test(e.key)) { flash('slot:' + e.key); triggerSection(+e.key - 1); return; }
+    if (mode === 'edit' && e.key.toLowerCase() === 's') { splitCursor(); return; }
+    if (mode === 'edit' && e.key.toLowerCase() === 't') { act('tap', null, e, null); }
+  });
+
+  document.addEventListener('change', (e) => {
+    const t = e.target, s = cur();
+    if (t.id === 'secname') {
+      const x = s.sections[selSec]; const v = t.value.trim();
+      if (x && v && v !== x.name) { snapshot('Renomear'); x.name = uniqueName(s, v, x); if (CHIPS.some((c) => c.name === baseName(x.name))) x.color = chipColor(x.name); renderView(); if (x.name !== v) toast(`Nome repetido: ficou "${x.name}".`); }
+    }
+    if (t.id === 'seclen') setLen(selSec, +t.value || 1);
+    if (t.name === 'ctlmode') { settings.ctlMode = t.value; renderView(); }
+    if (t.id === 'st-kbd') settings.kbd = t.value;
+  });
+
+  document.addEventListener('input', (e) => {
+    const t = e.target;
+    if (t.id === 'st-tol') { settings.tol = +t.value; setText($('#st-tol-v'), `${t.value} ms`); }
+    if (t.id === 'st-tail') { settings.tail = +t.value; setText($('#st-tail-v'), `${ptNum(+t.value, 1)} s`); }
+    if (t.dataset.vel) { const v = clamp(+t.value || 0, 0, 127); settings.vel[t.dataset.vel] = v; const p = $(`#pad-${t.dataset.vel} i`); if (p) p.style.opacity = v / 127; }
+  });
+
+  renderView();
+  requestAnimationFrame(frame);
+})();
+</script>
