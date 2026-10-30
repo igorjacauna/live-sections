@@ -192,4 +192,74 @@ describe("editor_ops", function()
       assert.equal("Outro lado", model.songs()[2].name)
     end)
   end)
+
+  describe("draw", function()
+    it("desenhar no meio de uma seção a divide em duas", function()
+      local ok, name = ops.draw(song(2), 51.7, 56.2)       -- compassos 52–56 dentro de Verso 48–64
+      assert.same({ true, "Seção" }, { ok, name })
+      local rg = r.regions()
+      assert.same({ 48, 52, "Verso" }, rg[6])
+      assert.same({ 52, 56, "Seção" }, rg[7])
+      assert.same({ 56, 64, "Verso 2" }, rg[8])
+      assert.same({ 1, 1 }, { undo_blocks() })
+      assert_clean()
+    end)
+
+    it("desenhar sobre uma borda recorta a vizinha", function()
+      ops.draw(song(1), 6, 12, "Pré")
+      local rg = r.regions()
+      assert.same({ 0, 6, "Intro" }, rg[1])
+      assert.same({ 6, 12, "Pré" }, rg[2])
+      assert.same({ 12, 16, "Verso" }, rg[3])
+      assert_clean()
+    end)
+
+    it("desenhar sobre várias seções remove as cobertas, num passo de undo", function()
+      ops.draw(song(1), 7.9, 30.1, "Ponte")                 -- 8–30: cobre Verso e Refrão, recorta Outro
+      local rg = r.regions()
+      assert.same({ 0, 8, "Intro" }, rg[1])
+      assert.same({ 8, 30, "Ponte" }, rg[2])
+      assert.same({ 30, 40, "Outro" }, rg[3])
+      assert.equal(2, #r.calls_to("DeleteProjectMarker"))
+      assert.same({ 1, 1 }, { undo_blocks() })
+      assert_clean()
+    end)
+
+    it("arrastar da direita para a esquerda dá o mesmo resultado", function()
+      ops.draw(song(1), 28, 24, "Solo")
+      assert.same({ 24, 28, "Solo" }, r.regions()[4])
+    end)
+
+    it("um clique sem arrastar cria uma seção de um compasso", function()
+      ops.draw(song(1), 25, 25.1)
+      assert.same({ 24, 26, "Seção" }, r.regions()[4])
+      assert_clean()
+    end)
+
+    it("não passa dos limites da música", function()
+      ops.draw(song(1), 36, 50, "Final")
+      assert.same({ 36, 40, "Final" }, r.regions()[5])
+      assert.same({ 40, 48, "Intro" }, r.regions()[6])
+    end)
+
+    it("nome repetido ganha numeração", function()
+      local _, name = ops.draw(song(1), 24, 28, "Verso")
+      assert.equal("Verso 2", name)
+    end)
+
+    it("buracos que sobram ficam sem seção e sem slot", function()
+      ops.draw(song(1), 2, 4, "Pré")
+      ops.draw(song(1), 2, 4, "Pré")                         -- redesenha no mesmo lugar
+      ops.draw(song(1), 10, 12, "Pré")
+      local a = song(1)
+      local slots = {}
+      for _, s in ipairs(a.sections) do slots[#slots + 1] = s.slot end
+      assert.same({ 1, 2, 3, 4, 5, 6, 7, 8 }, slots)
+      assert.same({ { start_pos = 24, end_pos = 28 } }, a.gaps)
+
+      ops.merge_next(song(1), sec(1, "Pré"))                 -- Pré 2–4 + Intro 2 4–8 = 2–8
+      ops.split(song(1), 6)
+      assert_clean()
+    end)
+  end)
 end)

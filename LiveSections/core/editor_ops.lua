@@ -153,6 +153,57 @@ function M.rename(song, section, name, color)
   return true, final
 end
 
+local function unique_in(used, base)
+  local name, k = base, 2
+  while used[name] do name = base .. " " .. k; k = k + 1 end
+  used[name] = true
+  return name
+end
+
+-- Cria uma seção de `start_pos` a `end_pos` (desenho livre na régua), com
+-- snap no compasso e dentro da música. Seções invadidas são recortadas; uma
+-- seção que contém o desenho inteiro é dividida em duas; seções totalmente
+-- cobertas são removidas. Os buracos que sobrarem ficam sem seção.
+-- Retorna ok e o nome da seção criada.
+function M.draw(song, start_pos, end_pos, name)
+  local a, b = M.snap(math.min(start_pos, end_pos)), M.snap(math.max(start_pos, end_pos))
+  if b <= a + EPS then
+    -- clique sem arrastar: o compasso onde o clique caiu
+    local _, measure = reaper.TimeMap2_timeToBeats(PROJ, math.min(start_pos, end_pos))
+    a, b = measure_start(measure), measure_start(measure + 1)
+  end
+  a = math.max(a, song.start_pos)
+  b = math.min(b, song.end_pos)
+  if b <= a + EPS then return false, "no_room" end
+
+  local cut, removed, used = {}, {}, {}
+  for _, s in ipairs(song.sections) do
+    if s.start_pos >= a - EPS and s.end_pos <= b + EPS then
+      removed[#removed + 1] = s
+    else
+      used[s.name] = true
+      if s.end_pos > a + EPS and s.start_pos < b - EPS then cut[#cut + 1] = s end
+    end
+  end
+  local new_name = unique_in(used, name or DEFAULT_SECTION)
+
+  undoable("desenhar seção", function()
+    for _, s in ipairs(removed) do reaper.DeleteProjectMarker(PROJ, s.region_idx, true) end
+    for _, s in ipairs(cut) do
+      if s.start_pos < a - EPS and s.end_pos > b + EPS then
+        set_region(s, s.start_pos, a)
+        reaper.AddProjectMarker2(PROJ, true, b, s.end_pos, unique_in(used, base_name(s.name)), -1, s.color)
+      elseif s.start_pos < a - EPS then
+        set_region(s, s.start_pos, a)
+      else
+        set_region(s, b, s.end_pos)
+      end
+    end
+    reaper.AddProjectMarker2(PROJ, true, a, b, new_name, -1, 0)
+  end)
+  return true, new_name
+end
+
 local function project_end()
   local last = reaper.GetProjectLength(PROJ)
   local i = 0
