@@ -57,3 +57,18 @@ Não precisa de controlador. Use um projeto com áudio contínuo. O script liga 
 | 3 | Desliga o smooth seek, faz o seek e religa no ciclo seguinte | Alternativa, caso a 2 espere o compasso |
 
 **Mande:** o console e se ouviu estalo em algum salto.
+
+## 06_alinhar_tempo.lua: "Marcar compasso 1" sem mexer no áudio (RF-098, RF-099)
+Não precisa de controlador nem de áudio.
+
+1. Abra uma aba de projeto nova e vazia: **File → New project tab**. O script recusa rodar num projeto que já tenha tracks ou marcadores.
+2. Rode o script. Ele monta sozinho um cenário com duas músicas, itens vazios e regiões, aplica o código real do Live Sections (`core/tempo_align.lua`) e imprime o resultado.
+3. Feche a aba **sem salvar**.
+
+O console confere quatro coisas, cada uma com **ok** ou **FALHOU**:
+1. Itens, marcadores e regiões ficaram no lugar.
+2. O compasso 1 começa exatamente no ponto marcado.
+3. A música seguinte manteve o tempo e o grid dela.
+4. O ajuste fino (+0,01 BPM e +1 ms) também não move nada.
+
+**Mande:** o console inteiro.
