@@ -23,7 +23,18 @@ local function script_dir()
   return path:match("^(.*[/\\])")
 end
 package.path = script_dir() .. "../LiveSections/?.lua;" .. package.path
+package.loaded["core.tempo_align"] = nil
 local tempo_align = require("core.tempo_align")
+
+-- Qual cópia do tempo_align foi carregada, e se é a versão que conta as
+-- batidas pela lista de marcadores (commit 4aec117).
+local function module_info()
+  local path = package.searchpath("core.tempo_align", package.path) or "?"
+  local f = io.open(path, "r")
+  local src = f and f:read("a") or ""
+  if f then f:close() end
+  return path, src:find("grid_before", 1, true) ~= nil
+end
 
 local results = { ok = 0, fail = 0 }
 local function check(label, cond, detail)
@@ -110,6 +121,13 @@ local function run()
   local _, ttb = reaper.get_config_var_string("tempoenvtimelock")
   out("Spike 06: marcar compasso 1 em 3,1 s com 97,3 BPM na música A")
   out(string.format("itemtimelock = %s, tempoenvtimelock = %s", tb, ttb))
+  local mod_path, is_new = module_info()
+  out("script: " .. select(2, reaper.get_action_context()))
+  out(string.format("tempo_align: %s (%s)", mod_path, is_new and "versão nova" or "VERSÃO ANTIGA"))
+  if not is_new then
+    out("Este não é o tempo_align do repositório atualizado. Rode o spike direto da pasta live-sections/spikes.")
+    return
+  end
 
   local okb = tempo_align.set_downbeat(song_b, nil, 61.5, 120)
   out(string.format("Música B alinhada antes (compasso 1 em 61,5 s): %s", tostring(okb)))
