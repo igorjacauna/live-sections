@@ -1,7 +1,7 @@
 -- Spike 06: "Marcar compasso 1" mexe no áudio ou nas regiões?
 --
--- Rode numa ABA DE PROJETO NOVA E VAZIA (File → New project tab), com o
--- timebase do projeto em tempo (o script explica se não estiver). Ele monta
+-- Rode numa ABA DE PROJETO NOVA E VAZIA (File → New project tab), com as
+-- configurações padrão do REAPER (timebase em batidas). Ele monta
 -- um cenário de teste, aplica o mesmo código do Live Sections
 -- (core/tempo_align.lua) e imprime no console o que mudou. Não precisa de
 -- áudio nem de controlador. No fim, feche a aba sem salvar.
@@ -62,15 +62,6 @@ local function bar_of(t)
   return measure, beat
 end
 
-local MSG_TIMEBASE = [[
-O projeto está com timebase em batidas (%s). Nesse modo, mudar o tempo arrasta itens, regiões e marcadores.
-
-Nesta aba nova, abra File → Project settings… e, na aba Project, coloque em Time:
-• Timebase for items/envelopes/markers
-• Timebase for tempo/time signature envelope
-
-Depois rode o spike de novo.]]
-
 local function print_tempo_markers(title)
   out(title)
   for i = 0, reaper.CountTempoTimeSigMarkers(0) - 1 do
@@ -82,11 +73,6 @@ end
 local function setup()
   if reaper.CountTracks(0) > 0 or reaper.CountProjectMarkers(0) > 0 or reaper.CountTempoTimeSigMarkers(0) > 0 then
     reaper.MB("Rode o spike 06 numa aba de projeto nova e vazia (File → New project tab).", "Spike 06", 0)
-    return nil
-  end
-  local tb_ok, var = tempo_align.check_timebase()
-  if not tb_ok then
-    reaper.MB(MSG_TIMEBASE:format(var), "Spike 06", 0)
     return nil
   end
   reaper.SetCurrentBPM(0, 120, false)

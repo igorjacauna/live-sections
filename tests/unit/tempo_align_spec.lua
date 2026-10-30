@@ -78,7 +78,7 @@ describe("tempo_align", function()
       })
     end)
 
-    it("itens com timebase de batidas ficam em tempo durante a operação e voltam ao modo original", function()
+    it("todos os itens ficam em timebase de tempo durante a operação e voltam ao modo original", function()
       local beats = r.add_item(70, 5, 1)
       local pos_only = r.add_item(80, 5, 2)
       local default = r.add_item(90, 5, -1)
@@ -91,7 +91,7 @@ describe("tempo_align", function()
 
       ta.set_downbeat(song_a, song_b, 1.2, 96)
 
-      assert.same({ 0, 0, -1 }, seen)
+      assert.same({ 0, 0, 0 }, seen)
       assert.same({ 1, 2, -1 }, { beats.info.C_BEATATTACHMODE, pos_only.info.C_BEATATTACHMODE, default.info.C_BEATATTACHMODE })
     end)
 
@@ -107,13 +107,29 @@ describe("tempo_align", function()
       assert.same({}, markers())
     end)
 
-    it("recusa projeto em timebase de batidas", function()
+    it("funciona no timebase padrão do REAPER (batidas)", function()
       r.set_config("itemtimelock", 1)
-      assert.same({ false, "timebase_beats", "itemtimelock" }, { ta.set_downbeat(song_a, song_b, 1, 96) })
-      r.set_config("itemtimelock", 0)
       r.set_config("tempoenvtimelock", 1)
-      assert.same({ false, "timebase_beats", "tempoenvtimelock" }, { ta.set_downbeat(song_a, song_b, 1, 96) })
-      assert.same({}, markers())
+      assert.same({ true, 96 }, { ta.set_downbeat(song_a, song_b, 1.2, 96) })
+    end)
+
+    it("devolve marcadores e regiões à posição em segundos que tinham antes", function()
+      local song_mk = r.add_marker(100, "SONG: B")
+      local verso = r.add_region(20, 30, "Verso A", 0x1000004)
+      -- simula o REAPER arrastando tudo quando o tempo muda
+      local add = r.SetTempoTimeSigMarker
+      r.SetTempoTimeSigMarker = function(...)
+        for _, m in ipairs(r._markers) do m.pos = m.pos + 13; if m.isrgn then m.rgnend = m.rgnend + 13 end end
+        return add(...)
+      end
+
+      ta.set_downbeat(song_a, song_b, 1.2, 96)
+
+      assert.same({ { 20, 30, "Verso A" } }, r.regions())
+      for _, m in ipairs(r._markers) do
+        if m.idx == song_mk then assert.equal(100, m.pos) end
+        if m.idx == verso then assert.equal(0x1000004, m.color) end
+      end
     end)
   end)
 

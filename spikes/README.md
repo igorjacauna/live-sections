@@ -61,12 +61,9 @@ Não precisa de controlador. Use um projeto com áudio contínuo. O script liga 
 ## 06_alinhar_tempo.lua: "Marcar compasso 1" sem mexer no áudio (RF-098, RF-099)
 Não precisa de controlador nem de áudio.
 
-1. Abra uma aba de projeto nova e vazia: **File → New project tab**. O script recusa rodar num projeto que já tenha tracks ou marcadores.
-2. Nessa aba, abra **File → Project settings…** e, na aba *Project*, coloque em **Time**:
-   - *Timebase for items/envelopes/markers*
-   - *Timebase for tempo/time signature envelope*
-3. Rode o script. Ele monta sozinho um cenário com duas músicas, itens vazios e regiões, alinha a música B, depois alinha a música A com o código real do Live Sections (`core/tempo_align.lua`) e imprime o resultado.
-4. Feche a aba **sem salvar**.
+1. Abra uma aba de projeto nova e vazia: **File → New project tab**, sem mudar nenhuma configuração. O script recusa rodar num projeto que já tenha tracks ou marcadores.
+2. Rode o script. Ele monta sozinho um cenário com duas músicas, itens vazios e regiões, alinha a música B, depois alinha a música A com o código real do Live Sections (`core/tempo_align.lua`) e imprime o resultado.
+3. Feche a aba **sem salvar**.
 
 O console lista os marcadores de tempo antes e depois e confere quatro coisas, cada uma com **ok** ou **FALHOU**:
 1. Itens, marcadores e regiões ficaram no lugar.
