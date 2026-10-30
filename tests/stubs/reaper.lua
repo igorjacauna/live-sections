@@ -43,6 +43,9 @@ function M.new()
     _play_pos = 0,
     _cursor = 0,
     _ext = {},                 -- ProjExtState: [section][key] = valor
+    -- Marcadores de tempo da API SetTempoTimeSigMarker, por tempo. São uma
+    -- lista à parte: não alteram o mapa de _tempo usado pelo TimeMap2_*.
+    _tempo_markers = {},       -- { time, bpm, num, denom }
   }
 
   local api = {}
@@ -260,6 +263,54 @@ function M.new()
     local beat, measure = api.TimeMap2_timeToBeats(0, t)
     local whole = math.floor(beat + 1e-9)
     return string.format("%d.%d.%02d", measure + 1, whole + 1, math.floor((beat - whole) * 100 + 0.5))
+  end
+
+  -- ------------------------------------------------------ marcadores de tempo
+  local function sort_tempo_markers()
+    table.sort(r._tempo_markers, function(a, b) return a.time < b.time end)
+  end
+
+  function api.CountTempoTimeSigMarkers(_) return #r._tempo_markers end
+
+  function api.GetTempoTimeSigMarker(_, idx)
+    local m = r._tempo_markers[idx + 1]
+    if not m then return false, -1, 0, 0, 0, 0, 0, false end
+    return true, m.time, 0, 0, m.bpm, m.num, m.denom, false
+  end
+
+  -- ptidx -1 cria; senão altera. num/denom 0 = sem mudança de fórmula.
+  function api.SetTempoTimeSigMarker(_, ptidx, timepos, measurepos, beatpos, bpm, num, denom, linear)
+    log("SetTempoTimeSigMarker", ptidx, timepos, measurepos, beatpos, bpm, num, denom, linear)
+    if ptidx == -1 then
+      r._tempo_markers[#r._tempo_markers + 1] = { time = timepos, bpm = bpm, num = num, denom = denom }
+    else
+      local m = r._tempo_markers[ptidx + 1]
+      if not m then return false end
+      m.time, m.bpm, m.num, m.denom = timepos, bpm, num, denom
+    end
+    sort_tempo_markers()
+    touch()
+    return true
+  end
+
+  function api.DeleteTempoTimeSigMarker(_, idx)
+    log("DeleteTempoTimeSigMarker", idx)
+    if not r._tempo_markers[idx + 1] then return false end
+    table.remove(r._tempo_markers, idx + 1)
+    touch()
+    return true
+  end
+
+  -- Fórmula e tempo em vigor: o último marcador de tempo até `t` ou, sem
+  -- nenhum, o segmento do mapa de _tempo.
+  function api.TimeMap_GetTimeSigAtTime(_, t)
+    local found
+    for _, m in ipairs(r._tempo_markers) do
+      if m.time <= t + EPS then found = m end
+    end
+    if found then return found.num, found.denom, found.bpm end
+    local seg = segment_at_time(t)
+    return seg.num, seg.denom, seg.bpm
   end
 
   -- -------------------------------------------------------- actions e config
