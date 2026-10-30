@@ -53,16 +53,26 @@ function M.new()
   local function touch() r._state_count = r._state_count + 1 end
 
   -- ---------------------------------------------------------------- cenário
-  function r.add_marker(pos, name, color)
-    r._markers[#r._markers + 1] = { isrgn = false, pos = pos, rgnend = 0, name = name or "", idx = #r._markers + 1, color = color or 0 }
+  -- Índices crescem sempre, para não repetir depois de apagar um marcador.
+  local next_idx = 0
+  local function new_marker(isrgn, pos, rgnend, name, color)
+    next_idx = next_idx + 1
+    r._markers[#r._markers + 1] = { isrgn = isrgn, pos = pos, rgnend = rgnend, name = name or "", idx = next_idx, color = color or 0 }
     touch()
-    return r._markers[#r._markers].idx
+    return next_idx
   end
 
-  function r.add_region(pos, rgnend, name, color)
-    r._markers[#r._markers + 1] = { isrgn = true, pos = pos, rgnend = rgnend, name = name or "", idx = #r._markers + 1, color = color or 0 }
-    touch()
-    return r._markers[#r._markers].idx
+  function r.add_marker(pos, name, color) return new_marker(false, pos, 0, name, color) end
+  function r.add_region(pos, rgnend, name, color) return new_marker(true, pos, rgnend, name, color) end
+
+  -- Regiões do projeto em ordem de posição: { {pos, rgnend, name}, ... }
+  function r.regions()
+    local out = {}
+    for _, m in ipairs(r._markers) do
+      if m.isrgn then out[#out + 1] = { m.pos, m.rgnend, m.name } end
+    end
+    table.sort(out, function(a, b) return a[1] < b[1] end)
+    return out
   end
 
   function r.add_track(name, guid)
@@ -130,6 +140,30 @@ function M.new()
     log("AddProjectMarker2", isrgn, pos, rgnend, name, wantidx, color)
     if isrgn then return r.add_region(pos, rgnend, name, color) end
     return r.add_marker(pos, name, color)
+  end
+
+  local function find_marker(idx, isrgn)
+    for i, m in ipairs(r._markers) do
+      if m.idx == idx and m.isrgn == isrgn then return m, i end
+    end
+  end
+
+  function api.SetProjectMarker3(_, idx, isrgn, pos, rgnend, name, color)
+    log("SetProjectMarker3", idx, isrgn, pos, rgnend, name, color)
+    local m = find_marker(idx, isrgn)
+    if not m then return false end
+    m.pos, m.rgnend, m.name, m.color = pos, rgnend, name, color
+    touch()
+    return true
+  end
+
+  function api.DeleteProjectMarker(_, idx, isrgn)
+    log("DeleteProjectMarker", idx, isrgn)
+    local _, i = find_marker(idx, isrgn)
+    if not i then return false end
+    table.remove(r._markers, i)
+    touch()
+    return true
   end
 
   function api.GetProjectStateChangeCount(_) return r._state_count end
