@@ -29,3 +29,16 @@ Pré-requisitos: smooth seek ligado em **1 compasso**, repeat desligado, um proj
 3. Com a saída do controlador habilitada em **MIDI Outputs**, os pads devem acender enquanto você os segura.
 
 **Mande:** o console dos dois modos e se os LEDs acenderam.
+
+## 04_midi_control_mode.lua: modo "control" (RF-047)
+O script cria uma track temporária **"Spike 04 (teste)"** com ReaSynth, armada em *All MIDI inputs*, e a remove quando termina.
+
+| Rodada | Preferences → MIDI Inputs (controlador, porta *Master*) | O que fazer | O que observar |
+|---|---|---|---|
+| A | *Enable input* | Rode o script, aperte 3 pads, pare o script | Os pads aparecem no console? Acendem? **Tocam som no ReaSynth?** |
+| B | *Enable input for control messages* | Rode o script, aperte os mesmos 3 pads, pare o script | Os pads aparecem no console? Acendem? **Tocam som no ReaSynth?** |
+
+Deixe a porta *Private* desabilitada nas duas rodadas, para não duplicar os eventos.
+Para parar o script, rode-o de novo e escolha **Terminate instances**: o resumo aparece no fim do console.
+
+**Mande:** o console das duas rodadas e, para cada uma, se os pads acenderam e se tocaram som.
