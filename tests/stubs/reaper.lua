@@ -42,6 +42,7 @@ function M.new()
     _play_state = 0,           -- bit 1 = tocando
     _play_pos = 0,
     _cursor = 0,
+    _ext = {},                 -- ProjExtState: [section][key] = valor
   }
 
   local api = {}
@@ -253,6 +254,14 @@ function M.new()
     return starts[idx] + ((measures - seg.measure) * seg.num + beats) * 60 / seg.bpm
   end
 
+  -- Só o modo 2 (compassos.batidas.centésimos), como a régua do REAPER.
+  function api.format_timestr_pos(t, _, mode)
+    if mode ~= 2 then error("stub: format_timestr_pos só simula o modo 2") end
+    local beat, measure = api.TimeMap2_timeToBeats(0, t)
+    local whole = math.floor(beat + 1e-9)
+    return string.format("%d.%d.%02d", measure + 1, whole + 1, math.floor((beat - whole) * 100 + 0.5))
+  end
+
   -- -------------------------------------------------------- actions e config
   function api.Main_OnCommand(cmd, flag)
     log("Main_OnCommand", cmd, flag)
@@ -265,6 +274,21 @@ function M.new()
     local v = r._config[name]
     if v == nil then return false, "" end
     return true, v
+  end
+
+  -- ---------------------------------------------------------- ProjExtState
+  function api.GetProjExtState(_, section, key)
+    local v = r._ext[section] and r._ext[section][key]
+    if v == nil or v == "" then return 0, "" end
+    return 1, v
+  end
+
+  function api.SetProjExtState(_, section, key, value)
+    log("SetProjExtState", section, key, value)
+    r._ext[section] = r._ext[section] or {}
+    r._ext[section][key] = value ~= "" and value or nil
+    touch()
+    return 1
   end
 
   -- --------------------------------------------------------------- transporte
