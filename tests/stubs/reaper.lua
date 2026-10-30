@@ -36,6 +36,7 @@ function M.new()
     _app_version = "7.84/macOS-arm64",
     _tempo = { { measure = 0, bpm = 120, num = 4, denom = 4 } },
     _resource_path = "/tmp/reaper-stub",
+    _project_length = 0,       -- valor devolvido por GetProjectLength
   }
 
   local api = {}
@@ -70,6 +71,11 @@ function M.new()
     r._tempo = segments
     touch()
   end
+
+  -- Simula uma edição feita no REAPER (renomear, recolorir, mover) sem passar pela API.
+  function r.touch() touch() end
+
+  function r.set_project_length(len) r._project_length = len end
 
   function r.set_toggle(cmd, state) r._toggles[cmd] = state end
   function r.set_config(name, value) r._config[name] = tostring(value) end
@@ -116,6 +122,7 @@ function M.new()
   end
 
   function api.GetProjectStateChangeCount(_) return r._state_count end
+  function api.GetProjectLength(_) return r._project_length end
 
   -- ------------------------------------------------------------------ tracks
   function api.CountTracks(_) return #r._tracks end
