@@ -1,7 +1,8 @@
 -- Spike 06: "Marcar compasso 1" mexe no áudio ou nas regiões?
 --
--- Rode numa ABA DE PROJETO NOVA E VAZIA (File → New project tab). O script
--- monta um cenário de teste, aplica o mesmo código do Live Sections
+-- Rode numa ABA DE PROJETO NOVA E VAZIA (File → New project tab), com o
+-- timebase do projeto em tempo (o script explica se não estiver). Ele monta
+-- um cenário de teste, aplica o mesmo código do Live Sections
 -- (core/tempo_align.lua) e imprime no console o que mudou. Não precisa de
 -- áudio nem de controlador. No fim, feche a aba sem salvar.
 --
@@ -10,6 +11,8 @@
 --             região "Verso A" em 20–30 s. O compasso 1 do áudio está em 3,1 s.
 --   Música B: marcador "SONG: B" em 60 s, região "Intro B" em 64–70 s,
 --             item em 64 s (timebase do projeto) e item em 70 s (timebase beats).
+--             B é alinhada antes (compasso 1 em 61,5 s a 120 BPM), para ver se
+--             o alinhamento de A preserva o de B.
 
 local TOL = 0.0005 -- 0,5 ms
 
@@ -59,9 +62,31 @@ local function bar_of(t)
   return measure, beat
 end
 
+local MSG_TIMEBASE = [[
+O projeto está com timebase em batidas (%s). Nesse modo, mudar o tempo arrasta itens, regiões e marcadores.
+
+Nesta aba nova, abra File → Project settings… e, na aba Project, coloque em Time:
+• Timebase for items/envelopes/markers
+• Timebase for tempo/time signature envelope
+
+Depois rode o spike de novo.]]
+
+local function print_tempo_markers(title)
+  out(title)
+  for i = 0, reaper.CountTempoTimeSigMarkers(0) - 1 do
+    local _, time, _, _, bpm, num, denom = reaper.GetTempoTimeSigMarker(0, i)
+    out(string.format("    %8.4f s  %8.3f BPM  %s", time, bpm, num > 0 and (num .. "/" .. denom) or "(só tempo)"))
+  end
+end
+
 local function setup()
   if reaper.CountTracks(0) > 0 or reaper.CountProjectMarkers(0) > 0 or reaper.CountTempoTimeSigMarkers(0) > 0 then
     reaper.MB("Rode o spike 06 numa aba de projeto nova e vazia (File → New project tab).", "Spike 06", 0)
+    return nil
+  end
+  local tb_ok, var = tempo_align.check_timebase()
+  if not tb_ok then
+    reaper.MB(MSG_TIMEBASE:format(var), "Spike 06", 0)
     return nil
   end
   reaper.SetCurrentBPM(0, 120, false)
@@ -96,14 +121,19 @@ local function run()
   local song_b = { start_pos = 60, end_pos = 120 }
 
   local _, tb = reaper.get_config_var_string("itemtimelock")
+  local _, ttb = reaper.get_config_var_string("tempoenvtimelock")
   out("Spike 06: marcar compasso 1 em 3,1 s com 97,3 BPM na música A")
-  out(string.format("Configuração itemtimelock = %s", tb))
-  local b_bar_before, b_beat_before = bar_of(64)
+  out(string.format("itemtimelock = %s, tempoenvtimelock = %s", tb, ttb))
+
+  local okb = tempo_align.set_downbeat(song_b, nil, 61.5, 120)
+  out(string.format("Música B alinhada antes (compasso 1 em 61,5 s): %s", tostring(okb)))
+  print_tempo_markers("  marcadores de tempo antes:")
   local before = snapshot(items)
 
   local ok, bpm = tempo_align.set_downbeat(song_a, song_b, 3.1, 97.3)
   reaper.UpdateTimeline()
   out(string.format("set_downbeat: %s, BPM %s", tostring(ok), tostring(bpm)))
+  print_tempo_markers("  marcadores de tempo depois:")
   local after = snapshot(items)
 
   out("\n1. Nada saiu do lugar")
@@ -118,14 +148,12 @@ local function run()
     string.format("esperado %.4f s, veio %.4f s", expected, next_bar))
 
   out("\n3. A música B mantém o tempo dela")
-  local _, _, tempo_b = reaper.TimeMap_GetTimeSigAtTime(0, 61)
-  check("tempo em 61 s continua 120 BPM", math.abs(tempo_b - 120) < 0.001, string.format("%.3f BPM", tempo_b))
-  local _, beat60 = bar_of(60)
-  check("60 s (início de B) é início de compasso", math.abs(beat60) < 0.001, string.format("batida %.3f", beat60 + 1))
-  local b_bar_after, b_beat_after = bar_of(64)
-  check("64 s continua na mesma batida do compasso", math.abs(b_beat_after - b_beat_before) < 0.001,
-    string.format("antes batida %.3f do compasso %d, agora batida %.3f do compasso %d",
-      b_beat_before + 1, b_bar_before + 1, b_beat_after + 1, b_bar_after + 1))
+  local _, _, tempo_b = reaper.TimeMap_GetTimeSigAtTime(0, 62)
+  check("tempo em 62 s continua 120 BPM", math.abs(tempo_b - 120) < 0.001, string.format("%.3f BPM", tempo_b))
+  local _, beat_b = bar_of(61.5)
+  check("61,5 s (compasso 1 de B) continua início de compasso", math.abs(beat_b) < 0.001, string.format("batida %.3f", beat_b + 1))
+  local _, _, tempo_b70 = reaper.TimeMap_GetTimeSigAtTime(0, 70)
+  check("tempo em 70 s continua 120 BPM", math.abs(tempo_b70 - 120) < 0.001, string.format("%.3f BPM", tempo_b70))
 
   out("\n4. Ajuste fino: +0,01 BPM e +1 ms")
   local before2 = snapshot(items)
@@ -134,7 +162,10 @@ local function run()
   check("nudge aplicado", ok2 and math.abs(bpm2 - 97.31) < 0.001 and math.abs(t2 - 3.101) < TOL,
     string.format("BPM %s, compasso 1 em %s s", tostring(bpm2), tostring(t2)))
   compare(before2, snapshot(items))
-  local _, _, tempo_b2 = reaper.TimeMap_GetTimeSigAtTime(0, 61)
+  print_tempo_markers("  marcadores de tempo depois do ajuste:")
+  local _, beat_b2 = bar_of(61.5)
+  check("61,5 s continua início de compasso", math.abs(beat_b2) < 0.001, string.format("batida %.3f", beat_b2 + 1))
+  local _, _, tempo_b2 = reaper.TimeMap_GetTimeSigAtTime(0, 62)
   check("música B continua a 120 BPM", math.abs(tempo_b2 - 120) < 0.001, string.format("%.3f BPM", tempo_b2))
 
   out(string.format("\nResultado: %d ok, %d falharam. Feche a aba sem salvar.", results.ok, results.fail))

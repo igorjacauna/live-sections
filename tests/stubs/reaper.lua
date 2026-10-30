@@ -301,16 +301,19 @@ function M.new()
     return true
   end
 
-  -- Fórmula e tempo em vigor: o último marcador de tempo até `t` ou, sem
-  -- nenhum, o segmento do mapa de _tempo.
+  -- Fórmula e tempo em vigor em `t`: o tempo do último marcador até `t` e a
+  -- fórmula do último marcador que define fórmula (num > 0). O que faltar vem
+  -- do segmento do mapa de _tempo.
   function api.TimeMap_GetTimeSigAtTime(_, t)
-    local found
-    for _, m in ipairs(r._tempo_markers) do
-      if m.time <= t + EPS then found = m end
-    end
-    if found then return found.num, found.denom, found.bpm end
     local seg = segment_at_time(t)
-    return seg.num, seg.denom, seg.bpm
+    local num, denom, bpm = seg.num, seg.denom, seg.bpm
+    for _, m in ipairs(r._tempo_markers) do
+      if m.time <= t + EPS then
+        bpm = m.bpm
+        if m.num > 0 then num, denom = m.num, m.denom end
+      end
+    end
+    return num, denom, bpm
   end
 
   -- -------------------------------------------------------- actions e config
