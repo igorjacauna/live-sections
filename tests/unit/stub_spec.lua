@@ -1,0 +1,120 @@
+local stub = require("stubs.reaper")
+
+describe("stub do reaper", function()
+  local r
+
+  before_each(function() r = stub.install() end)
+
+  describe("marcadores e regiões", function()
+    it("enumera por posição, com regiões e marcadores misturados", function()
+      r.add_region(8, 16, "Refrão", 0x123)
+      r.add_marker(0, "SONG: Rua Augusta")
+      r.add_region(0, 8, "Verso")
+
+      local _, isrgn1, pos1, _, name1 = r.EnumProjectMarkers3(0, 0)
+      local _, isrgn2, pos2, end2, name2 = r.EnumProjectMarkers3(0, 1)
+      local ret3, isrgn3, pos3, end3, name3, _, color3 = r.EnumProjectMarkers3(0, 2)
+      local ret4 = r.EnumProjectMarkers3(0, 3)
+
+      assert.same({ false, 0, "SONG: Rua Augusta" }, { isrgn1, pos1, name1 })
+      assert.same({ true, 0, 8, "Verso" }, { isrgn2, pos2, end2, name2 })
+      assert.same({ 3, true, 8, 16, "Refrão", 0x123 }, { ret3, isrgn3, pos3, end3, name3, color3 })
+      assert.equal(0, ret4)
+    end)
+
+    it("conta marcadores e regiões separadamente", function()
+      r.add_marker(0, "SONG: A")
+      r.add_region(0, 4, "Intro")
+      r.add_region(4, 8, "Verso")
+      assert.same({ 3, 1, 2 }, { r.CountProjectMarkers(0) })
+    end)
+
+    it("AddProjectMarker2 cria região e registra a chamada", function()
+      r.AddProjectMarker2(0, true, 0, 4, "Intro", -1, 0)
+      local _, isrgn, _, rgnend, name = r.EnumProjectMarkers3(0, 0)
+      assert.same({ true, 4, "Intro" }, { isrgn, rgnend, name })
+      assert.equal(1, #r.calls_to("AddProjectMarker2"))
+    end)
+  end)
+
+  describe("contador de mudanças do projeto", function()
+    it("aumenta a cada mudança", function()
+      local before = r.GetProjectStateChangeCount(0)
+      r.add_region(0, 4, "Intro")
+      local t = r.add_track("Kontakt")
+      r.SetMediaTrackInfo_Value(t, "I_RECARM", 1)
+      assert.equal(before + 3, r.GetProjectStateChangeCount(0))
+    end)
+  end)
+
+  describe("tracks", function()
+    it("expõe nome, GUID e valores", function()
+      local t = r.add_track("Kontakt - Rua Augusta", "{ABC}")
+      assert.equal(1, r.CountTracks(0))
+      assert.equal(t, r.GetTrack(0, 0))
+      assert.equal("{ABC}", r.GetTrackGUID(t))
+      assert.same({ true, "Kontakt - Rua Augusta" }, { r.GetSetMediaTrackInfo_String(t, "P_NAME", "", false) })
+      r.SetMediaTrackInfo_Value(t, "D_VOL", 0.5)
+      assert.equal(0.5, r.GetMediaTrackInfo_Value(t, "D_VOL"))
+    end)
+  end)
+
+  describe("mapa de tempo", function()
+    it("4/4 a 120 BPM: 2 s é o início do compasso 2", function()
+      local beat, measure, cml, fullbeats, denom = r.TimeMap2_timeToBeats(0, 2.0)
+      assert.same({ 0, 1, 4, 4, 4 }, { beat, measure, cml, fullbeats, denom })
+      assert.near(2.0, r.TimeMap2_beatsToTime(0, 0, 1), 1e-9)
+      assert.near(2.5, r.TimeMap2_beatsToTime(0, 1, 1), 1e-9)
+    end)
+
+    it("respeita mudança de BPM e de fórmula de compasso", function()
+      -- compassos 0-1 em 4/4 a 120 (4 s), depois 7/8 a 210 colcheias por minuto
+      r.set_tempo_map({
+        { measure = 0, bpm = 120, num = 4, denom = 4 },
+        { measure = 2, bpm = 210, num = 7, denom = 8 },
+      })
+      local seg2_measure_len = 7 * 60 / 210 -- 2 s
+      assert.near(4.0, r.TimeMap2_beatsToTime(0, 0, 2), 1e-9)
+      assert.near(4.0 + seg2_measure_len, r.TimeMap2_beatsToTime(0, 0, 3), 1e-9)
+
+      local beat, measure, cml, _, denom = r.TimeMap2_timeToBeats(0, 4.0 + seg2_measure_len + 60 / 210 * 3)
+      assert.near(3, beat, 1e-9)
+      assert.same({ 3, 7, 8 }, { measure, cml, denom })
+
+      local _, _, _, fullbeats = r.TimeMap2_timeToBeats(0, 4.0 + 60 / 210)
+      assert.near(9, fullbeats, 1e-9)
+      assert.near(4.0 + 60 / 210, r.TimeMap2_beatsToTime(0, 9), 1e-9)
+    end)
+  end)
+
+  describe("actions e configurações", function()
+    it("Main_OnCommand alterna o estado e registra a chamada", function()
+      assert.equal(-1, r.GetToggleCommandState(40390))
+      r.set_toggle(40390, 0)
+      r.Main_OnCommand(40390, 0)
+      assert.equal(1, r.GetToggleCommandState(40390))
+      assert.same({ 40390, 0, n = 2 }, r.calls_to("Main_OnCommand")[1])
+    end)
+
+    it("get_config_var_string retorna o valor configurado", function()
+      r.set_config("smoothseekmeas", 1)
+      assert.same({ true, "1" }, { r.get_config_var_string("smoothseekmeas") })
+      assert.same({ false, "" }, { r.get_config_var_string("nao_existe") })
+    end)
+  end)
+
+  describe("funções não simuladas", function()
+    it("geram erro com o nome da função", function()
+      assert.has_error(function() r.GetPlayPosition2() end, nil)
+      local ok, err = pcall(function() return r.GetPlayPosition2 end)
+      assert.is_false(ok)
+      assert.matches("GetPlayPosition2", err)
+    end)
+
+    it("extensões opcionais são nil até serem instaladas", function()
+      assert.is_nil(r.ImGui_GetBuiltinPath)
+      r.install_imgui("/imgui")
+      assert.equal("/imgui", r.ImGui_GetBuiltinPath())
+    end)
+  end)
+end)

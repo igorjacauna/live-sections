@@ -1,0 +1,7 @@
+return {
+  default = {
+    ROOT = { "tests/unit" },
+    pattern = "_spec",
+    lpath = "LiveSections/?.lua;tests/?.lua",
+  },
+}
