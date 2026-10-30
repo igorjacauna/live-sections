@@ -42,3 +42,18 @@ Deixe a porta *Private* desabilitada nas duas rodadas, para não duplicar os eve
 Para parar o script, rode-o de novo e escolha **Terminate instances**: o resumo aparece no fim do console.
 
 **Mande:** o console das duas rodadas e, para cada uma, se os pads acenderam e se tocaram som.
+
+## 05_salto_imediato.lua: salto imediato com smooth seek ligado
+Não precisa de controlador. Use um projeto com áudio contínuo. O script liga o smooth seek, desliga o repeat e, se o projeto não tiver regiões, cria a região **"Alvo"** nos compassos 1 a 4. Todos os saltos vão para o início da 1ª região.
+
+1. Rode o script e dê play a partir do compasso 9 ou depois, para o salto ser bem audível.
+2. Com a janela do spike em foco, aperte **1**, espere o salto, volte a tocar lá na frente e repita com **2** e com **3**. Faça cada tecla umas 3 vezes, em pontos diferentes do compasso.
+3. Feche com **Esc**.
+
+| Tecla | O que o script faz | O que se espera |
+|---|---|---|
+| 1 | Seek comum, com o smooth seek ligado | Esperar a virada do compasso (é o controle) |
+| 2 | Desliga o smooth seek, faz o seek e religa na mesma hora | Se der "IMEDIATO", o Live Sections já funciona assim |
+| 3 | Desliga o smooth seek, faz o seek e religa no ciclo seguinte | Alternativa, caso a 2 espere o compasso |
+
+**Mande:** o console e se ouviu estalo em algum salto.
