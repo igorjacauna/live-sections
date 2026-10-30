@@ -77,7 +77,7 @@ local function print_tempo_markers(title)
   out(title)
   for i = 0, reaper.CountTempoTimeSigMarkers(0) - 1 do
     local _, time, _, _, bpm, num, denom = reaper.GetTempoTimeSigMarker(0, i)
-    out(string.format("    %8.4f s  %8.3f BPM  %s", time, bpm, num > 0 and (num .. "/" .. denom) or "(só tempo)"))
+    out(string.format("    %8.4f s  %8.3f BPM  %s", time, bpm, num > 0 and (num .. "/" .. denom) or ("(só tempo, fórmula " .. num .. "/" .. denom .. ")")))
   end
 end
 

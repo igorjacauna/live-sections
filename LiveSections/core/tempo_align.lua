@@ -52,8 +52,11 @@ end
 
 -- ------------------------------------------------------------------ marcadores de tempo
 
+-- Marcador só de tempo: o REAPER pode devolver fórmula -1 (não só 0);
+-- aqui fica sempre 0.
 local function tempo_marker(idx)
   local _, time, _, _, bpm, num, denom, linear = reaper.GetTempoTimeSigMarker(PROJ, idx)
+  if num <= 0 then num, denom = 0, 0 end
   return { idx = idx, time = time, bpm = bpm, num = num, denom = denom, linear = linear }
 end
 

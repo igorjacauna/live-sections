@@ -109,6 +109,16 @@ describe("tempo_align", function()
       assert.same({ 61.5, 120, 4, 4 }, markers()[4])
     end)
 
+    it("marcador só de tempo com fórmula -1 (como o REAPER devolve) também é refeito", function()
+      ta.set_downbeat({ start_pos = 60, end_pos = 120 }, nil, 61.5, 120)
+      for _, m in ipairs(r._tempo_markers) do
+        if m.num == 0 then m.num, m.denom = -1, -1 end
+      end
+      ta.set_downbeat({ start_pos = 0, end_pos = 60 }, { start_pos = 60, end_pos = 120 }, 3.1, 97.3)
+      assert.near(60 * (4 - (56.9 * 97.3 / 60) % 4) / 1.5, markers()[3][2], 1e-9)
+      assert.same({ 0, 0 }, { markers()[3][3], markers()[3][4] })
+    end)
+
     it("não lê o TimeMap: o REAPER devolve o mapa antigo durante a operação", function()
       r.SetTempoTimeSigMarker(0, -1, 100, -1, -1, 130, 0, 0, false)
       r.SetTempoTimeSigMarker(0, -1, 150, -1, -1, 140, 7, 8, false)
