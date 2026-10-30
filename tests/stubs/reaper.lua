@@ -37,6 +37,8 @@ function M.new()
     _tempo = { { measure = 0, bpm = 120, num = 4, denom = 4 } },
     _resource_path = "/tmp/reaper-stub",
     _project_length = 0,       -- valor devolvido por GetProjectLength
+    _repeat = 0,
+    _loop = { 0, 0 },          -- loop points { início, fim }
   }
 
   local api = {}
@@ -220,6 +222,25 @@ function M.new()
     local v = r._config[name]
     if v == nil then return false, "" end
     return true, v
+  end
+
+  -- --------------------------------------------------------------- transporte
+  -- Os saltos só são registrados; o stub não simula a reprodução.
+  function api.SetEditCurPos(time, moveview, seekplay) log("SetEditCurPos", time, moveview, seekplay) end
+  function api.GoToRegion(proj, region_index, use_timeline_order) log("GoToRegion", proj, region_index, use_timeline_order) end
+
+  -- val < 0 consulta; 0 desliga; 1 liga. Retorna o estado.
+  function api.GetSetRepeat(val)
+    if val >= 0 then log("GetSetRepeat", val); r._repeat = val end
+    return r._repeat
+  end
+
+  function api.GetSet_LoopTimeRange2(proj, isSet, isLoop, start, finish, allowautoseek)
+    if isSet then
+      log("GetSet_LoopTimeRange2", proj, isSet, isLoop, start, finish, allowautoseek)
+      r._loop = { start, finish }
+    end
+    return r._loop[1], r._loop[2]
   end
 
   -- ------------------------------------------------------------------ outros
