@@ -85,6 +85,10 @@ view.init({
   learn = learn, input = input, model = model,
 })
 
+-- Tamanho mínimo: a janela não abre estreita mesmo com um tamanho antigo
+-- salvo pelo ReaImGui.
+local MIN_W, MIN_H = 720, 480
+
 local function loop()
   local now = reaper.time_precise()
   view.update(now)
@@ -92,6 +96,7 @@ local function loop()
   theme.push(ctx)
   local t = theme.font(ctx, "body")
   ImGui.SetNextWindowSize(ctx, 1100, 760, ImGui.Cond_FirstUseEver)
+  ImGui.SetNextWindowSizeConstraints(ctx, MIN_W, MIN_H, 100000, 100000)
   local visible, open = ImGui.Begin(ctx, APP_NAME, true)
   if visible then
     view.draw(ctx)

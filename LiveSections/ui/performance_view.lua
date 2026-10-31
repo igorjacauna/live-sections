@@ -152,6 +152,17 @@ end
 
 function M.snapshot() return snap end
 
+-- Nomes das saídas MIDI ativas, para o diagnóstico dos LEDs.
+local function midi_outputs()
+  local list = {}
+  for i = 0, reaper.GetMaxMidiOutputs() - 1 do
+    local ok, name = reaper.GetMIDIOutputName(i, "")
+    if ok then list[#list + 1] = name end
+  end
+  if #list == 0 then list[1] = "(nenhuma)" end
+  return list
+end
+
 -- Estado do card de uma seção.
 function M.card_state(section, s)
   if same_section(section, s.queued_section) then return "queued" end
@@ -196,6 +207,7 @@ function M.update(t)
   end
   snap.disconnected = disconnected
   update_leds()
+  snap.no_led_output = feedback.missing_outputs()
 end
 
 -- ------------------------------------------------------------------ desenho: apoio
@@ -291,24 +303,34 @@ local function top_bar(ctx, x, y, w)
     end
   end
 
+  -- pílula MIDI: vermelha se uma porta mapeada sumiu, âmbar se os LEDs
+  -- não têm saída com o nome da porta
   local midi_ok = #(s.disconnected or {}) == 0
-  local midi_label = midi_ok and "MIDI ok" or "MIDI desconectado"
+  local no_leds = s.no_led_output or {}
+  local leds_ok = #no_leds == 0
+  local midi_label = not midi_ok and "MIDI desconectado" or not leds_ok and "LEDs sem saída" or "MIDI ok"
   local mw = size(ctx, "label", midi_label) + 34
   rx = rx - mw - 10
-  local pill = midi_ok and theme.C.ok or theme.C.danger
+  local pill = not midi_ok and theme.C.danger or not leds_ok and theme.C.queue or theme.C.ok
   ImGui.DrawList_AddRectFilled(dl, rx, y + 14, rx + mw, y + 42, theme.C.bg, 14)
-  ImGui.DrawList_AddRect(dl, rx, y + 14, rx + mw, y + 42, midi_ok and theme.C.line or theme.C.danger, 14)
-  if midi_ok then
+  ImGui.DrawList_AddRect(dl, rx, y + 14, rx + mw, y + 42, midi_ok and leds_ok and theme.C.line or pill, 14)
+  if midi_ok and leds_ok then
     ImGui.DrawList_AddCircleFilled(dl, rx + 14, y + 28, 4, pill)
   else
     theme.icon(dl, "warn", rx + 7, y + 21, 14, pill)
   end
-  txt(ctx, dl, "label", rx + 24, y + 22, midi_ok and theme.C.text or theme.C.danger, midi_label)
+  txt(ctx, dl, "label", rx + 24, y + 22, midi_ok and leds_ok and theme.C.text or pill, midi_label)
   ImGui.SetCursorScreenPos(ctx, rx, y + 14)
   ImGui.InvisibleButton(ctx, "midi_pill", mw, 28)
-  if not midi_ok and ImGui.IsItemHovered(ctx) then
-    ImGui.SetTooltip(ctx, "Sem sinal de:\n" .. table.concat(s.disconnected, "\n")
-      .. "\n\nOs mapeamentos voltam a funcionar quando o dispositivo for reconectado.")
+  if ImGui.IsItemHovered(ctx) then
+    if not midi_ok then
+      ImGui.SetTooltip(ctx, "Sem sinal de:\n" .. table.concat(s.disconnected, "\n")
+        .. "\n\nOs mapeamentos voltam a funcionar quando o dispositivo for reconectado.")
+    elseif not leds_ok then
+      ImGui.SetTooltip(ctx, "Nenhuma saída MIDI com o nome:\n" .. table.concat(no_leds, "\n")
+        .. "\n\nSaídas ativas no REAPER:\n" .. table.concat(midi_outputs(), "\n")
+        .. "\n\nAtive a saída do controlador em Preferences → MIDI Devices.")
+    end
   end
 
   -- quantize: botão que abre a lista; mapeável (percorrer os valores)

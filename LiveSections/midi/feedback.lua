@@ -16,6 +16,7 @@
 -- M.set_state(mapping, state)
 -- M.flush(now)                         envia o que mudou; `now` em segundos
 -- M.reset()                            esquece o que foi enviado (reenvia tudo)
+-- M.missing_outputs() -> { nome }      portas sem saída MIDI no último flush
 
 local M = {}
 
@@ -27,6 +28,7 @@ local out_override = nil
 local blink = true
 local wanted = {}     -- [key] = { mapping, state }
 local sent = {}       -- [key] = velocity enviada
+local missing = {}    -- nomes sem saída no último flush
 
 local STATUS = { note = 0x90, cc = 0xB0 }
 
@@ -75,12 +77,18 @@ end
 
 -- ------------------------------------------------------------------ envio
 
+-- Saída com o nome da porta; sem diferenciar maiúsculas se não houver igual.
 local function output_index(name)
+  local loose
   for i = 0, reaper.GetMaxMidiOutputs() - 1 do
     local ok, oname = reaper.GetMIDIOutputName(i, "")
     if ok and oname == name then return i end
+    if ok and not loose and oname:lower() == name:lower() then loose = i end
   end
+  return loose
 end
+
+function M.missing_outputs() return missing end
 
 local function velocity_of(state, now)
   if state == "queued" and blink and math.floor(now / BLINK_PERIOD_S) % 2 == 1 then
@@ -91,11 +99,15 @@ end
 
 function M.flush(now)
   local outputs = {}
+  missing = {}
   for k, w in pairs(wanted) do
     local v = velocity_of(w.state, now or 0)
     if sent[k] ~= v then
       local name = out_override or w.mapping.port_name
-      if outputs[name] == nil then outputs[name] = output_index(name) or false end
+      if outputs[name] == nil then
+        outputs[name] = output_index(name) or false
+        if not outputs[name] then missing[#missing + 1] = name end
+      end
       local out = outputs[name]
       if out then
         local m = w.mapping
