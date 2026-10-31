@@ -92,6 +92,11 @@ M.TEXT = {
   readout  = { "num_bold", 17 },
   big      = { "num_bold", 34 },
   tick     = { "num", 11 },
+  -- cifra: monoespaçada para os acordes ficarem sobre a sílaba certa
+  chart_lg = { "num", 30 },
+  chord_lg = { "num_bold", 30 },
+  chart_sm = { "num", 20 },
+  chord_sm = { "num_bold", 20 },
 }
 
 local fonts = {}          -- [style] = font

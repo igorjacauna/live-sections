@@ -14,7 +14,7 @@
 local M = {}
 
 local ImGui, theme, anim, widgets
-local perf, layers, feedback, mappings, learn, input, model, editor, settings_view
+local perf, layers, feedback, mappings, learn, input, model, editor, settings_view, stage
 
 local PROJ = 0
 local PORT_CHECK_S = 1.0
@@ -34,7 +34,9 @@ local ui = {
   mode = "performance",    -- "performance" | "edit" | "settings"
   stage = false,
   setlist_open = false,    -- setlist completa aberta no modo palco
+  chart_open = false,      -- janela "Cifra"
 }
+local stage_state = {}
 local now = 0
 local last_song_id = nil
 local last_port_check = -math.huge
@@ -46,7 +48,7 @@ function M.init(deps)
   ImGui, theme, anim, widgets = deps.ImGui, deps.theme, deps.anim, deps.widgets
   perf, layers, feedback = deps.perf, deps.layers, deps.feedback
   mappings, learn, input, model = deps.mappings, deps.learn, deps.input, deps.model
-  editor, settings_view = deps.editor, deps.settings
+  editor, settings_view, stage = deps.editor, deps.settings, deps.stage
   ui.mode, ui.stage, ui.setlist_open = "performance", false, false
   last_song_id, last_port_check, disconnected, last_value = nil, -math.huge, {}, {}
 end
@@ -211,7 +213,15 @@ function M.update(t)
   snap.disconnected = disconnected
   update_leds()
   snap.no_led_output = feedback.missing_outputs()
+
+  -- estado de palco: janela de cifra e página do celular/tablet
+  if stage then
+    stage_state = stage.build(snap, { max_lines = mappings.settings().chart_lines })
+    stage.publish(stage_state, now)
+  end
 end
+
+function M.stage_state() return stage_state end
 
 -- ------------------------------------------------------------------ desenho: apoio
 
@@ -320,17 +330,22 @@ local function top_bar(ctx, x, y, w)
     { "FÓRMULA", num .. "/" .. denom },
   }
   for _, r in ipairs(reads) do
-    if cx + 80 > x + w - 330 then break end
+    if cx + 80 > x + w - 450 then break end
     txt(ctx, dl, "label", cx, y + 9, theme.C.muted, r[1])
     txt(ctx, dl, "readout", cx, y + 25, theme.C.text, r[2])
     cx = cx + math.max(size(ctx, "readout", r[2]), size(ctx, "label", r[1])) + 20
   end
 
-  -- direita: palco, MIDI e quantize
+  -- direita: cifra, palco, MIDI e quantize
   local rx = x + w - 16
+  local cw = size(ctx, "button", "Cifra") + 24
+  rx = rx - cw
+  if button(ctx, "chart", "Cifra", rx, y + 12, 32, { active = ui.chart_open, w = cw }) then
+    ui.chart_open = not ui.chart_open
+  end
   local stage_label = ui.stage and "Sair do palco" or "Palco"
   local sw = size(ctx, "button", stage_label) + 46
-  rx = rx - sw
+  rx = rx - sw - 6
   if ui.mode == "performance" then
     if button(ctx, "stage", stage_label, rx, y + 12, 32, { icon = "stage", active = ui.stage, w = sw }) then
       ui.stage = not ui.stage

@@ -9,7 +9,7 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <link rel="website">https://live-sections.igor-jacauna-cloudflare.workers.dev</link>
         <link rel="website">https://github.com/igorjacauna/live-sections</link>
       </metadata>
-      <version name="0.1.0" author="Igor Jacaúna" time="2026-10-31T15:21:27Z">
+      <version name="0.1.0" author="Igor Jacaúna" time="2026-10-31T20:11:47Z">
         <source file="actions/Live Sections - Camada 1 mute.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20mute.lua</source>
         <source file="actions/Live Sections - Camada 1 solo.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20solo.lua</source>
         <source file="actions/Live Sections - Camada 1 volume (CC).lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20volume%20(CC).lua</source>
@@ -93,12 +93,14 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <source file="assets/fonts/Manrope-SemiBold.ttf">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/assets/fonts/Manrope-SemiBold.ttf</source>
         <source file="assets/fonts/OFL-JetBrainsMono.txt">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/assets/fonts/OFL-JetBrainsMono.txt</source>
         <source file="assets/fonts/OFL-Manrope.txt">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/assets/fonts/OFL-Manrope.txt</source>
+        <source file="core/chart.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/chart.lua</source>
         <source file="core/editor_ops.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/editor_ops.lua</source>
         <source file="core/layers.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/layers.lua</source>
         <source file="core/performance.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/performance.lua</source>
         <source file="core/project_model.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/project_model.lua</source>
         <source file="core/quantize.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/quantize.lua</source>
         <source file="core/queue.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/queue.lua</source>
+        <source file="core/stage.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/stage.lua</source>
         <source file="core/tempo_align.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/tempo_align.lua</source>
         <source file="core/transport.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/transport.lua</source>
         <source file="core/validator.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/validator.lua</source>
@@ -108,6 +110,7 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <source file="midi/learn.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/midi/learn.lua</source>
         <source file="midi/mappings.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/midi/mappings.lua</source>
         <source file="ui/anim.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/ui/anim.lua</source>
+        <source file="ui/chart_view.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/ui/chart_view.lua</source>
         <source file="ui/editor_view.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/ui/editor_view.lua</source>
         <source file="ui/kontakt_wizard.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/ui/kontakt_wizard.lua</source>
         <source file="ui/performance_view.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/ui/performance_view.lua</source>
@@ -115,6 +118,16 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <source file="ui/theme.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/ui/theme.lua</source>
         <source file="ui/widgets.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/ui/widgets.lua</source>
         <source file="vendor/json.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/vendor/json.lua</source>
+      </version>
+    </reapack>
+    <reapack name="livesections.html" type="webinterface" desc="Live Sections: cifra no celular">
+      <metadata>
+        <description><![CDATA[Página da Web Interface do REAPER que mostra no celular ou tablet a música, a seção e a cifra acompanhando o compasso, publicadas pelo Live Sections.
+
+Ative em Preferences > Control/OSC/web > Add > Web browser interface, escolha "livesections.html" como página padrão e abra o endereço mostrado no celular (mesma rede Wi-Fi).]]></description>
+      </metadata>
+      <version name="0.1.0" author="Igor Jacaúna" time="2026-10-31T20:11:47Z">
+        <source file="livesections.html">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/www/livesections.html</source>
       </version>
     </reapack>
   </category>

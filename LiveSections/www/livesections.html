@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0A0D12">
+<title>Live Sections · Cifra</title>
+<!--
+  Página da Web Interface do REAPER (Preferences → Control/OSC/web): mostra a
+  música, a seção e a cifra que o Live Sections publica em
+  ExtState("LiveSections", "stage"). Só lê; não comanda nada.
+-->
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0A0D12; --panel: #10151D; --raise: #171E29; --line: #222C3A;
+  --text: #ECF0F6; --muted: #93A0B4; --faint: #5F6B7E; --ink: #0A0D12;
+  --queue: #FFB547; --ok: #4BDB9C; --danger: #FF6B6B;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Roboto Mono", monospace;
+  --ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs: 26px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--ui); }
+body { display: flex; flex-direction: column; padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 14px max(16px, env(safe-area-inset-left)); }
+header { display: grid; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.song { font: 700 12px var(--ui); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; gap: 12px; }
+.sec { display: flex; align-items: center; gap: 12px; }
+.sec i { width: 8px; align-self: stretch; border-radius: 3px; background: var(--c, #6C9AB0); }
+.sec b { font-size: clamp(26px, 7vw, 46px); font-weight: 800; letter-spacing: -.02em; line-height: 1.1; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sec span { font: 700 16px var(--mono); color: var(--muted); white-space: nowrap; }
+.next { font: 700 15px var(--ui); color: var(--muted); min-height: 20px; }
+.next.q { color: var(--queue); }
+main { flex: 1; overflow: hidden; padding-top: 14px; }
+.row { font-family: var(--mono); font-size: var(--fs); line-height: 1.25; white-space: pre; padding-left: 14px; border-left: 4px solid transparent; color: var(--faint); }
+.row.cur { border-left-color: var(--queue); color: var(--text); }
+.row.chords { font-weight: 700; color: color-mix(in oklab, var(--queue) 55%, var(--faint)); }
+.row.chords.cur { color: var(--queue); }
+.row.nexthdr { font: 700 13px var(--ui); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 12px 0 6px; border: 0; padding-left: 18px; }
+.grid { display: flex; gap: 6px; flex-wrap: wrap; white-space: normal; }
+.grid span { padding: 4px 12px; border-radius: 8px; background: var(--raise); font-weight: 700; }
+.grid span.on { background: var(--text); color: var(--ink); }
+.empty { color: var(--muted); font-size: 20px; margin-top: 16px; }
+.empty small { display: block; color: var(--faint); font-size: 15px; margin-top: 8px; line-height: 1.5; }
+footer { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding-top: 10px; border-top: 1px solid var(--line); }
+footer .st { font: 600 13px var(--ui); color: var(--faint); }
+footer .st.err { color: var(--danger); }
+footer button { font: 700 15px var(--ui); color: var(--text); background: var(--raise); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="song"><span id="song">Live Sections</span><span id="play"></span></div>
+  <div class="sec"><i id="color"></i><b id="section">—</b><span id="bar"></span></div>
+  <div class="next" id="next"></div>
+</header>
+<main id="chart"></main>
+<footer>
+  <span class="st" id="status">Conectando…</span>
+  <span><button id="smaller" type="button" aria-label="Diminuir letra">A−</button> <button id="bigger" type="button" aria-label="Aumentar letra">A+</button></span>
+</footer>
+
+<script>
+(function () {
+  var POLL_MS = 150;
+  var $ = function (id) { return document.getElementById(id); };
+  var scale = 1;
+  try { scale = parseFloat(localStorage.getItem('ls_scale')) || 1; } catch (e) {}
+  var last = '';
+
+  // A resposta do REAPER escapa \t, \n e \\ dentro do valor.
+  function unescapeValue(s) {
+    return s.replace(/\\(.)/g, function (_, c) { return c === 't' ? '\t' : c === 'n' ? '\n' : c; });
+  }
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  // Letra do maior tamanho em que a linha mais longa cabe, vezes o ajuste A−/A+.
+  function fit(rows) {
+    var longest = 8;
+    rows.forEach(function (r) { if (r.kind !== 'next' && r.kind !== 'grid') longest = Math.max(longest, r.text.length); });
+    var w = document.getElementById('chart').clientWidth - 24;
+    var px = Math.min(40, Math.max(14, w / (longest * 0.61)));
+    document.documentElement.style.setProperty('--fs', (px * scale).toFixed(1) + 'px');
+  }
+
+  function render(s) {
+    if (!s.open) {
+      $('section').textContent = 'Live Sections fechado';
+      $('song').textContent = 'Live Sections';
+      $('bar').textContent = ''; $('next').textContent = ''; $('play').textContent = '';
+      $('chart').replaceChildren(el('div', 'empty', 'Abra o Live Sections no REAPER.'));
+      return;
+    }
+    $('song').textContent = s.song || 'Sem música';
+    $('play').textContent = s.looping ? 'LOOP' : s.playing ? 'TOCANDO' : 'PARADO';
+    $('section').textContent = s.section || 'Trecho sem seção';
+    $('color').style.setProperty('--c', s.color || '#6C9AB0');
+    $('bar').textContent = s.bars ? s.bar + '/' + s.bars : '';
+    var nx = $('next');
+    nx.className = 'next' + (s.queued ? ' q' : '');
+    nx.textContent = s.next ? (s.queued ? 'Na fila: ' + s.next + ' em ' + (s.beats_left || 0) + ' bat.' : 'A seguir: ' + s.next) : '';
+
+    var main = $('chart');
+    var rows = s.rows || [];
+    if (!rows.length) {
+      var msg = el('div', 'empty', s.has_chart ? 'Sem cifra para esta seção.' : 'Esta música não tem cifra.');
+      msg.appendChild(el('small', null, 'No REAPER: modo Editar → Cifra, com cabeçalhos [Intro], [Verso], [Refrão]… iguais aos nomes das seções.'));
+      main.replaceChildren(msg);
+      return;
+    }
+    fit(rows);
+    var out = [];
+    rows.forEach(function (r) {
+      if (r.kind === 'next') { out.push(el('div', 'row nexthdr', 'A seguir · ' + r.text)); return; }
+      var d = el('div', 'row ' + r.kind + (r.current ? ' cur' : ''));
+      if (r.kind === 'grid') {
+        d.classList.add('grid');
+        (r.cells || []).forEach(function (c, i) { d.appendChild(el('span', r.cell === i + 1 ? 'on' : null, c)); });
+      } else {
+        d.textContent = r.text || ' ';
+      }
+      out.push(d);
+    });
+    main.replaceChildren.apply(main, out);
+  }
+
+  function status(text, err) { var st = $('status'); st.textContent = text; st.className = 'st' + (err ? ' err' : ''); }
+
+  function poll() {
+    fetch('/_/GET/EXTSTATE/LiveSections/stage', { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(function (text) {
+        var line = text.split('\n').filter(function (l) { return l.indexOf('EXTSTATE\t') === 0; })[0] || '';
+        var value = unescapeValue(line.split('\t').slice(3).join('\t'));
+        status('Conectado ao REAPER');
+        if (value === last) return;
+        last = value;
+        render(value ? JSON.parse(value) : { open: false });
+      })
+      .catch(function () { status('Sem conexão com o REAPER', true); })
+      .finally(function () { setTimeout(poll, POLL_MS); });
+  }
+
+  function setScale(k) {
+    scale = Math.min(2, Math.max(0.5, scale * k));
+    try { localStorage.setItem('ls_scale', String(scale)); } catch (e) {}
+    last = '';
+  }
+  $('smaller').addEventListener('click', function () { setScale(1 / 1.1); });
+  $('bigger').addEventListener('click', function () { setScale(1.1); });
+  window.addEventListener('resize', function () { last = ''; });
+  poll();
+})();
+</script>
+</body>
+</html>

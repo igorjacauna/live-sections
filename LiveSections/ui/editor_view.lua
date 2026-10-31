@@ -22,6 +22,8 @@
 -- M.draw(ctx, x, y, w, h, snap) -> altura usada
 -- M.state()             ferramenta, seleção e mensagem (para testes)
 
+local chart = require("core.chart")
+
 local M = {}
 
 local ImGui, theme, widgets, perf, layers, model, ops, validator, kit, tempo, wizard
@@ -228,10 +230,11 @@ local function song_bar(ctx, x, y, w, snap)
   local cx = x + 8
   local plus_w = kit.size(ctx, "button", "Música") + 46
   local ren_w = kit.size(ctx, "button", "Renomear") + 24
+  local chart_w = kit.size(ctx, "button", "Cifra") + 24
   for i, song in ipairs(model.songs()) do
     local label = i .. ". " .. song.name
     local bw = kit.size(ctx, "button", label) + 24
-    if cx + bw > x + w - plus_w - ren_w - 22 then break end
+    if cx + bw > x + w - plus_w - ren_w - chart_w - 28 then break end
     local current = snap.song and snap.song.id == song.id
     if kit.button(ctx, "esong" .. i, label, cx, y + 8, 32, { active = current, w = bw }) then
       perf.goto_song(i)
@@ -245,6 +248,10 @@ local function song_bar(ctx, x, y, w, snap)
   if snap.song and kit.button(ctx, "rename_song", "Renomear", x + w - plus_w - ren_w - 14, y + 8, 32, { w = ren_w }) then
     st.song_name = snap.song.name
     ImGui.OpenPopup(ctx, "rename_song")
+  end
+  if snap.song and kit.button(ctx, "song_chart", "Cifra", x + w - plus_w - ren_w - chart_w - 20, y + 8, 32, { w = chart_w }) then
+    st.chart_song, st.chart_buf = snap.song, chart.get_text(snap.song)
+    st.chart_open = true
   end
   if ImGui.BeginPopup(ctx, "rename_song") then
     ImGui.Text(ctx, "Nome da música")
@@ -274,6 +281,54 @@ local function song_bar(ctx, x, y, w, snap)
     ImGui.EndPopup(ctx)
   end
   return h
+end
+
+-- ------------------------------------------------------------------ cifra
+
+local CHART_HELP = "Cole a cifra da música (estilo Cifra Club). Cada seção começa com um cabeçalho com o nome dela entre colchetes, como [Intro], [Verso], [Refrão]. Os acordes ficam na linha de cima da letra, em fonte monoespaçada. Para acompanhar compasso a compasso, escreva uma linha em grade: | G | D | Em | C |"
+
+local function chart_modal(ctx)
+  if st.chart_open then ImGui.OpenPopup(ctx, "Cifra da música"); st.chart_open = false end
+  ImGui.SetNextWindowSize(ctx, 900, 620, ImGui.Cond_Appearing)
+  if not ImGui.BeginPopupModal(ctx, "Cifra da música", true) then return end
+  local song = st.chart_song
+  local w, h = ImGui.GetContentRegionAvail(ctx)
+  ImGui.TextColored(ctx, theme.C.muted, (song and song.name or ""):upper())
+  ImGui.PushTextWrapPos(ctx, 0)
+  ImGui.TextColored(ctx, theme.C.faint, CHART_HELP)
+  ImGui.PopTextWrapPos(ctx)
+
+  local list_w = 230
+  local mono = theme.font(ctx, "num")
+  local _, buf = ImGui.InputTextMultiline(ctx, "##chart_text", st.chart_buf or "", w - list_w - 12, h - 130)
+  theme.pop_font(ctx, mono)
+  st.chart_buf = buf
+  ImGui.SameLine(ctx)
+
+  -- seções da música e se cada uma achou o trecho dela
+  ImGui.BeginGroup(ctx)
+  ImGui.Text(ctx, "Seções")
+  local parsed = chart.parse(st.chart_buf or "")
+  for _, sec in ipairs(song and song.sections or {}) do
+    local units = chart.units_for(parsed, sec)
+    if units then
+      ImGui.TextColored(ctx, theme.C.ok, sec.name .. "  ok")
+    else
+      ImGui.TextColored(ctx, theme.C.queue, sec.name .. "  sem cifra")
+    end
+  end
+  ImGui.EndGroup(ctx)
+
+  ImGui.Separator(ctx)
+  if ImGui.Button(ctx, "Salvar") and song then
+    chart.set_text(song, st.chart_buf or "")
+    reaper.MarkProjectDirty(PROJ)
+    say("Cifra de " .. song.name .. " salva no projeto.")
+    ImGui.CloseCurrentPopup(ctx)
+  end
+  ImGui.SameLine(ctx)
+  if ImGui.Button(ctx, "Cancelar") then ImGui.CloseCurrentPopup(ctx) end
+  ImGui.EndPopup(ctx)
 end
 
 -- ------------------------------------------------------------------ faixa de estrutura
@@ -878,6 +933,7 @@ function M.draw(ctx, x, y, w, h, snap)
     local msg = wizard.draw(ctx)
     if msg then say(msg); st.warn_count = nil end
   end
+  chart_modal(ctx)
   local bottom = math.max(cy, side_bottom)
 
   ImGui.SetCursorScreenPos(ctx, x, y)

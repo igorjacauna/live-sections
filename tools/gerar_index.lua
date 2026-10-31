@@ -24,6 +24,10 @@ local DESC = [[Performance ao vivo por seções no REAPER, no estilo do Ableton:
 
 Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositório ReaTeam Extensions (já vem no ReaPack): Extensions > ReaPack > Browse packages > ReaImGui > Install.]]
 
+local WEB_DESC = [[Página da Web Interface do REAPER que mostra no celular ou tablet a música, a seção e a cifra acompanhando o compasso, publicadas pelo Live Sections.
+
+Ative em Preferences > Control/OSC/web > Add > Web browser interface, escolha "livesections.html" como página padrão e abra o endereço mostrado no celular (mesma rede Wi-Fi).]]
+
 local function xml(s)
   return (s:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"))
 end
@@ -49,10 +53,26 @@ w('        <link rel="website">' .. SITE .. '</link>')
 w('        <link rel="website">https://github.com/igorjacauna/live-sections</link>')
 w('      </metadata>')
 w(string.format('      <version name="%s" author="%s" time="%s">', version, xml(AUTHOR), os.date("!%Y-%m-%dT%H:%M:%SZ")))
+local web = {}
 for _, f in ipairs(files) do
-  -- o script principal e as actions entram na lista de actions do REAPER
-  local main = (f == "LiveSections.lua" or f:match("^actions/Live Sections %- ")) and ' main="main"' or ""
-  w(string.format('        <source file="%s"%s>%s/LiveSections/%s</source>', xml(f), main, base, url_path(f)))
+  if f:match("^www/") then
+    web[#web + 1] = f
+  else
+    -- o script principal e as actions entram na lista de actions do REAPER
+    local main = (f == "LiveSections.lua" or f:match("^actions/Live Sections %- ")) and ' main="main"' or ""
+    w(string.format('        <source file="%s"%s>%s/LiveSections/%s</source>', xml(f), main, base, url_path(f)))
+  end
+end
+w('      </version>')
+w('    </reapack>')
+-- página de cifra para celular/tablet: vai para a pasta da Web Interface
+w('    <reapack name="livesections.html" type="webinterface" desc="Live Sections: cifra no celular">')
+w('      <metadata>')
+w('        <description><![CDATA[' .. WEB_DESC .. ']]></description>')
+w('      </metadata>')
+w(string.format('      <version name="%s" author="%s" time="%s">', version, xml(AUTHOR), os.date("!%Y-%m-%dT%H:%M:%SZ")))
+for _, f in ipairs(web) do
+  w(string.format('        <source file="%s">%s/LiveSections/%s</source>', xml(f:gsub("^www/", "")), base, url_path(f)))
 end
 w('      </version>')
 w('    </reapack>')

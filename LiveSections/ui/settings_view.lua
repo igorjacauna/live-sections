@@ -1,7 +1,7 @@
 -- Tela de configurações globais (RF-041, RF-042, RF-046, RF-061): teclado do
 -- Kontakt e cauda do bypass, saída e velocities dos LEDs (com teste no
--- controlador), tolerância do disparo, os modos MIDI do REAPER e a lista de
--- mapeamentos.
+-- controlador), tolerância do disparo, cifra no palco (linhas e como abrir no
+-- celular), os modos MIDI do REAPER e a lista de mapeamentos.
 --
 -- Tudo vale para todos os projetos e fica na chave "settings" do config.json,
 -- gravada por midi/mappings. Cada mudança é aplicada na hora.
@@ -236,6 +236,32 @@ local function transport_card(ctx, x, y, w)
   return cy - y + 8
 end
 
+local function chart_card(ctx, x, y, w)
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local ix, iw = x + 16, w - 32
+  local cy = y + 16
+  local c = cfg()
+  cy = cy + title(ctx, dl, ix, cy, "Cifra no palco")
+  cy = cy + field_label(ctx, dl, ix, cy, "LINHAS NA TELA")
+  local body = theme.font(ctx, "body")
+  ImGui.SetCursorScreenPos(ctx, ix, cy)
+  ImGui.SetNextItemWidth(ctx, 120)
+  local moved, n = ImGui.InputInt(ctx, "##chart_lines", c.chart_lines or 6, 1, 2)
+  theme.pop_font(ctx, body)
+  if moved then c.chart_lines = math.max(2, math.min(16, n)); save() end
+  cy = cy + 40
+  cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.muted,
+    "Conta a linha de acordes e a da letra. Um verso nunca é cortado; a janela anda conforme o compasso.") + 14
+  cy = cy + field_label(ctx, dl, ix, cy, "NO CELULAR OU TABLET")
+  local steps = {
+    "1. Instale a página pelo ReaPack (pacote \"livesections.html\") ou copie www/livesections.html para a pasta reaper_www_root.",
+    "2. Preferences → Control/OSC/web → Add → Web browser interface, com \"livesections.html\" como página padrão.",
+    "3. No celular, na mesma rede Wi-Fi, abra o endereço que o REAPER mostra ali.",
+  }
+  for _, t in ipairs(steps) do cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.text, t) + 6 end
+  return cy - y + 10
+end
+
 local function mappings_card(ctx, x, y, w)
   local dl = ImGui.GetWindowDrawList(ctx)
   local ix, iw = x + 16, w - 32
@@ -306,6 +332,7 @@ function M.draw(ctx, x, y, w, h, snap)
   place("keyboard", function(c, cx, cy, ww) return keyboard_card(c, cx, cy, ww, snap) end, 2)
   place("leds", leds_card, 1)
   place("transport", transport_card, 2)
+  place("chart", chart_card, 2)
   local wide_y = math.max(col_y[1], col_y[2])
   local mh = card(ctx, "mappings", x, wide_y, w, mappings_card)
   local bottom = wide_y + mh + GAP

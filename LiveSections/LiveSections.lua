@@ -65,6 +65,8 @@ local perf = require("core.performance")
 local layers = require("core.layers")
 local model = require("core.project_model")
 local remote = require("actions.remote")
+local stage = require("core.stage")
+local chart_view = require("ui.chart_view")
 
 local ctx = ImGui.CreateContext(APP_NAME)
 theme.init(ctx, ImGui, script_dir())
@@ -88,8 +90,9 @@ editor.init({
 view.init({
   ImGui = ImGui, theme = theme, anim = anim, widgets = widgets,
   perf = perf, layers = layers, feedback = feedback, mappings = mappings,
-  learn = learn, input = input, model = model, editor = editor, settings = settings_view,
+  learn = learn, input = input, model = model, editor = editor, settings = settings_view, stage = stage,
 })
+chart_view.init({ ImGui = ImGui, theme = theme, kit = view.kit })
 settings_view.init({
   ImGui = ImGui, theme = theme, kit = view.kit, mappings = mappings, feedback = feedback,
   layers = layers, perf = perf, anim = anim, learn = learn, model = model, ui = view.ui(),
@@ -115,6 +118,9 @@ local function loop()
     view.draw(ctx)
     ImGui.End(ctx)
   end
+  -- janela "Cifra": separada, pode ir para outro monitor
+  local ui = view.ui()
+  if ui.chart_open and not chart_view.draw(ctx, view.stage_state()) then ui.chart_open = false end
   theme.pop_font(ctx, t)
   theme.pop(ctx)
   if open then reaper.defer(loop) end
@@ -122,4 +128,5 @@ end
 
 reaper.atexit(feedback.clear)
 reaper.atexit(remote.shutdown)
+reaper.atexit(stage.shutdown)
 reaper.defer(loop)
