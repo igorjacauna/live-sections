@@ -1,0 +1,115 @@
+-- Feedback de LEDs: o estado de cada controle mapeado volta ao controlador
+-- pelo mesmo mapeamento (mesmo tipo, canal e número), com a velocity
+-- configurada para o estado. Sem presets por controlador (RF-042).
+--
+-- A saída é a de mesmo nome da porta de entrada do mapeamento, ou a saída
+-- escolhida nas configurações (RF-041). Só Note e CC têm feedback.
+--
+-- "queued" pisca no próprio script, alternando a velocity da fila com a de
+-- "idle", porque nem todo controlador pisca sozinho (o SMC-Mixer só acende e
+-- apaga). Uma mensagem só é enviada quando a velocity daquele LED muda.
+--
+-- Estados: "idle" (parado), "playing", "queued", "loop", "empty" (sem seção).
+--
+-- M.configure(settings)                { led_velocity, feedback_out_port?, led_blink? }
+-- M.state_for(mapping, ctx) -> state   ctx = { sections, playing, queued, looping }
+-- M.set_state(mapping, state)
+-- M.flush(now)                         envia o que mudou; `now` em segundos
+-- M.reset()                            esquece o que foi enviado (reenvia tudo)
+
+local M = {}
+
+local BLINK_PERIOD_S = 0.5
+local DEFAULT_VELOCITY = { idle = 0, playing = 127, queued = 127, loop = 127, empty = 0 }
+
+local velocity = DEFAULT_VELOCITY
+local out_override = nil
+local blink = true
+local wanted = {}     -- [key] = { mapping, state }
+local sent = {}       -- [key] = velocity enviada
+
+local STATUS = { note = 0x90, cc = 0xB0 }
+
+local function key(m) return table.concat({ m.port_name, m.msg_type, m.channel, m.number or "" }, ":") end
+
+function M.configure(settings)
+  settings = settings or {}
+  velocity = {}
+  for state, v in pairs(DEFAULT_VELOCITY) do
+    velocity[state] = (settings.led_velocity or {})[state] or v
+  end
+  out_override = settings.feedback_out_port
+  blink = settings.led_blink ~= false
+  sent = {}
+end
+
+function M.reset() sent = {} end
+
+-- ------------------------------------------------------------------ estados
+
+local function same_section(a, b) return a ~= nil and b ~= nil and a.region_idx == b.region_idx end
+
+-- Estado do LED de um mapeamento a partir do que está acontecendo:
+--   ctx.sections  seções da música atual (slot = índice)
+--   ctx.playing   seção tocando agora
+--   ctx.queued    seção na fila
+--   ctx.looping   seção presa em loop
+function M.state_for(mapping, ctx)
+  if mapping.action == "trigger_slot" then
+    local section = ctx.sections and ctx.sections[mapping.arg]
+    if not section then return "empty" end
+    if same_section(section, ctx.queued) then return "queued" end
+    if same_section(section, ctx.looping) then return "loop" end
+    if same_section(section, ctx.playing) then return "playing" end
+    return "idle"
+  elseif mapping.action == "toggle_loop" then
+    return ctx.looping and "loop" or "idle"
+  end
+  return "idle"
+end
+
+function M.set_state(mapping, state)
+  if not STATUS[mapping.msg_type] then return end
+  wanted[key(mapping)] = { mapping = mapping, state = state }
+end
+
+-- ------------------------------------------------------------------ envio
+
+local function output_index(name)
+  for i = 0, reaper.GetMaxMidiOutputs() - 1 do
+    local ok, oname = reaper.GetMIDIOutputName(i, "")
+    if ok and oname == name then return i end
+  end
+end
+
+local function velocity_of(state, now)
+  if state == "queued" and blink and math.floor(now / BLINK_PERIOD_S) % 2 == 1 then
+    return velocity.idle
+  end
+  return velocity[state] or velocity.idle
+end
+
+function M.flush(now)
+  local outputs = {}
+  for k, w in pairs(wanted) do
+    local v = velocity_of(w.state, now or 0)
+    if sent[k] ~= v then
+      local name = out_override or w.mapping.port_name
+      if outputs[name] == nil then outputs[name] = output_index(name) or false end
+      local out = outputs[name]
+      if out then
+        local m = w.mapping
+        reaper.StuffMIDIMessage(16 + out, STATUS[m.msg_type] + m.channel - 1, m.number, v)
+        sent[k] = v
+      end
+    end
+  end
+end
+
+-- Esquece os LEDs de mapeamentos que deixaram de existir.
+function M.forget(mapping)
+  local k = key(mapping)
+  wanted[k], sent[k] = nil, nil
+end
+
+return M

@@ -48,6 +48,7 @@ function M.new()
     _tempo_markers = {},       -- { time, bpm, num, denom, linear }
     _items = {},               -- { info = { D_POSITION, D_LENGTH, C_BEATATTACHMODE } }
     _midi_inputs = {},         -- [dev] = { name, present }
+    _midi_outputs = {},        -- [idx] = nome
     _midi_events = {},         -- { seq, buf, ts, dev }, do mais velho ao mais novo
     _midi_seq = 0,
     _now = 0,                  -- valor de time_precise
@@ -416,6 +417,21 @@ function M.new()
   end
 
   function r.set_now(t) r._now = t end
+
+  function r.add_midi_output(idx, name) r._midi_outputs[idx] = name end
+
+  function api.GetMaxMidiOutputs()
+    local n = 0
+    for idx in pairs(r._midi_outputs) do n = math.max(n, idx + 1) end
+    return n
+  end
+
+  function api.GetMIDIOutputName(idx, _)
+    local name = r._midi_outputs[idx]
+    return name ~= nil, name or ""
+  end
+
+  function api.StuffMIDIMessage(mode, b1, b2, b3) log("StuffMIDIMessage", mode, b1, b2, b3) end
 
   function api.MIDI_GetRecentInputEvent(idx)
     local e = r._midi_events[#r._midi_events - idx]
