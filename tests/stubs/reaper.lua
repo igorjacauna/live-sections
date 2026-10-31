@@ -441,6 +441,11 @@ function M.new()
   -- ------------------------------------------------------------------ outros
   function api.GetAppVersion() return r._app_version end
   function api.GetResourcePath() return r._resource_path end
+  function api.RecursiveCreateDirectory(path, _)
+    log("RecursiveCreateDirectory", path)
+    os.execute("mkdir -p '" .. path .. "'")
+    return 1
+  end
   function api.get_action_context() return true, "/stub/LiveSections/LiveSections.lua", 0, 0, 0, 0, 0 end
   function api.ShowConsoleMsg(msg) log("ShowConsoleMsg", msg) end
   function api.MB(msg, title, kind) log("MB", msg, title, kind); return 1 end
