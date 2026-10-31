@@ -273,8 +273,9 @@ function M.section_card(ctx, id, card, w, h)
   text(ctx, dl, "title", px, ny, theme.C.text, card.name)
   ImGui.DrawList_PopClipRect(dl)
 
-  ImGui.SetCursorScreenPos(ctx, x, y + h)
-  ImGui.Dummy(ctx, 0, 0)
+  -- o card ocupa o próprio retângulo, para SameLine e quebra de linha funcionarem
+  ImGui.SetCursorScreenPos(ctx, x, y)
+  ImGui.Dummy(ctx, w, h)
   return result
 end
 

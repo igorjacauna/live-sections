@@ -170,6 +170,14 @@ describe("ui.widgets", function()
       assert.equal("c2:x", find("InvisibleButton")[1][2])   -- o ✕ vem antes do card
     end)
 
+    it("termina ocupando o retângulo do card, para SameLine funcionar", function()
+      w.section_card("ctx", "c1", { name = "Verso" }, 200, 140)
+      local last = calls[#calls]
+      assert.same({ "Dummy", "ctx", 200, 140 }, last)
+      local pos = find("SetCursorScreenPos")
+      assert.same({ 10, 20 }, { pos[#pos][3], pos[#pos][4] })
+    end)
+
     it("no Learn global o clique não dispara a seção", function()
       learn.start_global()
       ui.clicked = { "c1", 0 }

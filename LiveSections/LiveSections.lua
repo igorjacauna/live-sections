@@ -110,7 +110,10 @@ local function preview()
   }
   for i, card in ipairs(cards) do
     card.control = { action = "trigger_slot", arg = card.slot }
-    if i > 1 then ImGui.SameLine(ctx) end
+    if i > 1 then
+      ImGui.SameLine(ctx)
+      if ImGui.GetContentRegionAvail(ctx) < 180 then ImGui.NewLine(ctx) end
+    end
     widgets.section_card(ctx, "card" .. i, card, 180, 140)
   end
   ImGui.Dummy(ctx, 0, 8)
