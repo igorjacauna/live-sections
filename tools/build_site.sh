@@ -11,7 +11,12 @@ command -v "$LUA" >/dev/null 2>&1 || LUA=/opt/homebrew/opt/lua@5.4/bin/lua
 rm -rf dist
 mkdir -p dist/demo
 sed "s#__SITE_URL__#$URL#g" site/index.html > dist/index.html
-cp prototype/index.html dist/demo/index.html
+# o protótipo é um fragmento (feito para o Artifact): ganha doctype e charset
+{
+  printf '<!doctype html>\n<html lang="pt-BR">\n<meta charset="utf-8">\n'
+  printf '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+  cat prototype/index.html
+} > dist/demo/index.html
 cp -R LiveSections dist/LiveSections
 "$LUA" tools/gerar_index.lua "$URL" "$VERSION" dist/index.xml
 (cd dist && zip -qr live-sections.zip LiveSections)
