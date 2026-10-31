@@ -1,6 +1,6 @@
 -- Gera o index.xml do ReaPack com todos os arquivos de LiveSections/.
 -- Rode da raiz do repositório:
---   lua tools/gerar_index.lua [URL base] [versão]
+--   lua tools/gerar_index.lua [URL base] [versão] [arquivo de saída]
 -- Sem URL base, usa file:// deste repositório (instalação local para teste).
 -- Para publicar, passe a URL "raw" da pasta do repositório, por exemplo
 -- https://raw.githubusercontent.com/<usuário>/live-sections/main
@@ -10,6 +10,7 @@
 
 local base = arg[1]
 local version = arg[2] or "0.1.0"
+local output = arg[3] or "index.xml"
 if not base then
   local p = io.popen("pwd")
   base = "file://" .. p:read("l")
@@ -27,7 +28,7 @@ local function xml(s)
 end
 
 local function url_path(path)
-  return (path:gsub("[^%w%-%._~/]", function(c) return string.format("%%%02X", c:byte()) end))
+  return (path:gsub("[^%w%-%._~/()]", function(c) return string.format("%%%02X", c:byte()) end))
 end
 
 local files = {}
@@ -56,7 +57,7 @@ w('    </reapack>')
 w('  </category>')
 w('</index>')
 
-local fh = assert(io.open("index.xml", "w"))
+local fh = assert(io.open(output, "w"))
 fh:write(table.concat(out, "\n") .. "\n")
 fh:close()
-print(#files .. " arquivos no index.xml (" .. base .. ")")
+print(#files .. " arquivos em " .. output .. " (" .. base .. ")")

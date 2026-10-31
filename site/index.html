@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Sections · performance ao vivo por seções no REAPER</title>
+<meta name="description" content="Script gratuito para o REAPER: dispare seções da música com quantize, fila cancelável e loop, controle tudo por MIDI com LEDs e toque um Kontakt por música. Instala pelo ReaPack.">
+<meta property="og:title" content="Live Sections para REAPER">
+<meta property="og:description" content="Dispare seções da música com quantize, fila cancelável e loop, direto no REAPER. Controle por MIDI, LEDs, Kontakt por música e modo palco.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230A0D12'/%3E%3Crect x='5' y='9' width='9' height='14' rx='2' fill='%234BDB9C'/%3E%3Crect x='18' y='9' width='9' height='14' rx='2' fill='%23FFB547'/%3E%3C/svg%3E">
+<style>
+@font-face { font-family: "Manrope"; font-weight: 600; font-display: swap; src: url("LiveSections/assets/fonts/Manrope-SemiBold.ttf") format("truetype"); }
+@font-face { font-family: "Manrope"; font-weight: 700; font-display: swap; src: url("LiveSections/assets/fonts/Manrope-Bold.ttf") format("truetype"); }
+@font-face { font-family: "Manrope"; font-weight: 800; font-display: swap; src: url("LiveSections/assets/fonts/Manrope-ExtraBold.ttf") format("truetype"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 500; font-display: swap; src: url("LiveSections/assets/fonts/JetBrainsMono-Medium.ttf") format("truetype"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 700; font-display: swap; src: url("LiveSections/assets/fonts/JetBrainsMono-Bold.ttf") format("truetype"); }
+
+/* O tema escuro é o do próprio app no REAPER, de propósito. */
+:root {
+  color-scheme: dark;
+  --bg: #0A0D12; --panel: #10151D; --raise: #171E29; --raise2: #1F2835;
+  --line: #222C3A; --line2: #2F3B4D;
+  --text: #ECF0F6; --muted: #93A0B4; --faint: #5F6B7E; --ink: #0A0D12;
+  --queue: #FFB547; --loop: #5CD6E8; --learn: #E28CFF; --ok: #4BDB9C; --danger: #FF6B6B;
+  --f-ui: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --wrap: 1120px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { overflow-x: hidden; margin: 0; background: var(--bg); color: var(--text); font: 600 16px/1.6 var(--f-ui); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+.wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 20px; }
+.eyebrow { font: 700 12px var(--f-ui); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.num { font-family: var(--f-num); }
+
+/* topo */
+header.top { position: sticky; top: 0; z-index: 10; background: color-mix(in oklab, var(--bg) 86%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+header.top .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; text-decoration: none; }
+.brand i { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; width: 22px; }
+.brand i b { height: 14px; border-radius: 3px; background: var(--ok); }
+.brand i b + b { background: var(--queue); }
+nav.links { display: flex; gap: 22px; margin-left: auto; font-size: 14px; }
+nav.links a { text-decoration: none; color: var(--muted); }
+nav.links a:hover { color: var(--text); }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 10px; border: 1px solid var(--line2); background: var(--raise); color: var(--text); font: 700 14px var(--f-ui); text-decoration: none; cursor: pointer; }
+.btn:hover { background: var(--raise2); }
+.btn.primary { background: var(--text); color: var(--ink); border-color: var(--text); }
+.btn.primary:hover { background: #fff; }
+.btn.sm { padding: 7px 12px; font-size: 13px; }
+@media (max-width: 760px) { nav.links { display: none; } }
+
+/* hero */
+.hero { padding: 72px 0 40px; }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 48px; align-items: center; }
+.badge { display: inline-flex; gap: 8px; align-items: center; padding: 5px 12px; border: 1px solid var(--line2); border-radius: 999px; font: 700 12px var(--f-ui); color: var(--muted); }
+.badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+h1 { font-size: clamp(36px, 5.2vw, 58px); line-height: 1.04; letter-spacing: -.035em; font-weight: 800; margin: 18px 0 18px; }
+h1 em { font-style: normal; color: var(--queue); }
+.lead { font-size: 18px; color: var(--muted); max-width: 520px; margin: 0 0 28px; }
+.cta { display: flex; gap: 12px; flex-wrap: wrap; }
+.req { margin-top: 18px; font-size: 13px; color: var(--faint); }
+@media (max-width: 900px) { .hero .wrap { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) {
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mact { grid-template-columns: repeat(2, 1fr); }
+  .mbar { flex-wrap: wrap; }
+  .hero { padding-top: 40px; }
+}
+
+/* mock da tela de performance */
+.mock { border: 1px solid var(--line2); border-radius: 16px; background: var(--panel); padding: 14px; box-shadow: 0 30px 80px -30px #000; }
+.mbar { display: flex; gap: 18px; align-items: center; padding: 6px 6px 14px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.mbar .r { display: grid; }
+.mbar .r span { font: 700 9.5px var(--f-ui); letter-spacing: .1em; color: var(--faint); }
+.mbar .r b { font: 700 15px var(--f-num); }
+.mbar .q { margin-left: auto; font: 700 12px var(--f-ui); padding: 6px 10px; border: 1px solid var(--line2); border-radius: 8px; background: var(--raise); }
+.mname { font: 800 22px var(--f-ui); letter-spacing: -.02em; margin: 0 4px 12px; }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.card { --c: #6C9AB0; position: relative; height: 104px; border-radius: 12px; padding: 10px 12px; overflow: hidden;
+  background: linear-gradient(165deg, color-mix(in oklab, var(--c) 34%, var(--panel)), color-mix(in oklab, var(--c) 12%, var(--panel)));
+  border: 1px solid color-mix(in oklab, var(--c) 45%, var(--line)); display: flex; flex-direction: column; justify-content: space-between; }
+.card .n { font: 700 11px var(--f-num); color: color-mix(in oklab, var(--text) 60%, var(--c)); }
+.card .t { font: 800 16px var(--f-ui); }
+.card .s { font: 700 10.5px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; display: flex; gap: 6px; align-items: center; color: var(--muted); }
+.card .bar { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--ok); width: 0; animation: prog 8s linear infinite; }
+.card.play { box-shadow: 0 0 0 2px var(--ok); }
+.card.play .s { color: var(--ok); }
+.card.queue { animation: pulse 1s ease-in-out infinite; }
+.card.queue .s { color: var(--queue); }
+.card.loop { box-shadow: 0 0 0 2px var(--loop); }
+.card.loop .s { color: var(--loop); }
+@keyframes prog { from { width: 0 } to { width: 100% } }
+@keyframes pulse { 50% { box-shadow: 0 0 0 2px var(--queue); } }
+.mact { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+.mact span { text-align: center; padding: 9px 4px; border-radius: 9px; border: 1px solid var(--line2); background: var(--raise); font: 700 12px var(--f-ui); color: var(--muted); }
+.mact span.on { background: var(--loop); color: var(--ink); border-color: var(--loop); }
+@media (prefers-reduced-motion: reduce) { .card .bar, .card.queue { animation: none; } .card .bar { width: 40%; } }
+
+/* seções */
+section.blk { padding: 72px 0; border-top: 1px solid var(--line); }
+h2 { font-size: clamp(28px, 3.6vw, 40px); line-height: 1.1; letter-spacing: -.03em; font-weight: 800; margin: 10px 0 14px; }
+.sub { color: var(--muted); max-width: 640px; margin: 0 0 36px; font-size: 17px; }
+
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; counter-reset: st; }
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+.step::before { counter-increment: st; content: counter(st); display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--raise2); font: 700 14px var(--f-num); margin-bottom: 14px; }
+.step h3 { margin: 0 0 6px; font-size: 18px; font-weight: 800; }
+.step p { margin: 0; color: var(--muted); font-size: 15px; }
+code { font: 500 .9em var(--f-num); background: var(--raise); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; color: var(--text); }
+@media (max-width: 860px) { .steps { grid-template-columns: minmax(0, 1fr); } }
+
+.feats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.feat { --c: var(--ok); background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+.feat .dot { width: 34px; height: 34px; border-radius: 10px; background: color-mix(in oklab, var(--c) 22%, var(--panel)); border: 1px solid color-mix(in oklab, var(--c) 50%, var(--line)); display: grid; place-items: center; margin-bottom: 14px; }
+.feat .dot::after { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+.feat h3 { margin: 0 0 8px; font-size: 18px; font-weight: 800; }
+.feat p { margin: 0; color: var(--muted); font-size: 15px; }
+.feat ul { margin: 10px 0 0; padding-left: 18px; color: var(--muted); font-size: 14.5px; }
+@media (max-width: 960px) { .feats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .feats { grid-template-columns: minmax(0, 1fr); } }
+
+.quant { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.quant span { font: 700 12px var(--f-num); padding: 4px 9px; border-radius: 7px; border: 1px solid var(--line2); color: var(--text); background: var(--raise); }
+
+/* instalar */
+.install { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
+ol.inst { margin: 0; padding: 0; list-style: none; counter-reset: i; display: grid; gap: 16px; }
+ol.inst li { counter-increment: i; display: grid; grid-template-columns: 30px 1fr; gap: 12px; }
+ol.inst li::before { content: counter(i); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--raise2); font: 700 13px var(--f-num); }
+ol.inst b { display: block; }
+ol.inst span { color: var(--muted); font-size: 15px; }
+.copy { display: flex; gap: 8px; margin-top: 8px; }
+.copy input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line2); border-radius: 9px; padding: 9px 11px; color: var(--text); font: 500 13px var(--f-num); }
+.note { color: var(--faint); font-size: 14px; margin: 14px 0 0; }
+@media (max-width: 860px) { .install { grid-template-columns: minmax(0, 1fr); } }
+
+/* perguntas */
+details { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; margin-bottom: 10px; }
+summary { cursor: pointer; font-weight: 800; font-size: 16.5px; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; font: 700 18px var(--f-num); color: var(--muted); }
+details[open] summary::after { content: "−"; }
+details p { color: var(--muted); margin: 10px 0 0; font-size: 15.5px; }
+
+footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--faint); font-size: 14px; }
+footer .wrap { display: flex; gap: 16px; flex-wrap: wrap; justify-content: space-between; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#"><i><b></b><b></b></i>Live Sections</a>
+    <nav class="links">
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#recursos">Recursos</a>
+      <a href="#instalar">Instalar</a>
+      <a href="#perguntas">Perguntas</a>
+    </nav>
+    <a class="btn sm" href="demo/">Demo</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <span class="badge">Grátis · v0.1 beta · para REAPER 7</span>
+        <h1>Toque sua música <em>por seções</em>, ao vivo, no REAPER.</h1>
+        <p class="lead">Dispare Verso, Refrão ou Ponte na hora certa, com quantize e fila que você cancela até o último instante. Repita uma seção quanto quiser, troque de música pelo controlador e deixe o REAPER tocar sem cortes.</p>
+        <div class="cta">
+          <a class="btn primary" href="#instalar">Instalar pelo ReaPack</a>
+          <a class="btn" href="demo/">Ver a demo interativa</a>
+        </div>
+        <p class="req">Requer REAPER 7 ou mais recente e a extensão ReaImGui. Testado no macOS.</p>
+      </div>
+
+      <div class="mock" aria-label="Tela de performance do Live Sections">
+        <div class="mbar">
+          <div class="r"><span>COMPASSO</span><b>17.3</b></div>
+          <div class="r"><span>BPM</span><b>120</b></div>
+          <div class="r"><span>FÓRMULA</span><b>4/4</b></div>
+          <span class="q">Quantize: 1 comp.</span>
+        </div>
+        <div class="mname">Rua Augusta</div>
+        <div class="cards">
+          <div class="card" style="--c:#5B8DEF"><span class="n">1</span><span class="t">Intro</span><span class="s">8 comp.</span></div>
+          <div class="card play" style="--c:#2BB39A"><span class="n">2</span><span class="t">Verso</span><span class="s">▶ Tocando</span><i class="bar"></i></div>
+          <div class="card queue" style="--c:#E5566B"><span class="n">3</span><span class="t">Refrão</span><span class="s">◷ Na fila · em 3 bat.</span></div>
+          <div class="card" style="--c:#9B6BE8"><span class="n">4</span><span class="t">Ponte</span><span class="s">4 comp.</span></div>
+          <div class="card loop" style="--c:#E8C547"><span class="n">5</span><span class="t">Solo</span><span class="s">↻ Loop</span></div>
+          <div class="card" style="--c:#7A8AA6"><span class="n">6</span><span class="t">Outro</span><span class="s">4 comp.</span></div>
+        </div>
+        <div class="mact"><span>◀ Música</span><span class="on">Loop</span><span>✕ Cancelar</span><span>Música ▶</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="blk" id="como-funciona">
+    <div class="wrap">
+      <span class="eyebrow">Como funciona</span>
+      <h2>Seu projeto do REAPER já é o show.</h2>
+      <p class="sub">Nada de formato novo nem estado escondido. O Live Sections lê o que já está no seu projeto e salva tudo nele.</p>
+      <div class="steps">
+        <div class="step">
+          <h3>Marque as músicas</h3>
+          <p>Cada música começa num marcador <code>SONG: Nome</code>. Pode ser um show inteiro num projeto só, com um tempo diferente em cada música.</p>
+        </div>
+        <div class="step">
+          <h3>Desenhe as seções</h3>
+          <p>As regiões do REAPER viram as seções: Intro, Verso, Refrão… Crie pela régua do REAPER ou pelo modo Editar do script, com ímã no compasso.</p>
+        </div>
+        <div class="step">
+          <h3>Toque</h3>
+          <p>Cada seção vira um card e um pad no controlador. Dispare, coloque na fila, cancele, prenda em loop. O salto cai exatamente na virada do compasso.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="blk" id="recursos">
+    <div class="wrap">
+      <span class="eyebrow">Recursos</span>
+      <h2>Feito para o palco.</h2>
+      <p class="sub">Tudo pensado para tocar sem olhar para a tela, e para nada travar o áudio.</p>
+      <div class="feats">
+        <div class="feat" style="--c:var(--queue)">
+          <div class="dot"></div>
+          <h3>Saltos quantizados</h3>
+          <p>A próxima seção entra na hora certa. Nos modos de compasso, o salto é feito pelo próprio motor do REAPER: zero samples de desvio.</p>
+          <div class="quant"><span>Imediato</span><span>Batida</span><span>1 comp.</span><span>2</span><span>4</span><span>8</span><span>Fim da seção</span></div>
+        </div>
+        <div class="feat" style="--c:var(--danger)">
+          <div class="dot"></div>
+          <h3>Fila cancelável</h3>
+          <p>Mudou de ideia? Cancele até o último instante antes da virada, sem salto e sem glitch. Disparar outra seção substitui a da fila.</p>
+        </div>
+        <div class="feat" style="--c:var(--loop)">
+          <div class="dot"></div>
+          <h3>Loop de seção</h3>
+          <p>Prenda o refrão enquanto a plateia canta e solte quando quiser. No fim de cada música, o transporte para e já deixa a próxima pronta.</p>
+        </div>
+        <div class="feat" style="--c:var(--learn)">
+          <div class="dot"></div>
+          <h3>Controlador MIDI com LEDs</h3>
+          <p>Clique direito em qualquer controle e toque o pad: está mapeado. Os LEDs mostram o que está tocando, o que está na fila (piscando) e o loop.</p>
+          <ul><li>Notas, CC, Program Change e pitch bend (faders)</li><li>Velocity de cada estado configurável</li><li>Pads não vazam notas para os instrumentos</li></ul>
+        </div>
+        <div class="feat" style="--c:var(--ok)">
+          <div class="dot"></div>
+          <h3>Um Kontakt por música</h3>
+          <p>Só o instrumento da música atual fica armado no teclado. Troque de música segurando uma nota: nada corta, nada fica preso. Os outros entram em bypass para poupar CPU.</p>
+          <ul><li>Camadas do multi-out com fader, mute e solo</li><li>Soft takeover: o volume não salta ao trocar de música</li></ul>
+        </div>
+        <div class="feat" style="--c:#5B8DEF">
+          <div class="dot"></div>
+          <h3>Modo Editar</h3>
+          <p>Uma faixa de estrutura sobre a régua de compassos: divida, desenhe, arraste bordas, junte e remova seções. Chips de nome com cor, e cada passo desfaz com Ctrl+Z.</p>
+        </div>
+        <div class="feat" style="--c:#E8C547">
+          <div class="dot"></div>
+          <h3>Alinhar músicas sem grid</h3>
+          <p>Gravou sem metrônomo? Bata o TAP, marque o compasso 1 e ajuste fino ouvindo o metrônomo. O áudio não é esticado: o grid é que passa a seguir a música.</p>
+        </div>
+        <div class="feat" style="--c:#E3559F">
+          <div class="dot"></div>
+          <h3>Modo palco</h3>
+          <p>Cards grandes, legíveis de longe, e a setlist reduzida a anterior, atual e próxima. Avisos claros quando um dispositivo MIDI desconecta.</p>
+        </div>
+        <div class="feat" style="--c:#7A8AA6">
+          <div class="dot"></div>
+          <h3>Seguro por desenho</h3>
+          <p>O áudio nunca depende do script: se ele fechar, o REAPER continua tocando. Também tem 75 actions para mapear pelo Action List ou pelo ReaLearn.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="blk" id="instalar">
+    <div class="wrap">
+      <span class="eyebrow">Instalar</span>
+      <h2>Dois minutos, pelo ReaPack.</h2>
+      <p class="sub">O ReaPack mantém o Live Sections atualizado. Se você ainda não tem o ReaPack, baixe em <a href="https://reapack.com">reapack.com</a>.</p>
+      <div class="install">
+        <div class="panel">
+          <ol class="inst">
+            <li><div><b>Instale a ReaImGui</b><span>Extensions → ReaPack → Browse packages, busque "ReaImGui", clique com o botão direito → Install e Apply. Reinicie o REAPER.</span></div></li>
+            <li><div><b>Adicione o repositório do Live Sections</b><span>Extensions → ReaPack → Import repositories, cole o endereço abaixo e confirme.</span>
+              <div class="copy"><input id="repo" readonly value="__SITE_URL__/index.xml" aria-label="Endereço do repositório"><button class="btn sm" id="copybtn" type="button">Copiar</button></div></div></li>
+            <li><div><b>Instale o pacote</b><span>Browse packages → "Live Sections" → Install → Apply.</span></div></li>
+            <li><div><b>Abra</b><span>Actions → Show action list, busque "LiveSections" e rode. Dica: crie um atalho para ele.</span></div></li>
+          </ol>
+        </div>
+        <div class="panel">
+          <span class="eyebrow">Primeiros passos</span>
+          <ol class="inst" style="margin-top:14px">
+            <li><div><b>Configure o controlador</b><span>Em Preferences → MIDI Devices, ative a entrada do controlador como <i>Enable input for control messages</i> e a saída dele, para os LEDs.</span></div></li>
+            <li><div><b>Mapeie</b><span>Clique direito num card → Learn MIDI → toque o pad.</span></div></li>
+            <li><div><b>Escolha o teclado</b><span>Em Configurações, para o Kontakt de cada música receber só ele.</span></div></li>
+          </ol>
+          <p class="note">Prefere instalar à mão? Baixe o <a href="live-sections.zip">zip</a> e copie a pasta <code>LiveSections</code> para a pasta Scripts do REAPER.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="blk" id="perguntas">
+    <div class="wrap">
+      <span class="eyebrow">Perguntas</span>
+      <h2>Perguntas frequentes</h2>
+      <details><summary>Preciso mudar meus projetos?</summary><p>Só marcar o início de cada música com um marcador <code>SONG: Nome</code> e criar regiões para as seções. Sem nenhum marcador SONG:, o projeto inteiro vira uma música. Tudo fica salvo no próprio .rpp.</p></details>
+      <details><summary>Funciona com qualquer controlador?</summary><p>Funciona com qualquer controlador MIDI que mande notas, CC, Program Change ou pitch bend. Os LEDs acendem quando o controlador aceita a mesma mensagem de volta, com a velocity de cada estado (configurável). Foi desenvolvido com um SMC-Mixer.</p></details>
+      <details><summary>Preciso do Kontakt?</summary><p>Não. Saltos, loop, fila, MIDI e modo Editar funcionam com qualquer projeto. O vínculo com o Kontakt é opcional e serve para tocar um instrumento diferente em cada música, com camadas.</p></details>
+      <details><summary>E se o script travar no meio do show?</summary><p>O REAPER continua tocando: o áudio nunca passa pelo script. Ele só comanda o transporte e o roteamento do próprio REAPER.</p></details>
+      <details><summary>Funciona no Windows?</summary><p>Ele usa só a API do REAPER e a ReaImGui, então deve funcionar, mas esta versão beta foi testada no macOS. Se testar no Windows, conte como foi.</p></details>
+      <details><summary>Precisa da SWS?</summary><p>Não. Só da ReaImGui, que se instala pelo ReaPack.</p></details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Live Sections · por Igor Jacaúna</span>
+    <span>Fontes Manrope e JetBrains Mono sob a SIL Open Font License.</span>
+  </div>
+</footer>
+
+<script>
+  const btn = document.getElementById('copybtn');
+  const input = document.getElementById('repo');
+  btn.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(input.value); btn.textContent = 'Copiado'; }
+    catch { input.select(); btn.textContent = 'Selecionado'; }
+    setTimeout(() => { btn.textContent = 'Copiar'; }, 1600);
+  });
+</script>
+</body>
+</html>

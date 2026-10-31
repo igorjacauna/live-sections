@@ -1,0 +1,6 @@
+// Site do Live Sections: arquivos estáticos de dist/ (sh tools/build_site.sh <URL>).
+{
+  "name": "live-sections",
+  "compatibility_date": "2026-10-23",
+  "assets": { "directory": "./dist" }
+}

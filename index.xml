@@ -8,31 +8,31 @@
 Requer a extensão ReaImGui, do repositório ReaTeam Extensions (já vem no ReaPack): Extensions > ReaPack > Browse packages > ReaImGui > Install.]]></description>
         <link rel="website">https://github.com/ReaTeam/Extensions</link>
       </metadata>
-      <version name="0.1.0" author="Igor Jacaúna" time="2026-10-31T14:47:36Z">
+      <version name="0.1.0" author="Igor Jacaúna" time="2026-10-31T15:17:49Z">
         <source file="actions/Live Sections - Camada 1 mute.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%201%20mute.lua</source>
         <source file="actions/Live Sections - Camada 1 solo.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%201%20solo.lua</source>
-        <source file="actions/Live Sections - Camada 1 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%201%20volume%20%28CC%29.lua</source>
+        <source file="actions/Live Sections - Camada 1 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%201%20volume%20(CC).lua</source>
         <source file="actions/Live Sections - Camada 2 mute.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%202%20mute.lua</source>
         <source file="actions/Live Sections - Camada 2 solo.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%202%20solo.lua</source>
-        <source file="actions/Live Sections - Camada 2 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%202%20volume%20%28CC%29.lua</source>
+        <source file="actions/Live Sections - Camada 2 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%202%20volume%20(CC).lua</source>
         <source file="actions/Live Sections - Camada 3 mute.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%203%20mute.lua</source>
         <source file="actions/Live Sections - Camada 3 solo.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%203%20solo.lua</source>
-        <source file="actions/Live Sections - Camada 3 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%203%20volume%20%28CC%29.lua</source>
+        <source file="actions/Live Sections - Camada 3 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%203%20volume%20(CC).lua</source>
         <source file="actions/Live Sections - Camada 4 mute.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%204%20mute.lua</source>
         <source file="actions/Live Sections - Camada 4 solo.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%204%20solo.lua</source>
-        <source file="actions/Live Sections - Camada 4 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%204%20volume%20%28CC%29.lua</source>
+        <source file="actions/Live Sections - Camada 4 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%204%20volume%20(CC).lua</source>
         <source file="actions/Live Sections - Camada 5 mute.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%205%20mute.lua</source>
         <source file="actions/Live Sections - Camada 5 solo.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%205%20solo.lua</source>
-        <source file="actions/Live Sections - Camada 5 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%205%20volume%20%28CC%29.lua</source>
+        <source file="actions/Live Sections - Camada 5 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%205%20volume%20(CC).lua</source>
         <source file="actions/Live Sections - Camada 6 mute.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%206%20mute.lua</source>
         <source file="actions/Live Sections - Camada 6 solo.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%206%20solo.lua</source>
-        <source file="actions/Live Sections - Camada 6 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%206%20volume%20%28CC%29.lua</source>
+        <source file="actions/Live Sections - Camada 6 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%206%20volume%20(CC).lua</source>
         <source file="actions/Live Sections - Camada 7 mute.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%207%20mute.lua</source>
         <source file="actions/Live Sections - Camada 7 solo.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%207%20solo.lua</source>
-        <source file="actions/Live Sections - Camada 7 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%207%20volume%20%28CC%29.lua</source>
+        <source file="actions/Live Sections - Camada 7 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%207%20volume%20(CC).lua</source>
         <source file="actions/Live Sections - Camada 8 mute.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%208%20mute.lua</source>
         <source file="actions/Live Sections - Camada 8 solo.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%208%20solo.lua</source>
-        <source file="actions/Live Sections - Camada 8 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%208%20volume%20%28CC%29.lua</source>
+        <source file="actions/Live Sections - Camada 8 volume (CC).lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Camada%208%20volume%20(CC).lua</source>
         <source file="actions/Live Sections - Cancelar fila.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Cancelar%20fila.lua</source>
         <source file="actions/Live Sections - Disparar seção 01.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Disparar%20se%C3%A7%C3%A3o%2001.lua</source>
         <source file="actions/Live Sections - Disparar seção 02.lua" main="main">file:///Users/igor.jacauna/Spalla/igorjacauna/live-sections/LiveSections/actions/Live%20Sections%20-%20Disparar%20se%C3%A7%C3%A3o%2002.lua</source>
