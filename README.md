@@ -1,0 +1,59 @@
+# Live Sections
+
+Performance ao vivo por seções no REAPER, no estilo do Ableton. Cada música
+começa num marcador `SONG: Nome` e as regiões do projeto viram as seções:
+dispare com quantize, coloque na fila e cancele até o último instante, prenda
+em loop e troque de música pelo controlador MIDI.
+
+Site, demo e instalação: https://live-sections.igor-jacauna-cloudflare.workers.dev
+
+## Recursos
+
+- Saltos quantizados (imediato, batida, 1/2/4/8 compassos, fim da seção); nos
+  modos de compasso o salto é feito pelo motor do REAPER, com 0 samples de desvio
+- Fila cancelável sem glitch, loop de seção, parada no fim de cada música
+- MIDI learn por clique direito, learn global, LEDs por estado com velocity
+  configurável; notas, CC, Program Change e pitch bend
+- Um Kontakt por música: só o atual armado no teclado, notas seguradas não
+  cortam, bypass com cauda, camadas do multi-out com faders e soft takeover
+- Modo Editar: faixa de estrutura com dividir, desenhar, arrastar bordas, ímã,
+  chips de nome e um passo de undo por operação; avisos com correção
+- Tap tempo e alinhamento do compasso 1 para músicas gravadas sem grid
+- Modo palco e 75 actions para o Action List ou o ReaLearn
+- O áudio nunca depende do script: se ele fechar, o REAPER continua tocando
+
+## Instalar
+
+Requer REAPER 7+ e a extensão [ReaImGui](https://github.com/cfillion/reaimgui)
+(pelo ReaPack). Não usa SWS.
+
+1. Extensions → ReaPack → Browse packages → instale **ReaImGui** e reinicie o REAPER
+2. Extensions → ReaPack → Import repositories →
+   `https://live-sections.igor-jacauna-cloudflare.workers.dev/index.xml`
+3. Browse packages → **Live Sections** → Install → Apply
+4. Actions → Show action list → rode **LiveSections.lua**
+
+Instalação manual: copie a pasta `LiveSections/` para a pasta `Scripts` do REAPER.
+
+## Desenvolvimento
+
+```
+LiveSections/        o pacote (script principal, core/, midi/, ui/, actions/)
+tests/unit/          testes busted com um stub da API do REAPER
+tests/CHECKLIST.md   roteiro de integração no REAPER
+tests/fixtures/      show_teste.rpp (3 músicas, 4/4 e 7/8)
+spikes/              experimentos que validaram decisões no REAPER
+prototype/           protótipo clicável da interface
+site/                página do site
+tools/               geradores das actions, do index.xml e do site
+```
+
+- Testes: `busted` na raiz (Lua 5.4)
+- Actions: `lua tools/gerar_actions.lua`
+- Site: `sh tools/build_site.sh && wrangler deploy`
+
+## Licença
+
+GPL-3.0-or-later. Veja [LICENSE](LICENSE). As fontes em
+`LiveSections/assets/fonts` (Manrope e JetBrains Mono) estão sob a SIL Open
+Font License, com os textos ao lado.

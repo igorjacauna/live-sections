@@ -19,9 +19,10 @@ end
 base = base:gsub("/$", "")
 
 local AUTHOR = "Igor Jacaúna"
+local SITE = "https://live-sections.igor-jacauna-cloudflare.workers.dev"
 local DESC = [[Performance ao vivo por seções no REAPER, no estilo do Ableton: cada música começa num marcador SONG:, as regiões são as seções, saltos com quantize e fila cancelável, loop de seção, um Kontakt por música com camadas e faders, MIDI learn com LEDs e modo palco.
 
-Requer a extensão ReaImGui, do repositório ReaTeam Extensions (já vem no ReaPack): Extensions > ReaPack > Browse packages > ReaImGui > Install.]]
+Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositório ReaTeam Extensions (já vem no ReaPack): Extensions > ReaPack > Browse packages > ReaImGui > Install.]]
 
 local function xml(s)
   return (s:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"))
@@ -44,7 +45,8 @@ w('  <category name="Performance">')
 w('    <reapack name="LiveSections.lua" type="script" desc="Live Sections">')
 w('      <metadata>')
 w('        <description><![CDATA[' .. DESC .. ']]></description>')
-w('        <link rel="website">https://github.com/ReaTeam/Extensions</link>')
+w('        <link rel="website">' .. SITE .. '</link>')
+w('        <link rel="website">https://github.com/igorjacauna/live-sections</link>')
 w('      </metadata>')
 w(string.format('      <version name="%s" author="%s" time="%s">', version, xml(AUTHOR), os.date("!%Y-%m-%dT%H:%M:%SZ")))
 for _, f in ipairs(files) do

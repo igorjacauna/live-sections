@@ -1,5 +1,9 @@
 -- Live Sections: performance ao vivo por seções no REAPER
 -- Entrypoint: checa dependências, prepara os módulos e roda o loop da janela.
+--
+-- Copyright (C) 2026 Igor Jacaúna. Licença GPL-3.0-or-later: este programa é
+-- software livre; veja o arquivo LICENSE ou https://www.gnu.org/licenses/.
+-- https://github.com/igorjacauna/live-sections
 
 local APP_NAME = "Live Sections"
 local MIN_REAPER_VERSION = 7.0

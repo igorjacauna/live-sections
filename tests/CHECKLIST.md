@@ -5,9 +5,12 @@ Marque cada item e anote o que falhar (de preferência com vídeo).
 
 ## Preparação
 
-- [ ] Instalar pelo ReaPack a partir do `index.xml` local: Extensions → ReaPack →
-      Import repositories, colar `file:///…/live-sections/index.xml`, depois
-      Browse packages → Live Sections → Install → Apply
+- [ ] Instalar pelo ReaPack a partir do site: Extensions → ReaPack → Import
+      repositories, colar
+      `https://live-sections.igor-jacauna-cloudflare.workers.dev/index.xml`,
+      depois Browse packages → Live Sections → Install → Apply. Para testar uma
+      versão local antes de publicar: `lua tools/gerar_index.lua` gera um
+      `index.xml` com `file://` deste repositório
 - [ ] O script e as 75 actions "Live Sections - …" aparecem na lista de actions
 - [ ] Abrir `tests/fixtures/show_teste.rpp` ("Salvar como" numa pasta de teste
       para não alterar o arquivo do repositório)
