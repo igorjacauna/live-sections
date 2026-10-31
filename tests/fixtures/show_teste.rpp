@@ -1,0 +1,50 @@
+<REAPER_PROJECT 0.1 "7.0" 1761868800
+  RIPPLE 0
+  GROUPOVERRIDE 0 0 0
+  AUTOXFADE 1
+  TEMPO 120 4 4
+  PLAYRATE 1 0 0.25 4
+  LOOP 0
+  <TEMPOENVEX
+    ACT 1 -1
+    VIS 1 0 1
+    LANEHEIGHT 0 0
+    ARM 0
+    DEFSHAPE 1 -1 -1
+    PT 0 120 1 262148 0 1
+    PT 64 96 1 262148 0 1
+    PT 114 140 1 524295 0 1
+  >
+  MARKER 1 0 "SONG: Rua Augusta" 0 0
+  MARKER 2 0 "Intro" 1 0
+  MARKER 2 16 "" 1
+  MARKER 3 16 "Verso" 1 0
+  MARKER 3 32 "" 1
+  MARKER 4 32 "Refrão" 1 0
+  MARKER 4 48 "" 1
+  MARKER 5 56 "Outro" 1 0
+  MARKER 5 64 "" 1
+  MARKER 6 64 "SONG: Maré Alta" 0 0
+  MARKER 7 64 "Intro" 1 0
+  MARKER 7 74 "" 1
+  MARKER 8 74 "Verso" 1 0
+  MARKER 8 94 "" 1
+  MARKER 9 94 "Refrão" 1 0
+  MARKER 9 114 "" 1
+  MARKER 10 114 "SONG: Sete por Oito" 0 0
+  MARKER 11 114 "A" 1 0
+  MARKER 11 126 "" 1
+  MARKER 12 126 "B" 1 0
+  MARKER 12 138 "" 1
+  MARKER 13 138 "A 2" 1 0
+  MARKER 13 150 "" 1
+  <TRACK
+    NAME "KONTAKT AQUI - Rua Augusta"
+    PEAKCOL 16576
+    NCHAN 2
+  >
+  <TRACK
+    NAME "Guia"
+    NCHAN 2
+  >
+>
