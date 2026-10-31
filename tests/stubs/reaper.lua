@@ -47,6 +47,10 @@ function M.new()
     -- lista à parte: não alteram o mapa de _tempo usado pelo TimeMap2_*.
     _tempo_markers = {},       -- { time, bpm, num, denom, linear }
     _items = {},               -- { info = { D_POSITION, D_LENGTH, C_BEATATTACHMODE } }
+    _midi_inputs = {},         -- [dev] = { name, present }
+    _midi_events = {},         -- { seq, buf, ts, dev }, do mais velho ao mais novo
+    _midi_seq = 0,
+    _now = 0,                  -- valor de time_precise
   }
 
   local api = {}
@@ -396,6 +400,43 @@ function M.new()
     end
     return r._loop[1], r._loop[2]
   end
+
+  -- -------------------------------------------------------------- entrada MIDI
+  function r.add_midi_input(dev, name, present)
+    r._midi_inputs[dev] = { name = name, present = present ~= false }
+  end
+
+  function r.set_midi_present(dev, present) r._midi_inputs[dev].present = present end
+
+  -- Evento recebido; `dev` pode trazer o bit 0x10000 do modo de controle.
+  function r.midi_in(dev, status, d1, d2, ts)
+    r._midi_seq = r._midi_seq + 1
+    local buf = string.char(status, d1 or 0, d2 or 0)
+    r._midi_events[#r._midi_events + 1] = { seq = r._midi_seq, buf = buf, ts = ts or 0, dev = dev }
+  end
+
+  function r.set_now(t) r._now = t end
+
+  function api.MIDI_GetRecentInputEvent(idx)
+    local e = r._midi_events[#r._midi_events - idx]
+    if not e then return 0, "", 0, -1, 0, 0 end
+    return e.seq, e.buf, e.ts, e.dev, 0, 0
+  end
+
+  function api.GetNumMIDIInputs()
+    local n = 0
+    for dev in pairs(r._midi_inputs) do n = math.max(n, dev + 1) end
+    return n
+  end
+
+  -- true só com o dispositivo presente; o nome vem mesmo sem ele.
+  function api.GetMIDIInputName(dev, _)
+    local d = r._midi_inputs[dev]
+    if not d then return false, "" end
+    return d.present, d.name
+  end
+
+  function api.time_precise() return r._now end
 
   -- ------------------------------------------------------------------ outros
   function api.GetAppVersion() return r._app_version end
