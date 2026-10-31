@@ -14,7 +14,7 @@
 local M = {}
 
 local ImGui, theme, anim, widgets
-local perf, layers, feedback, mappings, learn, input, model
+local perf, layers, feedback, mappings, learn, input, model, editor
 
 local PROJ = 0
 local PORT_CHECK_S = 1.0
@@ -46,6 +46,7 @@ function M.init(deps)
   ImGui, theme, anim, widgets = deps.ImGui, deps.theme, deps.anim, deps.widgets
   perf, layers, feedback = deps.perf, deps.layers, deps.feedback
   mappings, learn, input, model = deps.mappings, deps.learn, deps.input, deps.model
+  editor = deps.editor
   ui.mode, ui.stage, ui.setlist_open = "performance", false, false
   last_song_id, last_port_check, disconnected, last_value = nil, -math.huge, {}, {}
 end
@@ -252,6 +253,9 @@ local function button(ctx, id, label, x, y, h, opts)
   end
   return clicked, w
 end
+
+-- Peças de desenho compartilhadas com ui/editor_view.
+M.kit = { txt = txt, size = size, button = button }
 
 local function fmt_time(t)
   local m = math.floor(t / 60)
@@ -571,14 +575,11 @@ function M.draw(ctx)
   local w, h = ImGui.GetContentRegionAvail(ctx)
   if w <= 0 then return end
 
-  y = y + top_bar(ctx, x, y, w) + GAP
+  local bar_h = top_bar(ctx, x, y, w) + GAP
+  y, h = y + bar_h, h - bar_h
 
   if ui.mode == "edit" then
-    local dl = ImGui.GetWindowDrawList(ctx)
-    txt(ctx, dl, "title", x, y + 8, theme.C.text, "Modo Editar")
-    txt(ctx, dl, "small", x, y + 40, theme.C.muted, "A faixa de estrutura e os avisos chegam na próxima etapa.")
-    ImGui.SetCursorScreenPos(ctx, x, y + 70)
-    ImGui.Dummy(ctx, w, 1)
+    if editor then editor.draw(ctx, x, y, w, h, snap) end
     return
   end
 
@@ -592,7 +593,7 @@ function M.draw(ctx)
       y = y + list_h + GAP
     end
   else
-    setlist(ctx, x, y, SETLIST_W, math.max(200, h - 56 - GAP))
+    setlist(ctx, x, y, SETLIST_W, math.max(200, h))
     cx, cw = x + SETLIST_W + GAP + 4, w - SETLIST_W - GAP - 4
   end
 

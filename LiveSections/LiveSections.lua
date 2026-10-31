@@ -51,6 +51,7 @@ local theme = require("ui.theme")
 local anim = require("ui.anim")
 local widgets = require("ui.widgets")
 local view = require("ui.performance_view")
+local editor = require("ui.editor_view")
 local input = require("midi.input")
 local learn = require("midi.learn")
 local mappings = require("midi.mappings")
@@ -79,10 +80,14 @@ feedback.configure(cfg)
 layers.configure({ keyboard_port = cfg.keyboard_port, bypass_tail_s = cfg.bypass_tail_s })
 perf.init({ quantize = cfg.quantize, tolerance_ms = cfg.tolerance_ms })
 anim.set_reduced(cfg.reduced_motion == true)
+editor.init({
+  ImGui = ImGui, theme = theme, widgets = widgets, perf = perf, layers = layers, model = model,
+  editor_ops = require("core.editor_ops"), validator = require("core.validator"), kit = view.kit,
+})
 view.init({
   ImGui = ImGui, theme = theme, anim = anim, widgets = widgets,
   perf = perf, layers = layers, feedback = feedback, mappings = mappings,
-  learn = learn, input = input, model = model,
+  learn = learn, input = input, model = model, editor = editor,
 })
 
 -- Tamanho mínimo: a janela não abre estreita mesmo com um tamanho antigo

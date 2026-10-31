@@ -42,6 +42,7 @@ function M.new()
     _play_state = 0,           -- bit 1 = tocando
     _play_pos = 0,
     _cursor = 0,
+    _undo = {},
     _ext = {},                 -- ProjExtState: [section][key] = valor
     -- Marcadores de tempo da API SetTempoTimeSigMarker, por tempo. São uma
     -- lista à parte: não alteram o mapa de _tempo usado pelo TimeMap2_*.
@@ -496,7 +497,16 @@ function M.new()
   function api.atexit(fn) log("atexit", fn) end
   function api.UpdateTimeline() log("UpdateTimeline") end
   function api.Undo_BeginBlock() log("Undo_BeginBlock") end
-  function api.Undo_EndBlock(desc, flags) log("Undo_EndBlock", desc, flags) end
+  function api.Undo_EndBlock(desc, flags)
+    log("Undo_EndBlock", desc, flags)
+    r._undo[#r._undo + 1] = desc
+  end
+  function api.Undo_CanUndo2(_) return r._undo[#r._undo] end
+  function api.Undo_DoUndo2(_) log("Undo_DoUndo2"); r._undo[#r._undo] = nil; return 1 end
+  function api.Undo_CanRedo2(_) return nil end
+  function api.Undo_DoRedo2(_) log("Undo_DoRedo2"); return 0 end
+  function api.ColorToNative(red, green, blue) return red | (green << 8) | (blue << 16) end
+  function api.ColorFromNative(c) return c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF end
 
   -- Extensões opcionais: ausentes por padrão (o código testa se existem).
   function r.install_imgui(builtin_path)
