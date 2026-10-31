@@ -222,6 +222,25 @@ describe("ui.performance_view", function()
       assert.equal(1, #r.calls_to("OnPlayButton"))
     end)
 
+    it("botão maximizar pede para maximizar/restaurar", function()
+      draw({ press = "maximize" })
+      assert.is_true(view.ui().toggle_max)
+    end)
+
+    it("camada com som: medidor estéreo em verde, âmbar ou vermelho conforme o nível", function()
+      local k = r.add_track("Kontakt A")
+      local piano = r.add_track("Piano", nil, k)
+      piano.peak = { 0.5, 1.2 }                 -- -6 dB e +1,6 dB
+      layers.link(model.songs()[1], k)
+      local calls = draw()
+      local colors = {}
+      for _, c in ipairs(calls) do
+        if c[1] == "DrawList_AddRectFilled" then colors[c[7]] = true end
+      end
+      local theme = require("ui.theme")
+      assert.is_true(colors[theme.C.ok] and colors[theme.C.queue] and colors[theme.C.danger])
+    end)
+
     it("modo Editar não desenha cards nem ações", function()
       local b = ids(draw({ setup = function() view.ui().mode = "edit" end }))
       assert.is_nil(b.act_play_stop)

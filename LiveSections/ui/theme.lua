@@ -156,7 +156,7 @@ local function colors()
     Button = C.raise, ButtonHovered = C.raise2, ButtonActive = C.line2,
     Header = C.raise, HeaderHovered = C.raise2, HeaderActive = C.line2,
     Separator = C.line, SeparatorHovered = C.line2, SeparatorActive = C.muted,
-    ResizeGrip = clear, ResizeGripHovered = C.line2, ResizeGripActive = C.muted,
+    ResizeGrip = C.line2, ResizeGripHovered = C.faint, ResizeGripActive = C.muted,
     Tab = C.panel, TabHovered = C.raise2, TabActive = C.raise,
     TabUnfocused = C.panel, TabUnfocusedActive = C.raise,
     PlotLines = C.muted, PlotLinesHovered = C.text, PlotHistogram = C.muted, PlotHistogramHovered = C.text,
@@ -265,6 +265,18 @@ local ICONS = {
   stage = function(dl, x, y, k, c, t)
     ImGui.DrawList_AddRect(dl, x + 2 * k, y + 3 * k, x + 14 * k, y + 13 * k, c, 2 * k, 0, t)
     stroke(dl, { { 2, 6.5 }, { 14, 6.5 } }, x, y, k, c, t)
+  end,
+  maximize = function(dl, x, y, k, c, t)
+    stroke(dl, { { 2.5, 6 }, { 2.5, 2.5 }, { 6, 2.5 } }, x, y, k, c, t)
+    stroke(dl, { { 10, 2.5 }, { 13.5, 2.5 }, { 13.5, 6 } }, x, y, k, c, t)
+    stroke(dl, { { 13.5, 10 }, { 13.5, 13.5 }, { 10, 13.5 } }, x, y, k, c, t)
+    stroke(dl, { { 6, 13.5 }, { 2.5, 13.5 }, { 2.5, 10 } }, x, y, k, c, t)
+  end,
+  restore = function(dl, x, y, k, c, t)
+    stroke(dl, { { 6, 2.5 }, { 6, 6 }, { 2.5, 6 } }, x, y, k, c, t)
+    stroke(dl, { { 10, 2.5 }, { 10, 6 }, { 13.5, 6 } }, x, y, k, c, t)
+    stroke(dl, { { 13.5, 10 }, { 10, 10 }, { 10, 13.5 } }, x, y, k, c, t)
+    stroke(dl, { { 6, 13.5 }, { 6, 10 }, { 2.5, 10 } }, x, y, k, c, t)
   end,
   list = function(dl, x, y, k, c, t)
     for _, ly in ipairs({ 4, 8, 12 }) do

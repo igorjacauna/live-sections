@@ -35,8 +35,11 @@ local ui = {
   stage = false,
   setlist_open = false,    -- setlist completa aberta no modo palco
   chart_open = false,      -- janela "Cifra"
+  maximized = false,       -- janela ocupando a área útil do monitor
+  toggle_max = false,      -- pedido de maximizar/restaurar (aplicado pelo entrypoint)
 }
 local stage_state = {}
+local meters = {}          -- medidor por camada: [slot] = { l, r, hold, hold_at, t }
 local now = 0
 local last_song_id = nil
 local last_port_check = -math.huge
@@ -51,6 +54,7 @@ function M.init(deps)
   editor, settings_view, stage = deps.editor, deps.settings, deps.stage
   ui.mode, ui.stage, ui.setlist_open = "performance", false, false
   last_song_id, last_port_check, disconnected, last_value = nil, -math.huge, {}, {}
+  meters = {}
 end
 
 function M.ui() return ui end
@@ -330,16 +334,20 @@ local function top_bar(ctx, x, y, w)
     { "FÓRMULA", num .. "/" .. denom },
   }
   for _, r in ipairs(reads) do
-    if cx + 80 > x + w - 450 then break end
+    if cx + 80 > x + w - 490 then break end
     txt(ctx, dl, "label", cx, y + 9, theme.C.muted, r[1])
     txt(ctx, dl, "readout", cx, y + 25, theme.C.text, r[2])
     cx = cx + math.max(size(ctx, "readout", r[2]), size(ctx, "label", r[1])) + 20
   end
 
-  -- direita: cifra, palco, MIDI e quantize
-  local rx = x + w - 16
+  -- direita: maximizar, cifra, palco, MIDI e quantize
+  local rx = x + w - 16 - 32
+  if button(ctx, "maximize", "", rx, y + 12, 32, { icon = ui.maximized and "restore" or "maximize", w = 32 }) then
+    ui.toggle_max = true
+  end
+  if ImGui.IsItemHovered(ctx) then ImGui.SetTooltip(ctx, ui.maximized and "Restaurar (F11)" or "Maximizar (F11)") end
   local cw = size(ctx, "button", "Cifra") + 24
-  rx = rx - cw
+  rx = rx - cw - 6
   if button(ctx, "chart", "Cifra", rx, y + 12, 32, { active = ui.chart_open, w = cw }) then
     ui.chart_open = not ui.chart_open
   end
@@ -518,6 +526,42 @@ local function cards(ctx, x, y, w)
   return rows * card_h + (rows - 1) * GAP
 end
 
+-- Medidor de nível: escala -60 a +6 dB; desce suave e segura o pico 1,5 s.
+local METER_MIN_DB, METER_MAX_DB = -60, 6
+local METER_FALL = 1.5        -- escala por segundo
+local HOLD_S = 1.5
+
+local function meter_level(lin)
+  if not lin or lin <= 0 then return 0 end
+  local db = 20 * math.log(lin, 10)
+  return math.max(0, math.min(1, (db - METER_MIN_DB) / (METER_MAX_DB - METER_MIN_DB)))
+end
+
+local function db_level(db) return (db - METER_MIN_DB) / (METER_MAX_DB - METER_MIN_DB) end
+
+local function meter_state(slot, peak_l, peak_r)
+  local m = meters[slot] or { l = 0, r = 0, hold = 0, hold_at = -math.huge, t = now }
+  local dt = math.max(0, now - m.t)
+  m.t = now
+  m.l = math.max(meter_level(peak_l), m.l - METER_FALL * dt)
+  m.r = math.max(meter_level(peak_r), m.r - METER_FALL * dt)
+  local top = math.max(m.l, m.r)
+  if top >= m.hold or now - m.hold_at > HOLD_S then m.hold, m.hold_at = top, now end
+  meters[slot] = m
+  return m
+end
+
+local function meter(dl, x, y, w, h, level)
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + w, y + h, theme.C.bg, 2)
+  local zones = {
+    { 0, db_level(-12), theme.C.ok }, { db_level(-12), db_level(-3), theme.C.queue }, { db_level(-3), 1, theme.C.danger },
+  }
+  for _, z in ipairs(zones) do
+    local a, b = z[1], math.min(z[2], level)
+    if b > a then ImGui.DrawList_AddRectFilled(dl, x, y + h * (1 - b), x + w, y + h * (1 - a), z[3], 1) end
+  end
+end
+
 local function layer_strip(ctx, x, y, w)
   local dl = ImGui.GetWindowDrawList(ctx)
   local song = snap.song
@@ -556,6 +600,17 @@ local function layer_strip(ctx, x, y, w)
     local vy = fy + fh * (1 - st.pos)
     ImGui.DrawList_AddRectFilled(dl, fx + 3, vy, fx + 37, fy + fh - 3, st.mute and theme.C.line2 or theme.C.muted & 0xFFFFFF66, 8)
     ImGui.DrawList_AddRectFilled(dl, fx - 3, vy - 4, fx + 43, vy + 4, theme.C.text, 3)
+
+    -- nível de saída da camada, ao lado do fader
+    local m = meter_state(i, st.peak_l, st.peak_r)
+    local mx = fx + 50
+    meter(dl, mx, fy, 5, fh, m.l)
+    meter(dl, mx + 7, fy, 5, fh, m.r)
+    if m.hold > 0 then
+      local hy = fy + fh * (1 - m.hold)
+      local hc = m.hold >= db_level(-3) and theme.C.danger or m.hold >= db_level(-12) and theme.C.queue or theme.C.ok
+      ImGui.DrawList_AddLine(dl, mx, hy, mx + 12, hy, hc, 2)
+    end
 
     -- soft takeover: onde está o fader físico e para onde movê-lo
     local dir = layers.takeover(i)

@@ -102,6 +102,29 @@ settings_view.init({
 -- salvo pelo ReaImGui.
 local MIN_W, MIN_H = 720, 480
 
+-- Maximizar/restaurar (botão no topo ou F11): a posição e o tamanho só valem
+-- antes do Begin, então o pedido fica para o ciclo seguinte.
+local win = { pending = nil, restore = nil }
+
+local function toggle_maximize(ui)
+  if ui.maximized then
+    win.pending, ui.maximized = win.restore, false
+    return
+  end
+  local px, py = ImGui.GetWindowPos(ctx)
+  local pw, ph = ImGui.GetWindowSize(ctx)
+  win.restore = { px, py, pw, ph }
+  local vp = ImGui.GetWindowViewport(ctx)
+  local vx, vy = ImGui.Viewport_GetWorkPos(vp)
+  local vw, vh = ImGui.Viewport_GetWorkSize(vp)
+  win.pending, ui.maximized = { vx, vy, vw, vh }, true
+end
+
+-- Redimensionar pelas bordas da janela, não só pelo canto.
+if ImGui.ConfigVar_WindowsResizeFromEdges then
+  ImGui.SetConfigVar(ctx, ImGui.ConfigVar_WindowsResizeFromEdges, 1)
+end
+
 local function loop()
   local now = reaper.time_precise()
   remote.heartbeat(now)
@@ -111,15 +134,26 @@ local function loop()
   widgets.frame(ctx, now)
   theme.push(ctx)
   local t = theme.font(ctx, "body")
+  if win.pending then
+    ImGui.SetNextWindowPos(ctx, win.pending[1], win.pending[2], ImGui.Cond_Always)
+    ImGui.SetNextWindowSize(ctx, win.pending[3], win.pending[4], ImGui.Cond_Always)
+    win.pending = nil
+  end
   ImGui.SetNextWindowSize(ctx, 1100, 760, ImGui.Cond_FirstUseEver)
   ImGui.SetNextWindowSizeConstraints(ctx, MIN_W, MIN_H, 100000, 100000)
   local visible, open = ImGui.Begin(ctx, APP_NAME, true)
+  local ui = view.ui()
   if visible then
     view.draw(ctx)
+    local f11 = ImGui.IsWindowFocused(ctx, ImGui.FocusedFlags_RootAndChildWindows)
+      and ImGui.IsKeyPressed(ctx, ImGui.Key_F11, false)
+    if ui.toggle_max or f11 then
+      ui.toggle_max = false
+      toggle_maximize(ui)
+    end
     ImGui.End(ctx)
   end
   -- janela "Cifra": separada, pode ir para outro monitor
-  local ui = view.ui()
   if ui.chart_open and not chart_view.draw(ctx, view.stage_state()) then ui.chart_open = false end
   theme.pop_font(ctx, t)
   theme.pop(ctx)

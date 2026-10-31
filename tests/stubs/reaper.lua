@@ -231,6 +231,7 @@ function M.new()
   function api.TrackFX_GetCount(tr) return #(tr.fx or {}) end
   function api.TrackFX_GetFXName(tr, i, _) return true, tr.fx[i + 1] end
   function api.TrackList_AdjustWindows() end
+  function api.Track_GetPeakInfo(tr, ch) return (tr.peak or {})[ch + 1] or 0 end
 
   -- Curva do fader: aproximação invertível da do REAPER (0 → -inf, 716 → 0 dB,
   -- 1000 → ≈ +5,8 dB).

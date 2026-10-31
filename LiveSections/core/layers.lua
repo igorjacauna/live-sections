@@ -30,7 +30,8 @@
 -- M.set_layer_volume(slot, value) -> "set"|"waiting"|"no_layer"   value 0–1 do fader
 -- M.takeover(slot) -> nil|"up"|"down"   direção para o fader alcançar a camada
 -- M.toggle_mute(slot); M.toggle_solo(slot)
--- M.layer_state(slot) -> { name, pos (0–1), mute, solo }?
+-- M.layer_state(slot) -> { name, pos (0–1), mute, solo, peak_l, peak_r }?
+--                       pico de saída da track (amplitude linear, 1 = 0 dB)
 -- M.set_volume_ui(slot, pos)   fader da tela; o físico precisa alcançar de novo
 -- M.release_takeover()   o fader físico precisa alcançar de novo (ex.: o
 --                        volume mudou pela tela)
@@ -278,6 +279,7 @@ function M.layer_state(slot)
     name = layer.name, pos = fader_pos(tr),
     mute = reaper.GetMediaTrackInfo_Value(tr, "B_MUTE") ~= 0,
     solo = reaper.GetMediaTrackInfo_Value(tr, "I_SOLO") ~= 0,
+    peak_l = reaper.Track_GetPeakInfo(tr, 0), peak_r = reaper.Track_GetPeakInfo(tr, 1),
   }
 end
 
