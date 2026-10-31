@@ -85,8 +85,9 @@ function M.new()
     return out
   end
 
-  function r.add_track(name, guid)
-    local t = { name = name or "", guid = guid or ("{TRACK-" .. (#r._tracks + 1) .. "}"), info = {} }
+  -- `parent`: track pai (para camadas em tracks filhas).
+  function r.add_track(name, guid, parent)
+    local t = { name = name or "", guid = guid or ("{TRACK-" .. (#r._tracks + 1) .. "}"), info = {}, parent = parent }
     r._tracks[#r._tracks + 1] = t
     touch()
     return t
@@ -184,6 +185,16 @@ function M.new()
     return true
   end
 
+  -- Só MARKER_GUID:<índice da enumeração>; o GUID é estável por marcador.
+  function api.GetSetProjectInfo_String(_, desc, value, set)
+    local i = desc:match("^MARKER_GUID:(%d+)$")
+    if not i or set then error("stub: GetSetProjectInfo_String só lê MARKER_GUID, recebeu " .. desc) end
+    local m = sorted_markers()[tonumber(i) + 1]
+    if not m then return false, "" end
+    m.guid = m.guid or string.format("{MK-%s-%d}", m.isrgn and "R" or "M", m.idx)
+    return true, m.guid
+  end
+
   function api.GetProjectStateChangeCount(_) return r._state_count end
   function api.GetProjectLength(_) return r._project_length end
 
@@ -191,6 +202,14 @@ function M.new()
   function api.CountTracks(_) return #r._tracks end
   function api.GetTrack(_, i) return r._tracks[i + 1] end
   function api.GetTrackGUID(track) return track.guid end
+  function api.GetParentTrack(track) return track.parent end
+
+  -- Só "MediaTrack*": a track ainda está no projeto.
+  function api.ValidatePtr(ptr, kind)
+    if kind ~= "MediaTrack*" then error("stub: ValidatePtr só simula MediaTrack*") end
+    for _, t in ipairs(r._tracks) do if t == ptr then return true end end
+    return false
+  end
 
   function api.GetMediaTrackInfo_Value(track, key) return track.info[key] or 0 end
 
