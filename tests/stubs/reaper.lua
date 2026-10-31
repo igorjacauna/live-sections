@@ -204,6 +204,14 @@ function M.new()
   function api.GetTrackGUID(track) return track.guid end
   function api.GetParentTrack(track) return track.parent end
 
+  -- Curva do fader: aproximação invertível da do REAPER (0 → -inf, 716 → 0 dB,
+  -- 1000 → ≈ +5,8 dB).
+  function api.SLIDER2DB(y)
+    if y <= 0 then return -150 end
+    return 40 * math.log(y / 716, 10)
+  end
+  function api.DB2SLIDER(db) return 716 * 10 ^ (db / 40) end
+
   -- Só "MediaTrack*": a track ainda está no projeto.
   function api.ValidatePtr(ptr, kind)
     if kind ~= "MediaTrack*" then error("stub: ValidatePtr só simula MediaTrack*") end

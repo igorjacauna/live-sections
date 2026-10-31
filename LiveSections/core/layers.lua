@@ -11,6 +11,12 @@
 -- entram em bypass (I_FXEN = 0) depois do tempo de cauda (RF-054, RF-055).
 -- Música sem vínculo não roteia nada (RF-105).
 --
+-- Faders e botões de camada agem na camada N da música atual: volume nativo
+-- da track filha (D_VOL, com a curva do fader do REAPER), mute e solo
+-- (RF-056, RF-057, RF-060). Soft takeover (RF-058): depois de trocar de
+-- música, o fader físico só assume quando cruza o valor atual da camada; até
+-- lá, M.takeover(slot) diz para onde movê-lo (RF-059).
+--
 -- M.configure({ keyboard_port, bypass_tail_s })
 -- M.link(song, track); M.unlink(song); M.track_of(song) -> track?
 -- M.links(songs) -> { [song.id] = { key, track_guid } }   (para o validator)
@@ -19,6 +25,11 @@
 -- M.held() -> bool               há nota ou sustain segurado
 -- M.activate(song, songs, now) -> ok, err ("no_keyboard")
 -- M.tick(now)
+-- M.set_layer_volume(slot, value) -> "set"|"waiting"|"no_layer"   value 0–1 do fader
+-- M.takeover(slot) -> nil|"up"|"down"   direção para o fader alcançar a camada
+-- M.toggle_mute(slot); M.toggle_solo(slot)
+-- M.release_takeover()   o fader físico precisa alcançar de novo (ex.: o
+--                        volume mudou pela tela)
 
 local M = {}
 
@@ -27,6 +38,8 @@ local EXT_SECTION = "LiveSections"
 local KEY_PREFIX = "kontakt:"
 local MIDI_INPUT = 4096
 local SUSTAIN_CC = 64
+local TAKEOVER_TOL = 0.02   -- distância (0–1) em que o fader já conta como alcançado
+local SOLO_IN_PLACE = 2
 
 local settings = { keyboard_port = nil, bypass_tail_s = 5 }
 local notes = {}        -- [canal * 128 + nota] = true
@@ -34,6 +47,9 @@ local sustain = {}      -- [canal] = true
 local current = nil     -- track armada da música atual
 local releasing = nil   -- track anterior, armada até o teclado ser solto
 local bypass_at = {}    -- [track] = instante do bypass
+local current_song = nil
+local hw = {}           -- [slot] = última posição do fader físico (0–1)
+local engaged = {}      -- [slot] = true quando o fader controla a camada
 
 function M.configure(opts)
   settings.keyboard_port = opts.keyboard_port
@@ -165,6 +181,10 @@ function M.activate(song, songs, now)
   local track = song and M.track_of(song)
   local dev = keyboard_index()
   if track and not dev then return false, "no_keyboard" end
+  if song ~= current_song and not (song and current_song and song.id == current_song.id) then
+    engaged = {}
+  end
+  current_song = song
 
   if current and current ~= track then
     if M.held() then
@@ -201,9 +221,63 @@ function M.tick(now)
   end
 end
 
+-- ------------------------------------------------------------------ camadas
+
+local function layer_track(slot)
+  if not current_song then return nil end
+  local layer = M.layers(current_song)[slot]
+  return layer and layer.track
+end
+
+local function fader_pos(track)
+  local vol = reaper.GetMediaTrackInfo_Value(track, "D_VOL")
+  if vol <= 0 then return 0 end
+  return math.max(0, math.min(1, reaper.DB2SLIDER(20 * math.log(vol, 10)) / 1000))
+end
+
+local function volume_of(pos)
+  if pos <= 0 then return 0 end
+  return 10 ^ (reaper.SLIDER2DB(pos * 1000) / 20)
+end
+
+function M.set_layer_volume(slot, value)
+  local track = layer_track(slot)
+  local last = hw[slot]
+  hw[slot] = value
+  if not track then return "no_layer" end
+  if not engaged[slot] then
+    local target = fader_pos(track)
+    local crossed = last ~= nil and (last - target) * (value - target) <= 0
+    if not crossed and math.abs(value - target) > TAKEOVER_TOL then return "waiting" end
+    engaged[slot] = true
+  end
+  reaper.SetMediaTrackInfo_Value(track, "D_VOL", volume_of(value))
+  return "set"
+end
+
+function M.takeover(slot)
+  local track = layer_track(slot)
+  if not track or engaged[slot] or hw[slot] == nil then return nil end
+  return hw[slot] < fader_pos(track) and "up" or "down"
+end
+
+function M.release_takeover() engaged = {} end
+
+local function toggle(slot, key, on_value)
+  local track = layer_track(slot)
+  if not track then return false end
+  local on = reaper.GetMediaTrackInfo_Value(track, key) ~= 0
+  reaper.SetMediaTrackInfo_Value(track, key, on and 0 or on_value)
+  return true
+end
+
+function M.toggle_mute(slot) return toggle(slot, "B_MUTE", 1) end
+function M.toggle_solo(slot) return toggle(slot, "I_SOLO", SOLO_IN_PLACE) end
+
 -- Volta ao estado inicial (para testes e para recarregar o projeto).
 function M.reset()
   notes, sustain, current, releasing, bypass_at = {}, {}, nil, nil, {}
+  current_song, hw, engaged = nil, {}, {}
 end
 
 return M

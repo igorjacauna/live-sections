@@ -173,4 +173,85 @@ describe("layers", function()
       assert.has_no.errors(function() layers.tick(10) end)
     end)
   end)
+
+  describe("faders de camada", function()
+    local cordas, piano, pad_b
+    local function pos(tr) return reaper.DB2SLIDER(20 * math.log(tr.info.D_VOL, 10)) / 1000 end
+
+    before_each(function()
+      cordas, piano = r._tracks[2], r._tracks[3]
+      pad_b = r.add_track("Pad", "{B-1}", kt_b)
+      cordas.info.D_VOL, piano.info.D_VOL, pad_b.info.D_VOL = 1, 1, 0.5   -- 0 dB, 0 dB, ≈ -6 dB
+      layers.activate(a, songs, 0)
+    end)
+
+    it("o fader N muda o volume nativo da camada N da música atual, depois de alcançá-la", function()
+      assert.equal("waiting", layers.set_layer_volume(1, 0.2))      -- 0 dB fica em 0,716
+      assert.equal("set", layers.set_layer_volume(1, 0.72))          -- cruzou
+      assert.near(0.72, pos(cordas), 1e-9)
+      assert.equal("set", layers.set_layer_volume(1, 0.3))
+      assert.near(0.3, pos(cordas), 1e-9)
+      assert.equal(1, piano.info.D_VOL)
+    end)
+
+    it("fader perto do valor atual já assume", function()
+      assert.equal("set", layers.set_layer_volume(2, 0.70))
+    end)
+
+    it("no zero, a camada fica muda", function()
+      layers.set_layer_volume(1, 0.716)
+      layers.set_layer_volume(1, 0)
+      assert.equal(0, cordas.info.D_VOL)
+    end)
+
+    it("depois de trocar de música, o fader espera cruzar o valor da nova camada", function()
+      layers.set_layer_volume(1, 0.716)
+      layers.set_layer_volume(1, 0.9)
+      layers.activate(b, songs, 10)                                 -- Pad em ≈ 0,506
+      assert.equal("down", layers.takeover(1))
+      assert.equal("waiting", layers.set_layer_volume(1, 0.8))
+      assert.equal(0.5, pad_b.info.D_VOL)
+      assert.equal("set", layers.set_layer_volume(1, 0.45))         -- passou por 0,506
+      assert.is_nil(layers.takeover(1))
+      assert.near(0.45, pos(pad_b), 1e-9)
+    end)
+
+    it("informa a direção para alcançar: acima ou abaixo", function()
+      layers.set_layer_volume(1, 0.1)
+      assert.equal("up", layers.takeover(1))
+      assert.is_nil(layers.takeover(2))           -- fader 2 ainda não se mexeu
+    end)
+
+    it("reativar a mesma música não perde o controle do fader", function()
+      layers.set_layer_volume(1, 0.716)
+      layers.activate(a, songs, 5)
+      assert.equal("set", layers.set_layer_volume(1, 0.2))
+    end)
+
+    it("release_takeover faz o fader alcançar de novo (volume mudou pela tela)", function()
+      layers.set_layer_volume(1, 0.716)
+      cordas.info.D_VOL = 0.1                                       -- ≈ 0,226
+      layers.release_takeover()
+      assert.equal("waiting", layers.set_layer_volume(1, 0.5))
+      assert.equal("set", layers.set_layer_volume(1, 0.2))
+    end)
+
+    it("camada inexistente ou música sem Kontakt não faz nada", function()
+      assert.equal("no_layer", layers.set_layer_volume(3, 0.5))
+      layers.activate(c, songs, 10)
+      assert.equal("no_layer", layers.set_layer_volume(1, 0.5))
+      assert.is_false(layers.toggle_mute(1))
+    end)
+
+    it("mute e solo por camada alternam na track da camada", function()
+      assert.is_true(layers.toggle_mute(2))
+      assert.equal(1, piano.info.B_MUTE)
+      layers.toggle_mute(2)
+      assert.equal(0, piano.info.B_MUTE)
+      layers.toggle_solo(1)
+      assert.equal(2, cordas.info.I_SOLO)
+      layers.toggle_solo(1)
+      assert.equal(0, cordas.info.I_SOLO)
+    end)
+  end)
 end)
