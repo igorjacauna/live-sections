@@ -76,6 +76,11 @@ describe("entrypoint", function()
     assert.equal("0.9", requested_version)
     assert.matches("^/stub/LiveSections/%?%.lua;/imgui/%?%.lua;", package.path)
 
+    local clears_leds = false
+    for _, c in ipairs(r.calls_to("atexit")) do
+      if c[1] == package.loaded["midi.feedback"].clear then clears_leds = true end
+    end
+    assert.is_true(clears_leds)
     local deferred = r.calls_to("defer")
     assert.equal(1, #deferred)
     deferred[1][1]()

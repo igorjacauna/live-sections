@@ -19,6 +19,7 @@
 -- M.flush(now)                         envia o que mudou; `now` em segundos
 -- M.reset()                            esquece o que foi enviado (reenvia tudo)
 -- M.touch(mapping)                     reenvia aquele LED (o botão foi tocado)
+-- M.clear()                            apaga os LEDs mapeados (ao fechar o script)
 -- M.missing_outputs() -> { nome }      portas sem saída MIDI no último flush
 
 local M = {}
@@ -128,6 +129,15 @@ function M.flush(now)
         sent[k] = v
       end
     end
+  end
+end
+
+function M.clear()
+  for k, w in pairs(wanted) do
+    local m = w.mapping
+    local out = output_index(out_override or m.port_name)
+    if out then reaper.StuffMIDIMessage(16 + out, STATUS[m.msg_type] + m.channel - 1, m.number, 0) end
+    sent[k] = 0
   end
 end
 

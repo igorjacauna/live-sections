@@ -107,4 +107,5 @@ local function loop()
   if open then reaper.defer(loop) end
 end
 
+reaper.atexit(feedback.clear)
 reaper.defer(loop)
