@@ -43,6 +43,19 @@ Para parar o script, rode-o de novo e escolha **Terminate instances**: o resumo 
 
 **Mande:** o console das duas rodadas e, para cada uma, se os pads acenderam e se tocaram som.
 
+**Resultado (2026-10-31, SINCO SMC-Mixer, porta *Master*; *Private* desabilitada):**
+
+| Rodada | No console | LEDs (saída habilitada) | Som nas tracks |
+|---|---|---|---|
+| A, *Enable input* | sim, `dev=0x4` | acendem | sim |
+| B, *Enable input for control messages* | sim, `dev=0x10004`, cada evento duas vezes | acendem | não |
+
+O modo de controle funciona e o RF-047 fica na V0. Para a leitura (task 3.1):
+a porta é `devIdx & 0xFFFF` e a cópia duplicada de cada evento é descartada.
+Os botões mandam Note On/Off (padrão Mackie: Rec = nota 0, Solo = 8,
+Select = 24) e cada fader manda pitch bend no próprio canal, com 7 bits úteis
+(`E0 00 xx`). Os LEDs só acendem com a saída habilitada em MIDI Outputs.
+
 ## 05_salto_imediato.lua: salto imediato com smooth seek ligado
 Não precisa de controlador. Use um projeto com áudio contínuo. O script liga o smooth seek, desliga o repeat e, se o projeto não tiver regiões, cria a região **"Alvo"** nos compassos 1 a 4. Todos os saltos vão para o início da 1ª região.
 
