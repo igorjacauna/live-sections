@@ -49,9 +49,30 @@ local ImGui = require("imgui")(IMGUI_API_VERSION)
 
 local theme = require("ui.theme")
 local anim = require("ui.anim")
+local widgets = require("ui.widgets")
+local input = require("midi.input")
+local learn = require("midi.learn")
+local mappings = require("midi.mappings")
 
 local ctx = ImGui.CreateContext(APP_NAME)
 local fonts_ok = theme.init(ctx, ImGui, script_dir())
+widgets.init(ImGui, theme, anim, learn, mappings)
+mappings.load()
+input.init()
+
+-- MIDI: durante o learn a mensagem vira mapeamento; fora dele, o controle
+-- mapeado pisca (as ações entram com as telas).
+local function read_midi()
+  for _, e in ipairs(input.poll()) do
+    if learn.state() then
+      local m = learn.feed(e)
+      if m then widgets.flash(m) end
+    else
+      local m = mappings.match(e)
+      if m then widgets.flash(m) end
+    end
+  end
+end
 
 -- Amostra do tema (task 4.1) até as telas existirem: tipografia e estados.
 local function preview()
@@ -78,9 +99,33 @@ local function preview()
     ImGui.TextColored(ctx, s.color, s.label:upper())
     theme.pop_font(ctx, t)
   end
+
+  -- cards e controles mapeáveis (task 4.2)
+  local now = reaper.time_precise()
+  local cards = {
+    { name = "Verso", color = 0, slot = 2, bars = 8, state = "playing", progress = (now / 8) % 1 },
+    { name = "Refrão", color = 0, slot = 3, bars = 8, state = "queued", beats_left = 4 - math.floor(now % 4) },
+    { name = "Ponte", color = 0, slot = 4, bars = 4, state = "loop", progress = (now / 4) % 1 },
+    { name = "Outro", color = 0, slot = 5, bars = 4 },
+  }
+  for i, card in ipairs(cards) do
+    card.control = { action = "trigger_slot", arg = card.slot }
+    if i > 1 then ImGui.SameLine(ctx) end
+    widgets.section_card(ctx, "card" .. i, card, 180, 140)
+  end
+  ImGui.Dummy(ctx, 0, 8)
+  ImGui.Button(ctx, "Panic")
+  widgets.mappable(ctx, { action = "panic" }, "Panic")
+  ImGui.SameLine(ctx)
+  local global = learn.state() and learn.state().mode == "global"
+  if ImGui.Button(ctx, global and "Sair do Learn global" or "Learn global") then
+    if global then learn.cancel() else learn.start_global() end
+  end
 end
 
 local function loop()
+  read_midi()
+  widgets.frame(ctx, reaper.time_precise())
   theme.push(ctx)
   local t = theme.font(ctx, "body")
   local visible, open = ImGui.Begin(ctx, APP_NAME, true)
