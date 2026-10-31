@@ -68,7 +68,7 @@ function M.run(action, arg, value)
   elseif action == "cycle_quantize" then return perf.cycle_quantize(arg or 1)
   elseif action == "play_stop" then return perf.play_stop()
   elseif action == "cancel" then return perf.cancel()
-  elseif action == "panic" then return perf.panic()
+  elseif action == "panic" then feedback.reset(); return perf.panic()
   elseif action == "layer_volume" then return layers.set_layer_volume(arg, value or 0)
   elseif action == "layer_mute" then return layers.toggle_mute(arg)
   elseif action == "layer_solo" then return layers.toggle_solo(arg)
@@ -97,6 +97,7 @@ function M.handle_event(e)
   end
   local m, value = mappings.match(e)
   if not m then return end
+  feedback.touch(m)
   if CONTINUOUS[m.action] then
     M.run(m.action, m.arg, value)
   elseif pressed(m, value) then
@@ -535,7 +536,7 @@ local function action_bar(ctx, x, y, w)
     { "cancel", "Cancelar fila", "x", function() perf.cancel() end, s.entry and theme.C.queue },
     { "play_stop", s.playing and "Stop" or "Play", s.playing and "stop" or "play", function() perf.play_stop() end },
     { "next_song", "Próxima música", "next_song", function() perf.next_song() end },
-    { "panic", "Panic", "warn", function() perf.panic() end, theme.C.danger },
+    { "panic", "Panic", "warn", function() M.run("panic") end, theme.C.danger },
   }
   local bw = math.max(96, (w - (#items - 1) * GAP) / #items)
   local cx = x

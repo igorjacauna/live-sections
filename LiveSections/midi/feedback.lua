@@ -7,7 +7,9 @@
 --
 -- "queued" pisca no próprio script, alternando a velocity da fila com a de
 -- "idle", porque nem todo controlador pisca sozinho (o SMC-Mixer só acende e
--- apaga). Uma mensagem só é enviada quando a velocity daquele LED muda.
+-- apaga). Uma mensagem só é enviada quando a velocity daquele LED muda, e
+-- tudo é reenviado a cada REFRESH_S: o controlador (ou outro programa) pode
+-- acender um LED por conta própria e ele ficaria preso.
 --
 -- Estados: "idle" (parado), "playing", "queued", "loop", "empty" (sem seção).
 --
@@ -16,11 +18,13 @@
 -- M.set_state(mapping, state)
 -- M.flush(now)                         envia o que mudou; `now` em segundos
 -- M.reset()                            esquece o que foi enviado (reenvia tudo)
+-- M.touch(mapping)                     reenvia aquele LED (o botão foi tocado)
 -- M.missing_outputs() -> { nome }      portas sem saída MIDI no último flush
 
 local M = {}
 
 local BLINK_PERIOD_S = 0.5
+local REFRESH_S = 2.0
 local DEFAULT_VELOCITY = { idle = 0, playing = 127, queued = 127, loop = 127, empty = 0 }
 
 local velocity = DEFAULT_VELOCITY
@@ -29,6 +33,7 @@ local blink = true
 local wanted = {}     -- [key] = { mapping, state }
 local sent = {}       -- [key] = velocity enviada
 local missing = {}    -- nomes sem saída no último flush
+local last_refresh = -math.huge
 
 local STATUS = { note = 0x90, cc = 0xB0 }
 
@@ -43,9 +48,12 @@ function M.configure(settings)
   out_override = settings.feedback_out_port
   blink = settings.led_blink ~= false
   sent = {}
+  last_refresh = -math.huge
 end
 
 function M.reset() sent = {} end
+
+function M.touch(mapping) sent[key(mapping)] = nil end
 
 -- ------------------------------------------------------------------ estados
 
@@ -100,8 +108,13 @@ end
 function M.flush(now)
   local outputs = {}
   missing = {}
+  now = now or 0
+  if now - last_refresh >= REFRESH_S then
+    last_refresh = now
+    sent = {}
+  end
   for k, w in pairs(wanted) do
-    local v = velocity_of(w.state, now or 0)
+    local v = velocity_of(w.state, now)
     if sent[k] ~= v then
       local name = out_override or w.mapping.port_name
       if outputs[name] == nil then
