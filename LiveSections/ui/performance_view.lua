@@ -579,7 +579,7 @@ local function layer_strip(ctx, x, y, w)
   for i in ipairs(list) do
     local st = layers.layer_state(i)
     local lx = x + (i - 1) * (lw + GAP)
-    if lx + lw > x + w then break end
+    if not st or lx + lw > x + w then break end
     ImGui.DrawList_AddRectFilled(dl, lx, y, lx + lw, y + fh + 92, theme.C.panel, theme.R.r2)
     ImGui.DrawList_PushClipRect(dl, lx + 6, y, lx + lw - 6, y + 30, true)
     txt(ctx, dl, "button", lx + 10, y + 10, theme.C.text, st.name)

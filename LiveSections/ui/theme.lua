@@ -130,14 +130,23 @@ function M.init(ctx, imgui, base_dir)
 end
 
 -- Sem a fonte (arquivo ausente), o texto sai na fonte padrão.
+local font_depth = 0   -- fontes empilhadas por M.font (para recuperar de erro)
+
 function M.font(ctx, style)
   local f = fonts[style]
-  if f then ImGui.PushFont(ctx, f) end
+  if f then ImGui.PushFont(ctx, f); font_depth = font_depth + 1 end
   return f ~= nil
 end
 
 function M.pop_font(ctx, pushed)
-  if pushed ~= false then ImGui.PopFont(ctx) end
+  if pushed ~= false then ImGui.PopFont(ctx); font_depth = font_depth - 1 end
+end
+
+function M.font_depth() return font_depth end
+
+-- Desempilha as fontes que um erro deixou para trás, até `depth`.
+function M.recover_fonts(ctx, depth)
+  while font_depth > depth do ImGui.PopFont(ctx); font_depth = font_depth - 1 end
 end
 
 -- ------------------------------------------------------------------ estilo

@@ -105,6 +105,7 @@ local MIN_W, MIN_H = 720, 480
 -- Maximizar/restaurar (botão no topo ou F11): a posição e o tamanho só valem
 -- antes do Begin, então o pedido fica para o ciclo seguinte.
 local win = { pending = nil, restore = nil }
+local last_error = nil
 
 local function toggle_maximize(ui)
   if ui.maximized then
@@ -144,7 +145,18 @@ local function loop()
   local visible, open = ImGui.Begin(ctx, APP_NAME, true)
   local ui = view.ui()
   if visible then
-    view.draw(ctx)
+    -- um erro no desenho não pode deixar a janela sem End(): mostra o erro e
+    -- segue rodando (o áudio nunca depende do script)
+    local depth = theme.font_depth()
+    local ok, err = xpcall(view.draw, debug.traceback, ctx)
+    if not ok then
+      theme.recover_fonts(ctx, depth)
+      if err ~= last_error then
+        last_error = err
+        reaper.ShowConsoleMsg("Live Sections: erro ao desenhar a tela\n" .. tostring(err) .. "\n")
+      end
+      ImGui.TextColored(ctx, theme.C.danger, "Erro ao desenhar a tela (detalhes no console do REAPER).")
+    end
     local f11 = ImGui.IsWindowFocused(ctx, ImGui.FocusedFlags_RootAndChildWindows)
       and ImGui.IsKeyPressed(ctx, ImGui.Key_F11, false)
     if ui.toggle_max or f11 then

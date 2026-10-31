@@ -87,4 +87,16 @@ describe("entrypoint", function()
     assert.same({ "CreateContext", "Begin", "End" }, only(calls, { CreateContext = true, Begin = true, End = true }))
     assert.equal(2, #r.calls_to("defer"))
   end)
+
+  it("erro ao desenhar a tela: End() ainda roda, o erro vai ao console e o loop continua", function()
+    r.install_imgui("/imgui")
+    local ImGui, calls = fake_imgui()
+    package.preload.imgui = function() return function() return ImGui end end
+    dofile(ENTRYPOINT)
+    package.loaded["ui.performance_view"].draw = function() error("quebrou") end
+    r.calls_to("defer")[1][1]()
+    assert.same({ "CreateContext", "Begin", "End" }, only(calls, { CreateContext = true, Begin = true, End = true }))
+    assert.matches("quebrou", r.calls_to("ShowConsoleMsg")[1][1])
+    assert.equal(2, #r.calls_to("defer"))
+  end)
 end)

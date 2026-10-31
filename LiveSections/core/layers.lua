@@ -292,11 +292,12 @@ end
 function M.activate(song, songs, now)
   local track = song and M.track_of(song)
   local dev = keyboard_index()
-  if track and not dev then return false, "no_keyboard" end
+  -- a música atual vale para faders e medidores mesmo sem teclado escolhido
   if song ~= current_song and not (song and current_song and song.id == current_song.id) then
     engaged = {}
   end
   current_song = song
+  if track and not dev then return false, "no_keyboard" end
 
   if current and current ~= track then
     if M.held() then
