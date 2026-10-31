@@ -1,5 +1,6 @@
 -- Modo Editar: faixa de estrutura da música atual sobre a régua de compassos
--- (RF-080–088, RF-095, RF-096) e painel de avisos com correção (RF-091, RF-092).
+-- (RF-080–088, RF-095, RF-096), painel de tempo com tap e alinhamento do
+-- compasso 1 (RF-097–099) e painel de avisos com correção (RF-091, RF-092).
 --
 -- Toda mudança passa por core/editor_ops ou core/validator: snap no compasso,
 -- nenhuma sobreposição e um passo de undo por operação. O projeto é a fonte
@@ -15,13 +16,15 @@
 -- move o cursor e arrastar desenha. `S` divide no cursor; Ctrl/Cmd+Z desfaz.
 --
 -- M.init(deps)          ImGui, theme, widgets, perf, layers, model, editor_ops,
---                       validator e kit = { txt, size, button } da performance_view
+--                       validator, tempo_align, kontakt_wizard e
+--                       kit = { txt, size, button } da performance_view
+-- M.tap()               um toque do tap tempo (ação mapeável tap_tempo)
 -- M.draw(ctx, x, y, w, h, snap) -> altura usada
 -- M.state()             ferramenta, seleção e mensagem (para testes)
 
 local M = {}
 
-local ImGui, theme, widgets, perf, layers, model, ops, validator, kit
+local ImGui, theme, widgets, perf, layers, model, ops, validator, kit, tempo, wizard
 
 local PROJ = 0
 local EPS = 1e-6
@@ -67,6 +70,8 @@ function M.init(deps)
   ImGui, theme, widgets = deps.ImGui, deps.theme, deps.widgets
   perf, layers, model = deps.perf, deps.layers, deps.model
   ops, validator, kit = deps.editor_ops, deps.validator, deps.kit
+  tempo, wizard = deps.tempo_align, deps.kontakt_wizard
+  st.round, st.tap_bpm = "int", nil
   st.tool, st.selected, st.drag, st.menu_section = "select", nil, nil, nil
   st.status, st.status_until, st.buf_for = nil, 0, nil
   st.warnings, st.warn_at, st.warn_count = {}, -math.huge, nil
@@ -641,12 +646,121 @@ local function inspector(ctx, x, y, w, song, snap)
   return cy - y
 end
 
-local function tempo_placeholder(ctx, x, y, w)
+-- ------------------------------------------------------------------ tempo
+
+local METRONOME = 40364   -- Options: Toggle metronome
+local ROUNDS = { { "exact", "Exato" }, { "int", "Inteiro" }, { "half", "Meio BPM" } }
+local TEMPO_ERRORS = {
+  outside_song = "O cursor precisa estar dentro da música atual.",
+  no_bpm = "Toque o tap pelo menos 4 vezes antes.",
+  no_downbeat = "Marque o compasso 1 antes do ajuste fino.",
+  out_of_range = "O ajuste sairia da música.",
+}
+
+local function next_song_of(song)
+  local songs = model.songs()
+  for i, s in ipairs(songs) do if s.id == song.id then return songs[i + 1] end end
+end
+
+local function fmt_bpm(v)
+  local s = string.format("%.2f", v):gsub("0+$", ""):gsub("%.$", "")
+  return (s:gsub("%.", ","))
+end
+
+-- Um toque do tap tempo (botão da tela ou controle mapeado).
+function M.tap()
+  local bpm = tempo.tap(reaper.time_precise())
+  st.tap_bpm = bpm
+  return bpm
+end
+
+local function tap_value()
+  return st.tap_bpm and tempo.round(st.tap_bpm, st.round ~= "exact" and st.round or nil)
+end
+
+local function tempo_report(ok, err, done)
+  if ok then say(done) else say(TEMPO_ERRORS[err] or ERRORS[err] or ("Não foi possível: " .. tostring(err))) end
+end
+
+local function tempo_panel(ctx, x, y, w, song)
   local dl = ImGui.GetWindowDrawList(ctx)
-  kit.txt(ctx, dl, "label", x + 16, y + 16, theme.C.muted, "TEMPO E GRID")
-  local h = wrapped(ctx, "small", x + 16, y + 38, w - 32, theme.C.faint,
-    "Tap tempo e alinhamento do compasso 1 chegam na próxima etapa.")
-  return 38 + h + 16
+  local pad = 16
+  local ix, iw = x + pad, w - 2 * pad
+  local cy = y + pad
+  local nxt = next_song_of(song)
+  local db_pos, db_bpm = tempo.downbeat(song, nxt)
+
+  kit.txt(ctx, dl, "label", ix, cy, theme.C.muted, "TEMPO E GRID")
+  local note = "assume tempo constante"
+  kit.txt(ctx, dl, "small", x + w - pad - kit.size(ctx, "small", note), cy - 1, theme.C.faint, note)
+  cy = cy + 24
+
+  -- tap: círculo à esquerda, BPM medido e arredondamento à direita
+  local d = 104
+  ImGui.SetCursorScreenPos(ctx, ix, cy)
+  if ImGui.InvisibleButton(ctx, "tap", d, d) then M.tap() end
+  local hov = ImGui.IsItemHovered(ctx)
+  widgets.mappable(ctx, { action = "tap_tempo" }, "Tap tempo")
+  local n = tempo.tap_count()
+  ImGui.DrawList_AddCircleFilled(dl, ix + d / 2, cy + d / 2, d / 2, hov and theme.C.raise2 or theme.C.raise)
+  ImGui.DrawList_AddCircle(dl, ix + d / 2, cy + d / 2, d / 2, theme.C.line2, 0, 2)
+  kit.txt(ctx, dl, "title", ix + d / 2 - kit.size(ctx, "title", "TAP") / 2, cy + d / 2 - 20, theme.C.text, "TAP")
+  local sub = n == 0 and "toque 4 vezes" or n < 4 and string.format("mais %d", 4 - n) or string.format("%d toques", n)
+  kit.txt(ctx, dl, "small", ix + d / 2 - kit.size(ctx, "small", sub) / 2, cy + d / 2 + 6, theme.C.muted, sub)
+
+  local rx = ix + d + 16
+  kit.txt(ctx, dl, "label", rx, cy, theme.C.muted, "BPM MEDIDO")
+  local v = tap_value()
+  kit.txt(ctx, dl, "big", rx, cy + 16, v and theme.C.text or theme.C.faint, v and fmt_bpm(v) or "—")
+  local bx = rx
+  for _, rd in ipairs(ROUNDS) do
+    local clicked, bw = kit.button(ctx, "round_" .. rd[1], rd[2], bx, cy + 60, 28, { active = st.round == rd[1], style = "small" })
+    if clicked then st.round = rd[1] end
+    bx = bx + bw + 4
+  end
+  cy = cy + d + 14
+
+  -- compasso 1 no cursor, com o BPM medido (ou o da música)
+  local bpm = v or db_bpm or select(3, reaper.TimeMap_GetTimeSigAtTime(PROJ, song.start_pos))
+  local mark = "Marcar compasso 1 no cursor"
+  local mw = kit.size(ctx, "button", mark) + 24
+  if kit.button(ctx, "mark_bar1", mark, ix, cy, 32, { w = math.min(mw, iw) }) then
+    local ok, used = tempo.set_downbeat(song, nxt, reaper.GetCursorPosition(), bpm)
+    if ok then tempo.reset_taps(); st.tap_bpm = nil end
+    tempo_report(ok, used, ok and string.format("Compasso 1 marcado no cursor a %s BPM.", fmt_bpm(used or bpm)))
+  end
+  cy = cy + 42
+
+  -- ajuste fino ouvindo o metrônomo
+  local rows = {
+    { "BPM DA MÚSICA", db_bpm and fmt_bpm(db_bpm) or "—", { { "bpm_dn", "−0,01", -0.01, 0 }, { "bpm_up", "+0,01", 0.01, 0 } } },
+    { "COMPASSO 1", db_pos and string.format("%.3f s", db_pos):gsub("%.", ",") or "—", { { "ms_dn", "−1 ms", 0, -1 }, { "ms_up", "+1 ms", 0, 1 } } },
+  }
+  for _, row in ipairs(rows) do
+    kit.txt(ctx, dl, "label", ix, cy + 9, theme.C.muted, row[1])
+    kit.txt(ctx, dl, "num", ix + 120, cy + 7, db_pos and theme.C.text or theme.C.faint, row[2])
+    local fx = x + w - pad
+    for k = #row[3], 1, -1 do
+      local b = row[3][k]
+      local bw = kit.size(ctx, "small", b[2]) + 20
+      fx = fx - bw
+      if kit.button(ctx, b[1], b[2], fx, cy, 28, { w = bw, style = "small" }) then
+        local ok, nb, np = tempo.nudge(song, nxt, b[3], b[4])
+        tempo_report(ok, nb, ok and string.format("Compasso 1 em %.3f s a %s BPM.", np or 0, fmt_bpm(nb or 0)):gsub("(%d)%.(%d)", "%1,%2"))
+      end
+      fx = fx - 4
+    end
+    cy = cy + 34
+  end
+  local metro = reaper.GetToggleCommandState(METRONOME) == 1
+  if kit.button(ctx, "metronome", metro and "Metrônomo ligado" or "Metrônomo", ix, cy, 28,
+    { style = "small", active = metro, accent = metro and theme.C.loop or nil }) then
+    reaper.Main_OnCommand(METRONOME, 0)
+  end
+  cy = cy + 38
+  cy = cy + wrapped(ctx, "small", ix, cy, iw, theme.C.faint,
+    "O áudio não é esticado: o grid é que passa a seguir o áudio. O ajuste desta música não muda o tempo das outras.")
+  return cy - y + pad
 end
 
 -- ------------------------------------------------------------------ avisos
@@ -701,6 +815,40 @@ local function warnings_panel(ctx, x, y, w, song)
   return cy - y + pad - 12
 end
 
+-- ------------------------------------------------------------------ Kontakt
+
+local function kontakt_card(ctx, x, y, w, song)
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local pad = 16
+  local ix, iw = x + pad, w - 2 * pad
+  local cy = y + pad
+  kit.txt(ctx, dl, "label", ix, cy, theme.C.muted, "KONTAKT DESTA MÚSICA")
+  cy = cy + 24
+  local track = layers.track_of(song)
+  if track then
+    local _, tname = reaper.GetSetMediaTrackInfo_String(track, "P_NAME", "", false)
+    local names = {}
+    for _, l in ipairs(layers.layers(song)) do names[#names + 1] = l.name end
+    local rows = {
+      { "Track", tname ~= "" and tname or "(sem nome)" },
+      { "Camadas", #names > 0 and table.concat(names, ", ") or "nenhuma" },
+      { "Entrada MIDI", layers.keyboard_port() or "teclado não escolhido" },
+    }
+    for _, row in ipairs(rows) do
+      kit.txt(ctx, dl, "small", ix, cy, theme.C.muted, row[1])
+      cy = cy + wrapped(ctx, "button", ix + 96, cy - 1, iw - 96, theme.C.text, row[2]) + 8
+    end
+  else
+    cy = cy + wrapped(ctx, "small", ix, cy, iw, theme.C.muted,
+      "Nenhum Kontakt vinculado. O assistente vincula a track e cria as camadas a partir das saídas (multi-out).") + 10
+  end
+  local label = track and "Refazer vínculo" or "Assistente de Kontakt"
+  if kit.button(ctx, "kontakt_wizard", label, ix, cy, 32, { w = math.min(iw, kit.size(ctx, "button", label) + 24) }) then
+    wizard.open(song)
+  end
+  return cy + 32 + pad - y
+end
+
 -- ------------------------------------------------------------------ desenho
 
 -- Painel com fundo atrás do conteúdo: a altura só é conhecida depois de
@@ -735,19 +883,26 @@ function M.draw(ctx, x, y, w, h, snap)
     local ih = panel_behind(ctx, "inspector", x, cy, iw, function() return inspector(ctx, x, cy, iw, song, snap) end)
     if two then
       local th = panel_behind(ctx, "tempo", x + iw + GAP, cy, mw - iw - GAP, function()
-        return tempo_placeholder(ctx, x + iw + GAP, cy, mw - iw - GAP)
+        return tempo_panel(ctx, x + iw + GAP, cy, mw - iw - GAP, song)
       end)
       cy = cy + math.max(ih, th) + GAP
     else
       cy = cy + ih + GAP
-      cy = cy + panel_behind(ctx, "tempo", x, cy, mw, function() return tempo_placeholder(ctx, x, cy, mw) end) + GAP
+      cy = cy + panel_behind(ctx, "tempo", x, cy, mw, function() return tempo_panel(ctx, x, cy, mw, song) end) + GAP
     end
   end
 
   local side_y = narrow and cy or y
   local sx, sw = narrow and x or x + mw + GAP, narrow and w or SIDE_W
   local wh = panel_behind(ctx, "warnings", sx, side_y, sw, function() return warnings_panel(ctx, sx, side_y, sw, song) end)
-  local bottom = math.max(cy, side_y + wh + GAP)
+  local side_bottom = side_y + wh + GAP
+  if song and wizard then
+    local ky = side_bottom
+    side_bottom = side_bottom + panel_behind(ctx, "kontakt", sx, ky, sw, function() return kontakt_card(ctx, sx, ky, sw, song) end) + GAP
+    local msg = wizard.draw(ctx)
+    if msg then say(msg); st.warn_count = nil end
+  end
+  local bottom = math.max(cy, side_bottom)
 
   ImGui.SetCursorScreenPos(ctx, x, y)
   ImGui.Dummy(ctx, w, math.max(0, bottom - y))

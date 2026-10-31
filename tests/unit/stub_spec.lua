@@ -105,10 +105,10 @@ describe("stub do reaper", function()
 
   describe("funções não simuladas", function()
     it("geram erro com o nome da função", function()
-      assert.has_error(function() r.TrackFX_GetCount() end, nil)
-      local ok, err = pcall(function() return r.TrackFX_GetCount end)
+      assert.has_error(function() r.TrackFX_GetParamName() end, nil)
+      local ok, err = pcall(function() return r.TrackFX_GetParamName end)
       assert.is_false(ok)
-      assert.matches("TrackFX_GetCount", err)
+      assert.matches("TrackFX_GetParamName", err)
     end)
 
     it("extensões opcionais são nil até serem instaladas", function()

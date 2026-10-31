@@ -74,6 +74,7 @@ function M.run(action, arg, value)
   elseif action == "layer_mute" then return layers.toggle_mute(arg)
   elseif action == "layer_solo" then return layers.toggle_solo(arg)
   elseif action == "toggle_setlist" then ui.setlist_open = not ui.setlist_open; return ui.setlist_open
+  elseif action == "tap_tempo" then return editor and editor.tap()
   end
 end
 

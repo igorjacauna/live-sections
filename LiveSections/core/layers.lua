@@ -21,6 +21,7 @@
 -- M.link(song, track); M.unlink(song); M.track_of(song) -> track?
 -- M.links(songs) -> { [song.id] = { key, track_guid } }   (para o validator)
 -- M.keyboard_input() -> índice do dispositivo MIDI do teclado (para o validator)
+-- M.keyboard_port() -> nome da porta do teclado nas configurações
 -- M.layers(song) -> { { track, track_guid, name, slot } }
 -- M.feed(event)                  eventos de midi/input (só os do teclado contam)
 -- M.held() -> bool               há nota ou sustain segurado
@@ -156,6 +157,7 @@ local function keyboard_index()
 end
 
 M.keyboard_input = keyboard_index
+function M.keyboard_port() return settings.keyboard_port end
 
 -- ------------------------------------------------------------------ troca
 

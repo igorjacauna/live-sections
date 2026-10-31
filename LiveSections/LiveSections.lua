@@ -80,9 +80,12 @@ feedback.configure(cfg)
 layers.configure({ keyboard_port = cfg.keyboard_port, bypass_tail_s = cfg.bypass_tail_s })
 perf.init({ quantize = cfg.quantize, tolerance_ms = cfg.tolerance_ms })
 anim.set_reduced(cfg.reduced_motion == true)
+local wizard = require("ui.kontakt_wizard")
+wizard.init({ ImGui = ImGui, theme = theme, layers = layers, kit = view.kit })
 editor.init({
   ImGui = ImGui, theme = theme, widgets = widgets, perf = perf, layers = layers, model = model,
-  editor_ops = require("core.editor_ops"), validator = require("core.validator"), kit = view.kit,
+  editor_ops = require("core.editor_ops"), validator = require("core.validator"),
+  tempo_align = require("core.tempo_align"), kontakt_wizard = wizard, kit = view.kit,
 })
 view.init({
   ImGui = ImGui, theme = theme, anim = anim, widgets = widgets,

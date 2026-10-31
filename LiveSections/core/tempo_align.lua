@@ -227,6 +227,12 @@ function M.set_downbeat(song, next_song, pos, bpm, round_mode)
   return true, bpm
 end
 
+-- Compasso 1 já marcado na música: posição e BPM, ou nil.
+function M.downbeat(song, next_song)
+  local db = downbeat_of(song.start_pos, limit(next_song))
+  if db then return db.time, db.bpm end
+end
+
 -- Ajuste fino: BPM em `d_bpm` e posição do compasso 1 em `d_ms` milissegundos.
 -- Retorna ok, bpm, posição do compasso 1.
 function M.nudge(song, next_song, d_bpm, d_ms)

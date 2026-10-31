@@ -203,7 +203,32 @@ function M.new()
   function api.CountTracks(_) return #r._tracks end
   function api.GetTrack(_, i) return r._tracks[i + 1] end
   function api.GetTrackGUID(track) return track.guid end
-  function api.GetParentTrack(track) return track.parent end
+  -- Pai explícito (add_track) ou pela profundidade de pasta (I_FOLDERDEPTH).
+  function api.GetParentTrack(track)
+    if track.parent then return track.parent end
+    local stack = {}
+    for _, t in ipairs(r._tracks) do
+      if t == track then return stack[#stack] end
+      local d = math.floor(t.info.I_FOLDERDEPTH or 0)
+      if d > 0 then stack[#stack + 1] = t
+      else for _ = 1, -d do stack[#stack] = nil end end
+    end
+  end
+  function api.InsertTrackAtIndex(idx, _)
+    log("InsertTrackAtIndex", idx)
+    table.insert(r._tracks, idx + 1, { name = "", guid = "{TRACK-NEW-" .. #r._tracks + 1 .. "}", info = {} })
+    touch()
+  end
+  function api.CreateTrackSend(src, dst)
+    src.sends = src.sends or {}
+    src.sends[#src.sends + 1] = { dst = dst, info = {} }
+    log("CreateTrackSend", src, dst)
+    return #src.sends - 1
+  end
+  function api.SetTrackSendInfo_Value(tr, _, idx, key, value) tr.sends[idx + 1].info[key] = value; return true end
+  function api.TrackFX_GetCount(tr) return #(tr.fx or {}) end
+  function api.TrackFX_GetFXName(tr, i, _) return true, tr.fx[i + 1] end
+  function api.TrackList_AdjustWindows() end
 
   -- Curva do fader: aproximação invertível da do REAPER (0 → -inf, 716 → 0 dB,
   -- 1000 → ≈ +5,8 dB).
@@ -220,7 +245,12 @@ function M.new()
     return false
   end
 
-  function api.GetMediaTrackInfo_Value(track, key) return track.info[key] or 0 end
+  function api.GetMediaTrackInfo_Value(track, key)
+    if key == "IP_TRACKNUMBER" then
+      for i, t in ipairs(r._tracks) do if t == track then return i end end
+    end
+    return track.info[key] or 0
+  end
 
   function api.SetMediaTrackInfo_Value(track, key, value)
     log("SetMediaTrackInfo_Value", track, key, value)

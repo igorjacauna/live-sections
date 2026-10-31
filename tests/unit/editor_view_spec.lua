@@ -42,7 +42,7 @@ end
 -- 4/4 a 120 BPM: compasso = 2 s. Música A (0–40): Intro 0–8, Verso 8–16,
 -- Refrão 16–24 e trecho sem seção 24–40. Música B (40–80) sem seções.
 describe("ui.editor_view", function()
-  local r, im, view, model, perf, layers, theme, widgets
+  local r, im, view, model, perf, layers, theme, widgets, wiz
 
   local function frame(opts)
     im.opts = opts or {}
@@ -81,8 +81,8 @@ describe("ui.editor_view", function()
   before_each(function()
     r = stub.install()
     for _, m in ipairs({ "core.project_model", "core.quantize", "core.queue", "core.transport", "core.performance",
-      "core.layers", "core.editor_ops", "core.validator", "ui.widgets", "ui.theme", "ui.anim",
-      "ui.performance_view", "ui.editor_view" }) do
+      "core.layers", "core.editor_ops", "core.validator", "core.tempo_align", "ui.widgets", "ui.theme", "ui.anim",
+      "ui.performance_view", "ui.editor_view", "ui.kontakt_wizard" }) do
       package.loaded[m] = nil
     end
     r.set_project_length(80)
@@ -101,9 +101,12 @@ describe("ui.editor_view", function()
     widgets.init(im, theme, require("ui.anim"), require("midi.learn"), require("midi.mappings"))
     local pv = require("ui.performance_view")
     pv.init({ ImGui = im, theme = theme, widgets = widgets })
+    wiz = require("ui.kontakt_wizard")
+    wiz.init({ ImGui = im, theme = theme, layers = layers, kit = pv.kit })
     view.init({
       ImGui = im, theme = theme, widgets = widgets, perf = perf, layers = layers, model = model,
-      editor_ops = require("core.editor_ops"), validator = require("core.validator"), kit = pv.kit,
+      editor_ops = require("core.editor_ops"), validator = require("core.validator"),
+      tempo_align = require("core.tempo_align"), kontakt_wizard = wiz, kit = pv.kit,
     })
     frame()
   end)
@@ -249,6 +252,46 @@ describe("ui.editor_view", function()
       assert.is_table(im.rects.add_section)
       frame({ press = "add_section" })
       assert.same({ 40, 80, "Seção" }, regions()[4])
+    end)
+  end)
+
+  describe("tempo", function()
+    it("tap: 4 toques dão o BPM; Marcar compasso 1 usa o BPM medido no cursor", function()
+      for i = 0, 3 do r.set_now(10 + i * 0.5); frame({ press = "tap" }) end
+      assert.equal(120, view.state().tap_bpm)
+      r._cursor = 3
+      frame({ press = "mark_bar1" })
+      local at3
+      for _, m in ipairs(r._tempo_markers) do if math.abs(m.time - 3) < 1e-9 then at3 = m end end
+      assert.near(120, at3.bpm, 1e-9)
+      assert.equal(4, at3.num)
+    end)
+
+    it("tap_tempo mapeável chega pelo M.tap", function()
+      for i = 0, 3 do r.set_now(i * 0.6); view.tap() end
+      assert.equal(100, view.state().tap_bpm)
+    end)
+
+    it("ajuste fino sem compasso 1 marcado avisa", function()
+      frame({ press = "bpm_up" })
+      assert.matches("Marque o compasso 1", view.state().status)
+    end)
+
+    it("metrônomo liga pela ação do REAPER", function()
+      frame({ press = "metronome" })
+      local cmds = {}
+      for _, c in ipairs(r.calls_to("Main_OnCommand")) do cmds[c[1]] = true end
+      assert.is_true(cmds[40364])
+    end)
+  end)
+
+  describe("Kontakt", function()
+    it("o cartão abre o assistente, que sugere a track com Kontakt", function()
+      r.add_track("Teclas").fx = { "VSTi: Kontakt 7" }
+      frame({ press = "kontakt_wizard" })
+      local opened = false
+      for _, c in ipairs(im.calls) do if c[1] == "OpenPopup" and c[3] == "Assistente de Kontakt" then opened = true end end
+      assert.is_true(opened)
     end)
   end)
 

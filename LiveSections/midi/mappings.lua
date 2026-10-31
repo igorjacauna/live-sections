@@ -39,6 +39,7 @@ M.ACTIONS = {
   layer_mute     = { arg = "layer" },
   layer_solo     = { arg = "layer" },
   toggle_setlist = {},                    -- setlist completa no modo palco (RF-074)
+  tap_tempo      = {},                    -- toque do tap tempo no modo Editar (RF-097)
 }
 
 local list = {}
