@@ -1,5 +1,6 @@
 -- Painel de avisos: problemas criados por edição manual na régua do REAPER
--- ou por configuração, cada um com uma correção de um clique.
+-- ou por configuração, cada um com uma correção de um clique. Inclui o
+-- roteamento do Kontakt: o som tem que sair só pelas camadas.
 --
 -- Trechos sem seção (buracos) não são problema.
 --
@@ -13,6 +14,7 @@
 -- M.apply(warning) -> ok, err   aplica a correção num único passo de undo
 
 local editor_ops = require("core.editor_ops")
+local layers = require("core.layers")
 
 local M = {}
 
@@ -100,6 +102,18 @@ local function check_kontakt(list, songs, ctx)
           fix = function() reaper.SetProjExtState(PROJ, EXT_SECTION, link.key, "") end,
         })
       else
+        local problem = layers.routing_problem(tr)
+        if problem then
+          local _, tname = reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "", false)
+          add(list, {
+            kind = "kontakt_routing", severity = "error", song = song.name,
+            text = problem == "folder"
+              and string.format('As camadas de "%s" estão numa pasta: o som sai pela track do Kontakt e o fader da camada não controla o instrumento.', tname)
+              or string.format('A track "%s" também manda o som direto ao master: o fader da camada não controla o instrumento.', tname),
+            fix_label = "Sair só pelas camadas",
+            fix = function() layers.repair(tr) end,
+          })
+        end
         local input = reaper.GetMediaTrackInfo_Value(tr, "I_RECINPUT")
         local is_midi = math.floor(input) & MIDI_INPUT ~= 0
         if is_midi and (math.floor(input) >> 5) & 63 == ALL_DEVICES then

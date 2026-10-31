@@ -20,12 +20,14 @@ describe("ui.kontakt_wizard", function()
     wizard.init({ layers = layers })
   end)
 
-  it("sem filhas: vira pasta, cria as camadas com os pares 1/2 e 3/4 e vincula", function()
+  it("cria as camadas abaixo do Kontakt, recebendo 1/2 e 3/4; o Kontakt não sai direto", function()
     local k = r.add_track("Kontakt A")
+    k.info.B_MAINSEND = 1
     r.add_track("Bateria")
     assert.is_true(wizard.apply(song(1), k, { "Piano", "Pad" }))
     assert.same({ "Kontakt A", "Piano", "Pad", "Bateria" }, names())
-    assert.same({ 1, 0, -1, 0 }, depths())
+    assert.same({ 0, 0, 0, 0 }, depths())
+    assert.equal(0, k.info.B_MAINSEND)
     assert.same({ "Piano", "Pad" }, layer_names(song(1)))
     assert.equal(k, layers.track_of(song(1)))
     assert.same({ 0, 2 }, { k.sends[1].info.I_SRCCHAN, k.sends[2].info.I_SRCCHAN })
@@ -34,39 +36,40 @@ describe("ui.kontakt_wizard", function()
     assert.equal(1, #r.calls_to("Undo_EndBlock"))
   end)
 
-  it("com filhas: mantém as que existem e cria as novas depois delas, no par seguinte", function()
+  it("Kontakt em pasta com camadas: desfaz a pasta sem mover tracks e cria a nova depois", function()
     local k = r.add_track("Kontakt A")
     k.info.I_FOLDERDEPTH = 1
-    r.add_track("Piano").info.I_FOLDERDEPTH = -1
+    local piano = r.add_track("Piano")
+    piano.info.I_FOLDERDEPTH = -1
+    r.add_receive(k, piano, 0)
     r.add_track("Bateria")
     wizard.apply(song(1), k, { "Cordas" })
     assert.same({ "Kontakt A", "Piano", "Cordas", "Bateria" }, names())
-    assert.same({ 1, 0, -1, 0 }, depths())
+    assert.same({ 0, 0, 0, 0 }, depths())
     assert.same({ "Piano", "Cordas" }, layer_names(song(1)))
-    assert.equal(2, k.sends[1].info.I_SRCCHAN)
+    assert.equal(2, k.sends[2].info.I_SRCCHAN)
   end)
 
-  it("Kontakt dentro de outra pasta: a última camada fecha as duas pastas", function()
+  it("camada antiga só em pasta, sem send: ganha o send do par dela", function()
+    local k = r.add_track("Kontakt A")
+    k.info.I_FOLDERDEPTH = 1
+    r.add_track("Piano").info.I_FOLDERDEPTH = -1
+    wizard.apply(song(1), k, {})
+    assert.same({ 0, 0 }, depths())
+    assert.equal(track("Piano"), k.sends[1].dst)
+    assert.same({ "Piano" }, layer_names(song(1)))
+  end)
+
+  it("Kontakt dentro de outra pasta: as camadas ficam na mesma pasta", function()
     r.add_track("Banda").info.I_FOLDERDEPTH = 1
     local k = r.add_track("Kontakt A")
     k.info.I_FOLDERDEPTH = -1
     r.add_track("Bateria")
     wizard.apply(song(1), k, { "Piano" })
     assert.same({ "Banda", "Kontakt A", "Piano", "Bateria" }, names())
-    assert.same({ 1, 1, -2, 0 }, depths())
-    assert.equal(nil, r.GetParentTrack(track("Bateria")))
-    assert.equal(k, r.GetParentTrack(track("Piano")))
-  end)
-
-  it("filha com netas: a camada nova entra depois da última descendente", function()
-    local k = r.add_track("Kontakt A")
-    k.info.I_FOLDERDEPTH = 1
-    r.add_track("Grupo").info.I_FOLDERDEPTH = 1
-    r.add_track("Neta").info.I_FOLDERDEPTH = -2
-    wizard.apply(song(1), k, { "Pad" })
-    assert.same({ "Kontakt A", "Grupo", "Neta", "Pad" }, names())
-    assert.same({ 1, 1, -1, -1 }, depths())
-    assert.same({ "Grupo", "Pad" }, layer_names(song(1)))
+    assert.same({ 1, 0, -1, 0 }, depths())
+    assert.equal(track("Banda"), r.GetParentTrack(track("Piano")))
+    assert.is_nil(r.GetParentTrack(track("Bateria")))
   end)
 
   it("só vincular, sem camadas novas, não mexe nas tracks", function()

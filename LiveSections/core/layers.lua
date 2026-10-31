@@ -2,7 +2,10 @@
 --
 -- Cada música pode ser vinculada à track do Kontakt dela, pelo GUID, em
 -- ProjExtState("LiveSections", "kontakt:<GUID do marcador SONG:>") (RF-050).
--- As camadas são as tracks filhas diretas, na ordem do projeto (RF-051).
+-- As camadas são as tracks que recebem um send da track do Kontakt, na ordem
+-- das saídas; a track do Kontakt não sai direto no master (RF-051). Projetos
+-- antigos com camadas em pasta continuam reconhecidos e têm correção no
+-- painel de avisos.
 --
 -- Ao trocar de música, só a track da música atual fica armada e monitorando,
 -- com entrada no teclado escolhido nas configurações, nunca "All MIDI
@@ -23,6 +26,10 @@
 -- M.keyboard_input() -> índice do dispositivo MIDI do teclado (para o validator)
 -- M.keyboard_port() -> nome da porta do teclado nas configurações
 -- M.layers(song) -> { { track, track_guid, name, slot } }
+-- M.layers_of(kontakt) -> { track }; M.receives_from(track, kontakt) -> bool
+-- M.routing_problem(kontakt) -> nil|"folder"|"direct_out"; M.fix_routing(kontakt)
+-- M.repair(kontakt) -> camadas   pasta desfeita, sem saída direta, sends garantidos
+-- M.last_descendant(idx) -> índice da última track da pasta em `idx`
 -- M.feed(event)                  eventos de midi/input (só os do teclado contam)
 -- M.held() -> bool               há nota ou sustain segurado
 -- M.activate(song, songs, now) -> ok, err ("no_keyboard")
@@ -119,18 +126,115 @@ function M.links(songs)
   return out
 end
 
+-- Tracks que recebem um send da track do Kontakt: { track, srcchan }.
+local function receivers(kontakt)
+  local out = {}
+  for i = 0, reaper.CountTracks(PROJ) - 1 do
+    local tr = reaper.GetTrack(PROJ, i)
+    for k = 0, reaper.GetTrackNumSends(tr, -1) - 1 do
+      if reaper.GetTrackSendInfo_Value(tr, -1, k, "P_SRCTRACK") == kontakt then
+        out[#out + 1] = { track = tr, src = reaper.GetTrackSendInfo_Value(tr, -1, k, "I_SRCCHAN"), order = i }
+        break
+      end
+    end
+  end
+  table.sort(out, function(a, b)
+    if a.src ~= b.src then return a.src < b.src end
+    return a.order < b.order
+  end)
+  return out
+end
+
+-- Camadas: as tracks que recebem do Kontakt, na ordem das saídas (1/2, 3/4…).
+-- Projetos antigos sem esses sends: as filhas diretas da pasta do Kontakt.
+function M.layers_of(kontakt)
+  local tracks = {}
+  for _, r in ipairs(receivers(kontakt)) do tracks[#tracks + 1] = r.track end
+  if #tracks == 0 then
+    for i = 0, reaper.CountTracks(PROJ) - 1 do
+      local tr = reaper.GetTrack(PROJ, i)
+      if reaper.GetParentTrack(tr) == kontakt then tracks[#tracks + 1] = tr end
+    end
+  end
+  return tracks
+end
+
+-- A track `tr` já recebe um send do Kontakt?
+function M.receives_from(tr, kontakt)
+  for k = 0, reaper.GetTrackNumSends(tr, -1) - 1 do
+    if reaper.GetTrackSendInfo_Value(tr, -1, k, "P_SRCTRACK") == kontakt then return true end
+  end
+  return false
+end
+
 function M.layers(song)
   local kontakt = M.track_of(song)
   local out = {}
   if not kontakt then return out end
-  for i = 0, reaper.CountTracks(PROJ) - 1 do
-    local tr = reaper.GetTrack(PROJ, i)
-    if reaper.GetParentTrack(tr) == kontakt then
-      local _, name = reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "", false)
-      out[#out + 1] = { track = tr, track_guid = reaper.GetTrackGUID(tr), name = name, slot = #out + 1 }
-    end
+  for _, tr in ipairs(M.layers_of(kontakt)) do
+    local _, name = reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "", false)
+    out[#out + 1] = { track = tr, track_guid = reaper.GetTrackGUID(tr), name = name, slot = #out + 1 }
   end
   return out
+end
+
+-- ------------------------------------------------------------------ roteamento
+--
+-- O som do Kontakt só pode sair pelas camadas: a track dele não manda nada
+-- direto ao master, senão o fader da camada não controla o instrumento.
+-- Numa pasta isso é impossível (as filhas passam pela mãe), então a pasta é
+-- desfeita sem mover nenhuma track.
+
+local function depth(tr) return math.floor(reaper.GetMediaTrackInfo_Value(tr, "I_FOLDERDEPTH")) end
+
+-- Índice (0-based) da última track dentro da pasta que começa em `idx`.
+function M.last_descendant(idx)
+  if depth(reaper.GetTrack(PROJ, idx)) <= 0 then return idx end
+  local level, j = 1, idx + 1
+  while j < reaper.CountTracks(PROJ) do
+    level = level + depth(reaper.GetTrack(PROJ, j))
+    if level <= 0 then return j end
+    j = j + 1
+  end
+  return reaper.CountTracks(PROJ) - 1
+end
+
+-- O Kontakt sai direto no master (com camadas) ou ainda é pasta das camadas?
+function M.routing_problem(kontakt)
+  if not kontakt or #receivers(kontakt) == 0 and depth(kontakt) <= 0 then return nil end
+  if depth(kontakt) > 0 then return "folder" end
+  if reaper.GetMediaTrackInfo_Value(kontakt, "B_MAINSEND") ~= 0 then return "direct_out" end
+end
+
+-- Desfaz a pasta do Kontakt (as filhas viram irmãs, no mesmo lugar) e
+-- desliga a saída direta dele. Não abre bloco de undo.
+function M.fix_routing(kontakt)
+  local idx = math.floor(reaper.GetMediaTrackInfo_Value(kontakt, "IP_TRACKNUMBER")) - 1
+  if depth(kontakt) > 0 then
+    local last = reaper.GetTrack(PROJ, M.last_descendant(idx))
+    reaper.SetMediaTrackInfo_Value(kontakt, "I_FOLDERDEPTH", depth(kontakt) - 1)
+    reaper.SetMediaTrackInfo_Value(last, "I_FOLDERDEPTH", depth(last) + 1)
+  end
+  reaper.SetMediaTrackInfo_Value(kontakt, "B_MAINSEND", 0)
+end
+
+-- Correção completa: desfaz a pasta, desliga a saída direta e garante que
+-- cada camada receba o par dela (camada N = saídas 2N-1/2N). Retorna as
+-- camadas. Não abre bloco de undo.
+function M.repair(kontakt)
+  local list = M.layers_of(kontakt)
+  M.fix_routing(kontakt)
+  for i, tr in ipairs(list) do
+    if not M.receives_from(tr, kontakt) then
+      local send = reaper.CreateTrackSend(kontakt, tr)
+      reaper.SetTrackSendInfo_Value(kontakt, 0, send, "I_SRCCHAN", (i - 1) * 2)
+      reaper.SetTrackSendInfo_Value(kontakt, 0, send, "I_DSTCHAN", 0)
+    end
+  end
+  if #list > 0 and reaper.GetMediaTrackInfo_Value(kontakt, "I_NCHAN") < #list * 2 then
+    reaper.SetMediaTrackInfo_Value(kontakt, "I_NCHAN", #list * 2)
+  end
+  return list
 end
 
 -- ------------------------------------------------------------------ teclado

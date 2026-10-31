@@ -17,9 +17,9 @@ describe("validator", function()
 
   before_each(function()
     r = stub.install()
-    for _, m in ipairs({ "core.project_model", "core.editor_ops", "core.validator" }) do package.loaded[m] = nil end
+    for _, m in ipairs({ "core.project_model", "core.editor_ops", "core.validator", "core.layers" }) do package.loaded[m] = nil end
     model = require("core.project_model")
-    validator = require("core.validator")
+    validator = require("core.validator", "core.layers")
     r.set_project_length(64)
   end)
 
@@ -111,6 +111,33 @@ describe("validator", function()
     it("entrada só no teclado não gera aviso", function()
       local kt = r.add_track("Kontakt 7 · A", "{KT-A}")
       r.SetMediaTrackInfo_Value(kt, "I_RECINPUT", 4096 + (3 << 5))
+      assert.same({}, check({ links = links }))
+    end)
+
+    it("Kontakt saindo direto no master com camadas: corrige para sair só pelas camadas", function()
+      local kt = r.add_track("Kontakt 7 · A", "{KT-A}")
+      kt.info.B_MAINSEND = 1
+      local piano = r.add_track("Piano")
+      r.add_receive(kt, piano, 0)
+      local list = check({ links = links })
+      assert.same({ "kontakt_routing" }, kinds(list))
+      assert.matches("direto ao master", list[1].text)
+      assert.is_true(validator.apply(list[1]))
+      assert.equal(0, kt.info.B_MAINSEND)
+      assert.same({}, check({ links = links }))
+    end)
+
+    it("camadas em pasta do Kontakt: desfaz a pasta e cria os sends que faltam", function()
+      local kt = r.add_track("Kontakt 7 · A", "{KT-A}")
+      kt.info.I_FOLDERDEPTH = 1
+      local piano = r.add_track("Piano")
+      piano.info.I_FOLDERDEPTH = -1
+      local list = check({ links = links })
+      assert.same({ "kontakt_routing" }, kinds(list))
+      assert.matches("numa pasta", list[1].text)
+      validator.apply(list[1])
+      assert.same({ 0, 0, 0 }, { kt.info.I_FOLDERDEPTH, piano.info.I_FOLDERDEPTH, kt.info.B_MAINSEND })
+      assert.equal(piano, kt.sends[1].dst)
       assert.same({}, check({ links = links }))
     end)
 

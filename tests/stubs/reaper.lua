@@ -228,6 +228,33 @@ function M.new()
     return #src.sends - 1
   end
   function api.SetTrackSendInfo_Value(tr, _, idx, key, value) tr.sends[idx + 1].info[key] = value; return true end
+  -- category -1: sends que a track recebe (na ordem das tracks de origem)
+  local function receives(tr)
+    local out = {}
+    for _, src in ipairs(r._tracks) do
+      for _, snd in ipairs(src.sends or {}) do
+        if snd.dst == tr then out[#out + 1] = { src = src, info = snd.info } end
+      end
+    end
+    return out
+  end
+  function api.GetTrackNumSends(tr, category)
+    if category == -1 then return #receives(tr) end
+    return #(tr.sends or {})
+  end
+  function api.GetTrackSendInfo_Value(tr, category, idx, key)
+    local list = category == -1 and receives(tr) or tr.sends or {}
+    local snd = list[idx + 1]
+    if not snd then return 0 end
+    if key == "P_SRCTRACK" then return category == -1 and snd.src or tr end
+    if key == "P_DESTTRACK" then return snd.dst end
+    return snd.info[key] or 0
+  end
+  -- layer: helper de teste para criar o send do Kontakt para a camada
+  function r.add_receive(src, dst, srcchan)
+    src.sends = src.sends or {}
+    src.sends[#src.sends + 1] = { dst = dst, info = { I_SRCCHAN = srcchan or 0 } }
+  end
   function api.TrackFX_GetCount(tr) return #(tr.fx or {}) end
   function api.TrackFX_GetFXName(tr, i, _) return true, tr.fx[i + 1] end
   function api.TrackList_AdjustWindows() end

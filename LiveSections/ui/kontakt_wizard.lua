@@ -1,12 +1,13 @@
 -- Assistente de Kontakt (RF-093, RF-094): vincula a track do Kontakt à música
 -- atual e cria as tracks de camada a partir das saídas multi-out.
 --
--- Cada camada é uma track filha direta da track do Kontakt (pasta), com um
--- send da mãe para a filha trazendo um par de canais: camada 1 = saídas 1/2,
--- camada 2 = 3/4, e assim por diante. Filhas que já existem continuam sendo as
--- primeiras camadas; o assistente só cria as que faltam. A track do Kontakt
--- ganha os canais necessários e, com o teclado configurado, a entrada MIDI
--- só dele (nunca "All MIDI inputs"). Tudo num passo de undo.
+-- Cada camada é uma track logo abaixo da do Kontakt, recebendo dele um par
+-- de canais por send: camada 1 = saídas 1/2 (st.1), camada 2 = 3/4 (st.2), e
+-- assim por diante. A track do Kontakt não manda nada direto ao master; se era
+-- pasta das camadas, a pasta é desfeita sem mover tracks. Camadas que já
+-- existem continuam as primeiras; o assistente só cria as que faltam. A track
+-- do Kontakt ganha os canais necessários e, com o teclado configurado, a
+-- entrada MIDI só dele (nunca "All MIDI inputs"). Tudo num passo de undo.
 --
 -- M.init(deps)                 ImGui, theme, layers, kit
 -- M.open(song)                 abre o assistente para a música
@@ -55,77 +56,62 @@ function M.candidates()
   return out
 end
 
-local function children(parent)
-  local out = {}
-  for i = 0, reaper.CountTracks(PROJ) - 1 do
-    local tr = reaper.GetTrack(PROJ, i)
-    if reaper.GetParentTrack(tr) == parent then out[#out + 1] = tr end
-  end
-  return out
-end
+local function children(kontakt) return layers.layers_of(kontakt) end
 
 local function depth(tr) return math.floor(reaper.GetMediaTrackInfo_Value(tr, "I_FOLDERDEPTH")) end
 local function index_of(tr) return math.floor(reaper.GetMediaTrackInfo_Value(tr, "IP_TRACKNUMBER")) - 1 end
 
--- Insere `n` tracks como filhas diretas de `parent`, depois das que já existem
--- (inclusive netas), acertando a profundidade das pastas. Retorna as tracks.
-local function insert_children(parent, n)
-  local p = index_of(parent)
-  local d_parent = depth(parent)
-  local at, last_new_depth
-  if d_parent <= 0 then
-    -- sem filhas: a track vira pasta e a última filha fecha o que ela fechava
-    reaper.SetMediaTrackInfo_Value(parent, "I_FOLDERDEPTH", 1)
-    at, last_new_depth = p + 1, d_parent - 1
-  else
-    -- última descendente: onde o nível volta a zero
-    local level, j = 1, p + 1
-    last_new_depth = 0     -- pasta aberta até o fim do projeto
-    while j < reaper.CountTracks(PROJ) do
-      local before = level
-      level = level + depth(reaper.GetTrack(PROJ, j))
-      if level <= 0 then
-        -- ela fecha os níveis internos (before - 1) e mais os da pasta para fora
-        local last = reaper.GetTrack(PROJ, j)
-        local d_last = depth(last)
-        reaper.SetMediaTrackInfo_Value(last, "I_FOLDERDEPTH", 1 - before)
-        last_new_depth = d_last + (before - 1)
-        break
-      end
-      j = j + 1
-    end
-    at = math.min(j + 1, reaper.CountTracks(PROJ))
+-- Insere `n` tracks logo depois da track no índice `after` (e da pasta dela,
+-- se for uma), no mesmo nível dela. Retorna as tracks.
+local function insert_after(after, n)
+  after = layers.last_descendant(after)
+  local prev = reaper.GetTrack(PROJ, after)
+  local d = depth(prev)
+  local last_depth = 0
+  if d < 0 then
+    -- a anterior fechava pastas: quem fecha agora é a última nova
+    reaper.SetMediaTrackInfo_Value(prev, "I_FOLDERDEPTH", 0)
+    last_depth = d
   end
   local out = {}
   for k = 1, n do
-    reaper.InsertTrackAtIndex(at + k - 1, true)
-    local tr = reaper.GetTrack(PROJ, at + k - 1)
-    reaper.SetMediaTrackInfo_Value(tr, "I_FOLDERDEPTH", k == n and last_new_depth or 0)
+    reaper.InsertTrackAtIndex(after + k, true)
+    local tr = reaper.GetTrack(PROJ, after + k)
+    reaper.SetMediaTrackInfo_Value(tr, "I_FOLDERDEPTH", k == n and last_depth or 0)
     out[k] = tr
   end
   return out
 end
 
+local function add_send(kontakt, tr, pair)
+  local send = reaper.CreateTrackSend(kontakt, tr)
+  reaper.SetTrackSendInfo_Value(kontakt, 0, send, "I_SRCCHAN", (pair - 1) * 2)
+  reaper.SetTrackSendInfo_Value(kontakt, 0, send, "I_DSTCHAN", 0)
+end
+
 -- ------------------------------------------------------------------ aplicar
 
+-- O som do Kontakt sai só pelas camadas: a track dele deixa de mandar direto
+-- ao master (e deixa de ser pasta), e cada camada é uma track logo abaixo
+-- recebendo o par dela. Camadas que já existem continuam as primeiras.
 function M.apply(song, track, names)
   if not song then return false, "no_song" end
   if not track then return false, "no_track" end
-  local existing = #children(track)
   reaper.Undo_BeginBlock()
   layers.link(song, track)
   local kbd = layers.keyboard_input()
   if kbd then reaper.SetMediaTrackInfo_Value(track, "I_RECINPUT", MIDI_INPUT + (kbd << 5)) end
+  local existing = layers.repair(track)
+  local pairs_needed = #existing + #names
+  if pairs_needed > 0 and reaper.GetMediaTrackInfo_Value(track, "I_NCHAN") < pairs_needed * 2 then
+    reaper.SetMediaTrackInfo_Value(track, "I_NCHAN", pairs_needed * 2)
+  end
   if #names > 0 then
-    local pairs_needed = existing + #names
-    if reaper.GetMediaTrackInfo_Value(track, "I_NCHAN") < pairs_needed * 2 then
-      reaper.SetMediaTrackInfo_Value(track, "I_NCHAN", pairs_needed * 2)
-    end
-    for k, tr in ipairs(insert_children(track, #names)) do
+    local after = index_of(track)
+    for _, tr in ipairs(existing) do after = math.max(after, index_of(tr)) end
+    for k, tr in ipairs(insert_after(after, #names)) do
       reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", names[k], true)
-      local send = reaper.CreateTrackSend(track, tr)
-      reaper.SetTrackSendInfo_Value(track, 0, send, "I_SRCCHAN", (existing + k - 1) * 2)
-      reaper.SetTrackSendInfo_Value(track, 0, send, "I_DSTCHAN", 0)
+      add_send(track, tr, #existing + k)
     end
   end
   reaper.TrackList_AdjustWindows(false)
@@ -182,7 +168,7 @@ function M.draw(ctx)
 
   -- 2. camadas: as filhas que já existem e as novas
   ImGui.Text(ctx, "2. Camadas (saídas multi-out)")
-  ImGui.TextColored(ctx, theme.C.muted, "Cada par de canais vira uma track filha. Os faders seguem esta ordem.")
+  ImGui.TextColored(ctx, theme.C.muted, "Cada saída estéreo do Kontakt (st.1, st.2…) vira uma track logo abaixo dele. Dentro do Kontakt, mande cada instrumento para a saída da camada dele. Os faders seguem esta ordem.")
   local existing = st.track and children(st.track) or {}
   for i, tr in ipairs(existing) do
     local _, name = reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "", false)
