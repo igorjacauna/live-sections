@@ -18,6 +18,8 @@ sed "s#__SITE_URL__#$URL#g" site/index.html > dist/index.html
   cat prototype/index.html
 } > dist/demo/index.html
 cp -R LiveSections dist/LiveSections
+# cópias .txt das páginas da Web Interface, para o ReaPack baixar sem redirecionamento
+for f in dist/LiveSections/www/*.html; do cp "$f" "$f.txt"; done
 "$LUA" tools/gerar_index.lua "$URL" "$VERSION" dist/index.xml
 (cd dist && zip -qr live-sections.zip LiveSections)
 echo "dist/ pronto para $URL"

@@ -71,8 +71,10 @@ w('      <metadata>')
 w('        <description><![CDATA[' .. WEB_DESC .. ']]></description>')
 w('      </metadata>')
 w(string.format('      <version name="%s" author="%s" time="%s">', version, xml(AUTHOR), os.date("!%Y-%m-%dT%H:%M:%SZ")))
+-- a URL leva ".txt": a Cloudflare redireciona ".html" para o endereço sem
+-- extensão (307); o nome instalado vem de file="…", não da URL
 for _, f in ipairs(web) do
-  w(string.format('        <source file="%s">%s/LiveSections/%s</source>', xml(f:gsub("^www/", "")), base, url_path(f)))
+  w(string.format('        <source file="%s">%s/LiveSections/%s.txt</source>', xml(f:gsub("^www/", "")), base, url_path(f)))
 end
 w('      </version>')
 w('    </reapack>')
