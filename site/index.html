@@ -267,6 +267,12 @@ footer .wrap { display: flex; gap: 16px; flex-wrap: wrap; justify-content: space
           <h3>Alinhar músicas sem grid</h3>
           <p>Gravou sem metrônomo? Bata o TAP, marque o compasso 1 e ajuste fino ouvindo o metrônomo. O áudio não é esticado: o grid é que passa a seguir a música.</p>
         </div>
+        <div class="feat" style="--c:#FFB547">
+          <div class="dot"></div>
+          <h3>Cifra no palco e no celular</h3>
+          <p>Cole a cifra de cada música e ela acompanha o compasso: o verso atual em destaque, os próximos embaixo e "a seguir" no fim da seção. Numa janela que vai para outro monitor, ou no celular e no tablet da banda, pela rede.</p>
+          <ul><li>Linhas em grade "| G | D |" acendem o acorde do compasso</li><li>Sem app para instalar: abre no navegador</li></ul>
+        </div>
         <div class="feat" style="--c:#E3559F">
           <div class="dot"></div>
           <h3>Modo palco</h3>
@@ -319,6 +325,7 @@ footer .wrap { display: flex; gap: 16px; flex-wrap: wrap; justify-content: space
       <details><summary>E se o script travar no meio do show?</summary><p>O REAPER continua tocando: o áudio nunca passa pelo script. Ele só comanda o transporte e o roteamento do próprio REAPER.</p></details>
       <details><summary>Funciona no Windows?</summary><p>Ele usa só a API do REAPER e a ReaImGui, então deve funcionar, mas esta versão beta foi testada no macOS. Se testar no Windows, conte como foi.</p></details>
       <details><summary>É de graça? Posso modificar?</summary><p>Sim. É software livre sob a licença GPL-3.0: use, estude, modifique e compartilhe. O código está no <a href="https://github.com/igorjacauna/live-sections">GitHub</a>, onde você também pode relatar problemas e sugerir melhorias.</p></details>
+      <details><summary>Como a banda vê a cifra no celular?</summary><p>O próprio REAPER tem um servidor web. Instale a página "livesections.html" pelo ReaPack, ative em Preferences → Control/OSC/web → Add → Web browser interface com essa página, e abra no celular o endereço que o REAPER mostra, na mesma rede Wi-Fi. A cifra segue a música sozinha.</p></details>
       <details><summary>Precisa da SWS?</summary><p>Não. Só da ReaImGui, que se instala pelo ReaPack.</p></details>
     </div>
   </section>
