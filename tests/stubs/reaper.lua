@@ -44,6 +44,8 @@ function M.new()
     _cursor = 0,
     _undo = {},
     _ext = {},                 -- ProjExtState: [section][key] = valor
+    _gext = {},                -- ExtState global: [section][key] = valor
+    _midi_cc = false,          -- { resolution, val } da action disparada por CC
     -- Marcadores de tempo da API SetTempoTimeSigMarker, por tempo. São uma
     -- lista à parte: não alteram o mapa de _tempo usado pelo TimeMap2_*.
     _tempo_markers = {},       -- { time, bpm, num, denom, linear }
@@ -419,6 +421,14 @@ function M.new()
   end
 
   -- ---------------------------------------------------------- ProjExtState
+  -- ExtState global (não persistente): [section][key] = valor
+  function api.GetExtState(section, key) return (r._gext[section] or {})[key] or "" end
+  function api.SetExtState(section, key, value, _)
+    r._gext[section] = r._gext[section] or {}
+    r._gext[section][key] = value
+  end
+  function api.DeleteExtState(section, key, _) if r._gext[section] then r._gext[section][key] = nil end end
+
   function api.GetProjExtState(_, section, key)
     local v = r._ext[section] and r._ext[section][key]
     if v == nil or v == "" then return 0, "" end
@@ -524,7 +534,11 @@ function M.new()
     os.execute("mkdir -p '" .. path .. "'")
     return 1
   end
-  function api.get_action_context() return true, "/stub/LiveSections/LiveSections.lua", 0, 0, 0, 0, 0 end
+  -- r._midi_cc = { resolution, val }: a action foi disparada por um CC
+  function api.get_action_context()
+    local cc = r._midi_cc or { -1, -1 }
+    return true, "/stub/LiveSections/LiveSections.lua", 0, 0, 0, cc[1], cc[2]
+  end
   function api.ShowConsoleMsg(msg) log("ShowConsoleMsg", msg) end
   function api.MB(msg, title, kind) log("MB", msg, title, kind); return 1 end
   function api.defer(fn) log("defer", fn) end

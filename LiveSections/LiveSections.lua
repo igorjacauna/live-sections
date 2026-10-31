@@ -60,6 +60,7 @@ local feedback = require("midi.feedback")
 local perf = require("core.performance")
 local layers = require("core.layers")
 local model = require("core.project_model")
+local remote = require("actions.remote")
 
 local ctx = ImGui.CreateContext(APP_NAME)
 theme.init(ctx, ImGui, script_dir())
@@ -96,6 +97,9 @@ local MIN_W, MIN_H = 720, 480
 
 local function loop()
   local now = reaper.time_precise()
+  remote.heartbeat(now)
+  -- comandos das actions da lista do REAPER (actions/*.lua)
+  for _, c in ipairs(remote.poll()) do view.run(c.action, c.arg, c.value) end
   view.update(now)
   widgets.frame(ctx, now)
   theme.push(ctx)
@@ -113,4 +117,5 @@ local function loop()
 end
 
 reaper.atexit(feedback.clear)
+reaper.atexit(remote.shutdown)
 reaper.defer(loop)
