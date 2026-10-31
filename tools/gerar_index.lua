@@ -1,6 +1,8 @@
 -- Gera o index.xml do ReaPack com todos os arquivos de LiveSections/.
 -- Rode da raiz do repositório:
 --   lua tools/gerar_index.lua [URL base] [versão] [arquivo de saída]
+-- A versão padrão vem do arquivo VERSION e as notas, de CHANGELOG.txt.
+-- O ReaPack só atualiza quem já instalou quando a versão muda.
 -- Sem URL base, usa file:// deste repositório (instalação local para teste).
 -- Para publicar, passe a URL "raw" da pasta do repositório, por exemplo
 -- https://raw.githubusercontent.com/<usuário>/live-sections/main
@@ -9,7 +11,15 @@
 -- descrição, e o script mostra como instalá-la quando ela falta (RF-100).
 
 local base = arg[1]
-local version = arg[2] or "0.1.0"
+local function read(path)
+  local f = io.open(path, "r")
+  if not f then return nil end
+  local t = f:read("a")
+  f:close()
+  return t
+end
+local version = arg[2] or (read("VERSION") or "0.1.0"):gsub("%s+", "")
+local changelog = read("CHANGELOG.txt")
 local output = arg[3] or "index.xml"
 if not base then
   local p = io.popen("pwd")
@@ -53,6 +63,7 @@ w('        <link rel="website">' .. SITE .. '</link>')
 w('        <link rel="website">https://github.com/igorjacauna/live-sections</link>')
 w('      </metadata>')
 w(string.format('      <version name="%s" author="%s" time="%s">', version, xml(AUTHOR), os.date("!%Y-%m-%dT%H:%M:%SZ")))
+if changelog then w('        <changelog><![CDATA[' .. changelog .. ']]></changelog>') end
 local web = {}
 for _, f in ipairs(files) do
   if f:match("^www/") then
@@ -71,6 +82,7 @@ w('      <metadata>')
 w('        <description><![CDATA[' .. WEB_DESC .. ']]></description>')
 w('      </metadata>')
 w(string.format('      <version name="%s" author="%s" time="%s">', version, xml(AUTHOR), os.date("!%Y-%m-%dT%H:%M:%SZ")))
+if changelog then w('        <changelog><![CDATA[' .. changelog .. ']]></changelog>') end
 -- a URL leva ".txt": a Cloudflare redireciona ".html" para o endereço sem
 -- extensão (307); o nome instalado vem de file="…", não da URL
 for _, f in ipairs(web) do

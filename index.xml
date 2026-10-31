@@ -9,7 +9,14 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <link rel="website">https://live-sections.igor-jacauna-cloudflare.workers.dev</link>
         <link rel="website">https://github.com/igorjacauna/live-sections</link>
       </metadata>
-      <version name="0.1.0" author="Igor Jacaúna" time="2026-10-31T20:23:54Z">
+      <version name="0.2.0" author="Igor Jacaúna" time="2026-10-31T23:52:22Z">
+        <changelog><![CDATA[- Cifra no palco: cole a cifra de cada música no modo Editar; ela acompanha o compasso numa janela "Cifra" (outro monitor/TV) e no celular/tablet pela Web Interface do REAPER (pacote livesections.html)
+- Kontakt: o som sai só pelas camadas (a track do Kontakt não manda direto ao master); o painel de avisos corrige projetos antigos em pasta com um clique
+- Medidor de nível em cada camada
+- Botão maximizar/restaurar (F11) e redimensionar pelas bordas
+- Correção: a tela quebrava com Kontakt vinculado e nenhum teclado escolhido
+- Um erro de desenho não trava mais a janela: aparece no console e o script continua
+]]></changelog>
         <source file="actions/Live Sections - Camada 1 mute.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20mute.lua</source>
         <source file="actions/Live Sections - Camada 1 solo.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20solo.lua</source>
         <source file="actions/Live Sections - Camada 1 volume (CC).lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20volume%20(CC).lua</source>
@@ -126,7 +133,14 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
 
 Ative em Preferences > Control/OSC/web > Add > Web browser interface, escolha "livesections.html" como página padrão e abra o endereço mostrado no celular (mesma rede Wi-Fi).]]></description>
       </metadata>
-      <version name="0.1.0" author="Igor Jacaúna" time="2026-10-31T20:23:54Z">
+      <version name="0.2.0" author="Igor Jacaúna" time="2026-10-31T23:52:22Z">
+        <changelog><![CDATA[- Cifra no palco: cole a cifra de cada música no modo Editar; ela acompanha o compasso numa janela "Cifra" (outro monitor/TV) e no celular/tablet pela Web Interface do REAPER (pacote livesections.html)
+- Kontakt: o som sai só pelas camadas (a track do Kontakt não manda direto ao master); o painel de avisos corrige projetos antigos em pasta com um clique
+- Medidor de nível em cada camada
+- Botão maximizar/restaurar (F11) e redimensionar pelas bordas
+- Correção: a tela quebrava com Kontakt vinculado e nenhum teclado escolhido
+- Um erro de desenho não trava mais a janela: aparece no console e o script continua
+]]></changelog>
         <source file="livesections.html">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/www/livesections.html.txt</source>
       </version>
     </reapack>

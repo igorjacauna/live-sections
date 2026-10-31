@@ -1,0 +1,6 @@
+- Cifra no palco: cole a cifra de cada música no modo Editar; ela acompanha o compasso numa janela "Cifra" (outro monitor/TV) e no celular/tablet pela Web Interface do REAPER (pacote livesections.html)
+- Kontakt: o som sai só pelas camadas (a track do Kontakt não manda direto ao master); o painel de avisos corrige projetos antigos em pasta com um clique
+- Medidor de nível em cada camada
+- Botão maximizar/restaurar (F11) e redimensionar pelas bordas
+- Correção: a tela quebrava com Kontakt vinculado e nenhum teclado escolhido
+- Um erro de desenho não trava mais a janela: aparece no console e o script continua

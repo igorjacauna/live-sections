@@ -4,7 +4,7 @@
 # Publicar:  wrangler deploy   (wrangler.jsonc serve dist/ como arquivos estáticos)
 set -e
 URL="${1:-https://live-sections.igor-jacauna-cloudflare.workers.dev}"
-VERSION="${2:-0.1.0}"
+VERSION="${2:-$(cat VERSION)}"
 LUA="${LUA:-lua}"
 command -v "$LUA" >/dev/null 2>&1 || LUA=/opt/homebrew/opt/lua@5.4/bin/lua
 
