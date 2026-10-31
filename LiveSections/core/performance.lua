@@ -36,6 +36,8 @@ function M.init(opts)
 end
 
 function M.quantize() return state.quantize end
+function M.tolerance_ms() return state.tolerance_s * 1000 end
+function M.set_tolerance(ms) state.tolerance_s = ms / 1000 end
 function M.loop_section() return state.loop_section end
 function M.current_song() return state.song end
 function M.queued() return queue.current() end

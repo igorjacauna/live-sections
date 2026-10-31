@@ -52,6 +52,7 @@ local anim = require("ui.anim")
 local widgets = require("ui.widgets")
 local view = require("ui.performance_view")
 local editor = require("ui.editor_view")
+local settings_view = require("ui.settings_view")
 local input = require("midi.input")
 local learn = require("midi.learn")
 local mappings = require("midi.mappings")
@@ -60,22 +61,14 @@ local perf = require("core.performance")
 local layers = require("core.layers")
 local model = require("core.project_model")
 
--- Configurações globais (config.json, chave "settings"); a tela de
--- configurações (task 4.6) passa a editá-las.
-local function settings()
-  local f = io.open(mappings.config_path(), "r")
-  if not f then return {} end
-  local ok, data = pcall(require("vendor.json").decode, f:read("a"))
-  f:close()
-  return ok and type(data) == "table" and type(data.settings) == "table" and data.settings or {}
-end
-
 local ctx = ImGui.CreateContext(APP_NAME)
 theme.init(ctx, ImGui, script_dir())
 widgets.init(ImGui, theme, anim, learn, mappings)
 mappings.load()
 input.init()
-local cfg = settings()
+-- Configurações globais (chave "settings" do config.json), editadas na tela
+-- de configurações.
+local cfg = mappings.settings()
 feedback.configure(cfg)
 layers.configure({ keyboard_port = cfg.keyboard_port, bypass_tail_s = cfg.bypass_tail_s })
 perf.init({ quantize = cfg.quantize, tolerance_ms = cfg.tolerance_ms })
@@ -90,7 +83,11 @@ editor.init({
 view.init({
   ImGui = ImGui, theme = theme, anim = anim, widgets = widgets,
   perf = perf, layers = layers, feedback = feedback, mappings = mappings,
-  learn = learn, input = input, model = model, editor = editor,
+  learn = learn, input = input, model = model, editor = editor, settings = settings_view,
+})
+settings_view.init({
+  ImGui = ImGui, theme = theme, kit = view.kit, mappings = mappings, feedback = feedback,
+  layers = layers, perf = perf, anim = anim, learn = learn, model = model, ui = view.ui(),
 })
 
 -- Tamanho mínimo: a janela não abre estreita mesmo com um tamanho antigo

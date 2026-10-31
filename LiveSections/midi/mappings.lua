@@ -13,6 +13,7 @@
 -- M.decode(event) -> Msg?        { msg_type, channel, number, value (0–1) }
 -- M.match(event) -> Mapping?, value
 -- M.set(mapping); M.remove(action, arg); M.get(action, arg); M.all()
+-- M.settings() -> tabela "settings"; M.save_settings(settings) grava junto
 -- M.load() -> ok, err;  M.save() -> ok, err
 
 local json = require("vendor.json")
@@ -142,6 +143,18 @@ function M.load()
     if valid(m) then list[#list + 1] = m end
   end
   return true
+end
+
+-- Configurações globais (chave "settings" do mesmo arquivo). Salvar por aqui
+-- evita que o arquivo seja gravado de dois lugares e um apague o outro.
+function M.settings()
+  if type(doc.settings) ~= "table" then doc.settings = {} end
+  return doc.settings
+end
+
+function M.save_settings(settings)
+  doc.settings = settings
+  return M.save()
 end
 
 function M.save()

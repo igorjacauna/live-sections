@@ -20,6 +20,9 @@
 -- M.reset()                            esquece o que foi enviado (reenvia tudo)
 -- M.touch(mapping)                     reenvia aquele LED (o botão foi tocado)
 -- M.clear()                            apaga os LEDs mapeados (ao fechar o script)
+-- M.preview(state, now, secs)          acende todos os LEDs com a velocity do
+--                                      estado por `secs` (testar nas configurações)
+-- M.velocities() -> { [state] = velocity }
 -- M.missing_outputs() -> { nome }      portas sem saída MIDI no último flush
 
 local M = {}
@@ -35,6 +38,7 @@ local wanted = {}     -- [key] = { mapping, state }
 local sent = {}       -- [key] = velocity enviada
 local missing = {}    -- nomes sem saída no último flush
 local last_refresh = -math.huge
+local preview = nil   -- { state, until_t }
 
 local STATUS = { note = 0x90, cc = 0xB0 }
 
@@ -99,7 +103,17 @@ end
 
 function M.missing_outputs() return missing end
 
+function M.velocities() return velocity end
+
+function M.preview(state, now, secs)
+  preview = { state = state, until_t = now + (secs or 1.5) }
+  sent = {}
+end
+
 local function velocity_of(state, now)
+  if preview then
+    if now < preview.until_t then state = preview.state else preview = nil; sent = {} end
+  end
   if state == "queued" and blink and math.floor(now / BLINK_PERIOD_S) % 2 == 1 then
     return velocity.idle
   end

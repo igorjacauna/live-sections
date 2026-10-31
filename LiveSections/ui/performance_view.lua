@@ -14,7 +14,7 @@
 local M = {}
 
 local ImGui, theme, anim, widgets
-local perf, layers, feedback, mappings, learn, input, model, editor
+local perf, layers, feedback, mappings, learn, input, model, editor, settings_view
 
 local PROJ = 0
 local PORT_CHECK_S = 1.0
@@ -31,7 +31,7 @@ local QUANTIZE_LABEL = {
 M.QUANTIZE_LABEL = QUANTIZE_LABEL
 
 local ui = {
-  mode = "performance",    -- "performance" | "edit"
+  mode = "performance",    -- "performance" | "edit" | "settings"
   stage = false,
   setlist_open = false,    -- setlist completa aberta no modo palco
 }
@@ -46,7 +46,7 @@ function M.init(deps)
   ImGui, theme, anim, widgets = deps.ImGui, deps.theme, deps.anim, deps.widgets
   perf, layers, feedback = deps.perf, deps.layers, deps.feedback
   mappings, learn, input, model = deps.mappings, deps.learn, deps.input, deps.model
-  editor = deps.editor
+  editor, settings_view = deps.editor, deps.settings
   ui.mode, ui.stage, ui.setlist_open = "performance", false, false
   last_song_id, last_port_check, disconnected, last_value = nil, -math.huge, {}, {}
 end
@@ -255,8 +255,34 @@ local function button(ctx, id, label, x, y, h, opts)
   return clicked, w
 end
 
--- Peças de desenho compartilhadas com ui/editor_view.
-M.kit = { txt = txt, size = size, button = button }
+-- Texto com quebra de linha por palavra em `w`; retorna a altura.
+local function wrapped(ctx, style, x, y, w, color, text)
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local pushed = theme.font(ctx, style)
+  local line, cy, lh = nil, y, 0
+  local function flush()
+    if not line then return end
+    local _, th = ImGui.CalcTextSize(ctx, line)
+    lh = th
+    ImGui.DrawList_AddText(dl, x, cy, color, line)
+    cy = cy + th + 3
+  end
+  for word in text:gmatch("%S+") do
+    local try = line and (line .. " " .. word) or word
+    if line and ImGui.CalcTextSize(ctx, try) > w then
+      flush()
+      line = word
+    else
+      line = try
+    end
+  end
+  flush()
+  theme.pop_font(ctx, pushed)
+  return math.max(lh, cy - y - 3)
+end
+
+-- Peças de desenho compartilhadas com ui/editor_view e ui/settings_view.
+M.kit = { txt = txt, size = size, button = button, wrapped = wrapped }
 
 local function fmt_time(t)
   local m = math.floor(t / 60)
@@ -280,6 +306,9 @@ local function top_bar(ctx, x, y, w)
   cx = cx + bw + 6
   clicked, bw = button(ctx, "mode_edit", "Editar", cx, y + 12, 32, { active = ui.mode == "edit" })
   if clicked then ui.mode = "edit"; ui.stage = false end
+  cx = cx + bw + 6
+  clicked, bw = button(ctx, "mode_settings", "Configurações", cx, y + 12, 32, { active = ui.mode == "settings" })
+  if clicked then ui.mode = "settings"; ui.stage = false end
   cx = cx + bw + 16
 
   -- leituras: posição, tempo, BPM e fórmula
@@ -581,6 +610,10 @@ function M.draw(ctx)
 
   if ui.mode == "edit" then
     if editor then editor.draw(ctx, x, y, w, h, snap) end
+    return
+  end
+  if ui.mode == "settings" then
+    if settings_view then settings_view.draw(ctx, x, y, w, h, snap) end
     return
   end
 

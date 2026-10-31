@@ -134,31 +134,7 @@ local function panel(dl, x, y, w, h)
   ImGui.DrawList_AddRectFilled(dl, x, y, x + w, y + h, theme.C.panel, theme.R.r2)
 end
 
--- Texto com quebra de linha por palavra em `w`; retorna a altura.
-local function wrapped(ctx, style, x, y, w, color, text)
-  local dl = ImGui.GetWindowDrawList(ctx)
-  local pushed = theme.font(ctx, style)
-  local line, cy, lh = nil, y, 0
-  local function flush()
-    if not line then return end
-    local _, th = ImGui.CalcTextSize(ctx, line)
-    lh = th
-    ImGui.DrawList_AddText(dl, x, cy, color, line)
-    cy = cy + th + 3
-  end
-  for word in text:gmatch("%S+") do
-    local try = line and (line .. " " .. word) or word
-    if line and ImGui.CalcTextSize(ctx, try) > w then
-      flush()
-      line = word
-    else
-      line = try
-    end
-  end
-  flush()
-  theme.pop_font(ctx, pushed)
-  return math.max(lh, cy - y - 3)
-end
+local function wrapped(...) return kit.wrapped(...) end
 
 -- ------------------------------------------------------------------ operações
 

@@ -1,0 +1,139 @@
+local stub = require("stubs.reaper")
+
+-- ImGui falsa: o teste escolhe o botão apertado, a opção escolhida num combo,
+-- o valor de um slider/campo e o item solto depois da edição.
+local function fake_imgui()
+  local im = { opts = {}, calls = {} }
+  local last, combo = nil, nil
+  setmetatable(im, { __index = function(_, name)
+    return function(...) im.calls[#im.calls + 1] = { name, ... }; return nil end
+  end })
+  function im.InvisibleButton(_, id) last = id; return im.opts.press == id end
+  function im.IsItemHovered() return false end
+  function im.CalcTextSize(_, s) return #s * 7, 14 end
+  function im.GetWindowDrawList() return "dl" end
+  function im.BeginCombo(_, id) combo = id; return im.opts.combo == id end
+  function im.Selectable(_, label) return combo == im.opts.combo and label == im.opts.pick end
+  function im.SliderDouble(_, id, v) last = id; if im.opts.value_for == id then return true, im.opts.value end return false, v end
+  function im.SliderInt(_, id, v) last = id; if im.opts.value_for == id then return true, im.opts.value end return false, v end
+  function im.InputInt(_, id, v) last = id; if im.opts.value_for == id then return true, im.opts.value end return false, v end
+  function im.Checkbox(_, id, v) last = id; if im.opts.value_for == id then return true, im.opts.value end return false, v end
+  function im.IsItemDeactivatedAfterEdit() return im.opts.value_for == last end
+  return im
+end
+
+describe("ui.settings_view", function()
+  local r, im, view, mappings, feedback, layers, perf, learn, dir, ui
+  local MASTER, KEYS = "SMC-Mixer-Master", "Keys"
+
+  local function frame(opts)
+    im.opts = opts or {}
+    view.draw("ctx", 0, 0, 1100, 760, {})
+  end
+
+  local function config()
+    local f = assert(io.open(mappings.config_path(), "r"))
+    local data = require("vendor.json").decode(f:read("a"))
+    f:close()
+    return data
+  end
+
+  before_each(function()
+    r = stub.install()
+    dir = os.tmpname(); os.remove(dir)
+    r._resource_path = dir
+    for _, m in ipairs({ "core.project_model", "core.quantize", "core.queue", "core.transport", "core.performance",
+      "core.layers", "midi.mappings", "midi.learn", "midi.feedback", "ui.theme", "ui.anim", "ui.widgets",
+      "ui.performance_view", "ui.settings_view" }) do
+      package.loaded[m] = nil
+    end
+    r.set_project_length(40)
+    r.add_midi_input(4, MASTER)
+    r.add_midi_input(5, KEYS)
+    r.add_midi_output(4, MASTER)
+    mappings, feedback, layers = require("midi.mappings"), require("midi.feedback"), require("core.layers")
+    perf, learn = require("core.performance"), require("midi.learn")
+    mappings.load()
+    perf.init()
+    feedback.configure(mappings.settings())
+    im = fake_imgui()
+    local theme = require("ui.theme")
+    theme.init("ctx", im, "/sem/fontes/")
+    local pv = require("ui.performance_view")
+    pv.init({ ImGui = im, theme = theme, widgets = require("ui.widgets") })
+    ui = pv.ui()
+    require("ui.widgets").init(im, theme, require("ui.anim"), learn, mappings)
+    view = require("ui.settings_view")
+    view.init({
+      ImGui = im, theme = theme, kit = pv.kit, mappings = mappings, feedback = feedback, layers = layers,
+      perf = perf, anim = require("ui.anim"), learn = learn, model = require("core.project_model"), ui = ui,
+    })
+    frame()
+  end)
+
+  after_each(function() os.execute("rm -rf '" .. dir .. "'") end)
+
+  it("teclado escolhido vai para as camadas e fica salvo", function()
+    frame({ combo = "##kbd", pick = KEYS })
+    assert.equal(KEYS, layers.keyboard_port())
+    assert.equal(KEYS, config().settings.keyboard_port)
+  end)
+
+  it("cauda do bypass salva ao soltar o slider, em meios segundos", function()
+    frame({ value_for = "##tail", value = 7.3 })
+    assert.equal(7.5, config().settings.bypass_tail_s)
+  end)
+
+  it("saída dos LEDs: automática por padrão, ou uma saída escolhida", function()
+    frame({ combo = "##ledout", pick = MASTER })
+    assert.equal(MASTER, config().settings.feedback_out_port)
+    frame({ combo = "##ledout", pick = "Automática (mesmo nome da entrada)" })
+    assert.is_nil(config().settings.feedback_out_port)
+  end)
+
+  it("velocity editada vale na hora e fica salva; Testar acende os LEDs com ela", function()
+    mappings.set({ action = "trigger_slot", arg = 1, port_name = MASTER, msg_type = "note", channel = 1, number = 24 })
+    feedback.set_state(mappings.get("trigger_slot", 1), "idle")
+    frame({ value_for = "##vel_playing", value = 21 })
+    assert.equal(21, feedback.velocities().playing)
+    assert.equal(21, config().settings.led_velocity.playing)
+    r.calls = {}
+    frame({ press = "ledtest_playing" })
+    feedback.flush(r._now)
+    local c = r.calls_to("StuffMIDIMessage")[1]
+    assert.same({ 20, 0x90, 24, 21 }, { c[1], c[2], c[3], c[4] })
+  end)
+
+  it("tolerância muda na hora, em passos de 5 ms", function()
+    frame({ value_for = "##tol", value = 42 })
+    assert.equal(40, perf.tolerance_ms())
+    assert.equal(40, config().settings.tolerance_ms)
+  end)
+
+  it("mapeamento listado pode ser removido; learn global volta para a performance", function()
+    mappings.set({ action = "panic", port_name = MASTER, msg_type = "note", channel = 1, number = 5 })
+    frame()
+    frame({ press = "unmap1" })
+    assert.same({}, mappings.all())
+    ui.mode = "settings"
+    frame({ press = "learn_global" })
+    assert.equal("global", learn.state().mode)
+    assert.equal("performance", ui.mode)
+  end)
+
+  it("as configurações não somem quando um mapeamento é salvo depois", function()
+    frame({ combo = "##kbd", pick = KEYS })
+    mappings.set({ action = "panic", port_name = MASTER, msg_type = "note", channel = 1, number = 5 })
+    mappings.save()
+    assert.equal(KEYS, config().settings.keyboard_port)
+    package.loaded["midi.mappings"] = nil
+    local again = require("midi.mappings")
+    again.load()
+    assert.equal(KEYS, again.settings().keyboard_port)
+  end)
+
+  it("rótulos dos controles", function()
+    assert.equal("Seção 3", view.label({ action = "trigger_slot", arg = 3 }))
+    assert.equal("Panic", view.label({ action = "panic" }))
+  end)
+end)
