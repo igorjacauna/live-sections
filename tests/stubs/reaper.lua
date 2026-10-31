@@ -414,6 +414,10 @@ function M.new()
   function api.GetPlayPosition2() return r._play_pos end
   function api.OnPlayButton() log("OnPlayButton"); r._play_state = 1; r._play_pos = r._cursor end
   function api.OnStopButton() log("OnStopButton"); r._play_state = 0 end
+  function api.OnPauseButton()
+    log("OnPauseButton")
+    if r._play_state == 1 then r._play_state = 2 elseif r._play_state == 2 then r._play_state = 1 end
+  end
   function api.GoToRegion(proj, region_index, use_timeline_order) log("GoToRegion", proj, region_index, use_timeline_order) end
 
   -- val < 0 consulta; 0 desliga; 1 liga. Retorna o estado.

@@ -7,7 +7,9 @@
 --
 -- Faixa (ferramenta Selecionar): clicar numa seção seleciona (parado, o
 -- cursor vai para o início dela); duplo clique toca a partir dela; arrastar a
--- borda move as duas seções vizinhas juntas. Remover deixa
+-- borda move as duas seções vizinhas juntas. O botão alterna Tocar daqui /
+-- Pausar / Continuar; Espaço toca da seção selecionada e para (para ouvir
+-- trechos rápido), como o Stop. Remover deixa
 -- o trecho sem seção. Dividir: clicar
 -- divide no compasso. Desenhar: arrastar cria uma seção. Na régua, clicar
 -- move o cursor e arrastar desenha. `S` divide no cursor; Ctrl/Cmd+Z desfaz.
@@ -179,6 +181,32 @@ local function draw_section(song, a, b)
   end
 end
 
+-- Tocar daqui / Pausar / Continuar: parado, toca a partir da seção (ou do
+-- cursor, sem seção); tocando, pausa; pausado, continua de onde parou.
+local function transport_state()
+  local ps = reaper.GetPlayState()
+  if ps & 2 == 2 then return "paused" end
+  if ps & 1 == 1 then return "playing" end
+  return "stopped"
+end
+
+local PLAY_LABEL = { stopped = "Tocar daqui", playing = "Pausar", paused = "Continuar" }
+local PLAY_ICON = { stopped = "play", playing = "stop", paused = "play" }
+
+local function toggle_play(section)
+  local state = transport_state()
+  if state == "stopped" then
+    if section then play_from(section) else perf.play_stop() end
+  else
+    reaper.OnPauseButton()
+    say(state == "playing" and "Pausado." or "Continuando.")
+  end
+end
+
+local function stop()
+  if transport_state() == "playing" then perf.play_stop() else reaper.OnStopButton() end
+end
+
 local function remove(section)
   ops.remove(section)
   if st.selected == section.region_idx then st.selected = nil end
@@ -204,6 +232,9 @@ local function shortcuts(ctx, song, snap)
     end
   elseif not mod and song and ImGui.IsKeyPressed(ctx, ImGui.Key_S, false) then
     split_at(song, cursor_pos(snap))
+  elseif not mod and ImGui.IsKeyPressed(ctx, ImGui.Key_Space, false) then
+    -- ouvir trechos rápido: toca da seção selecionada (ou do cursor) e para
+    if transport_state() == "stopped" then toggle_play(section_by_idx(song, st.selected)) else stop() end
   end
 end
 
@@ -580,8 +611,16 @@ local function inspector(ctx, x, y, w, song, snap)
         or string.format("A duração ficou em %d compassos: é o máximo antes da próxima seção.", got))
     end
   end
+  local state = transport_state()
   local pw = kit.size(ctx, "button", "Tocar daqui") + 46
-  if kit.button(ctx, "play_from", "Tocar daqui", ix + 132, cy - 2, 36, { icon = "play", w = pw }) then play_from(sec) end
+  if kit.button(ctx, "play_from", PLAY_LABEL[state], ix + 132, cy - 2, 36,
+    { icon = PLAY_ICON[state], w = pw, active = state ~= "stopped", accent = state == "playing" and theme.C.ok or nil }) then
+    toggle_play(sec)
+  end
+  if ix + 132 + pw + 6 + 40 <= ix + iw
+    and kit.button(ctx, "stop", "", ix + 132 + pw + 6, cy - 2, 36, { icon = "stop", w = 40 }) then
+    stop()
+  end
   cy = cy + 46
 
   local bx = ix

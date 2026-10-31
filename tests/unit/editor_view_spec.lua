@@ -4,7 +4,7 @@ local stub = require("stubs.reaper")
 -- o teste escolher o item ativado, ativo, solto ou clicado e a posição do mouse.
 local function fake_imgui()
   local im = {
-    MouseButton_Left = 0, MouseButton_Right = 1, Key_S = 83, Key_Z = 90, Key_Enter = 13,
+    MouseButton_Left = 0, MouseButton_Right = 1, Key_S = 83, Key_Z = 90, Key_Enter = 13, Key_Space = 32,
     Mod_Ctrl = 4096, Mod_Shift = 8192, MouseCursor_ResizeEW = 4,
     rects = {}, opts = {}, calls = {},
   }
@@ -211,6 +211,29 @@ describe("ui.editor_view", function()
       frame({ press = "remove" })
       assert.same({ { 0, 8, "Intro" }, { 16, 24, "Refrão" } }, regions())
       assert.is_nil(view.state().selected)
+    end)
+
+    it("botão: toca da seção, pausa, continua; Stop para", function()
+      frame({ press = "play_from" })
+      assert.equal(1, r._play_state)
+      assert.equal(8, r._cursor)
+      frame({ press = "play_from" })
+      assert.equal(2, r._play_state)
+      frame({ press = "play_from" })
+      assert.equal(1, r._play_state)
+      frame({ press = "stop" })
+      assert.equal(0, r._play_state)
+    end)
+
+    it("Espaço toca da seção e para; de novo, recomeça da seção", function()
+      frame({ key = im.Key_Space })
+      assert.equal(1, r._play_state)
+      frame({ key = im.Key_Space })
+      assert.equal(0, r._play_state)
+      r._cursor = 13
+      frame({ key = im.Key_Space })
+      assert.equal(8, r._cursor)
+      assert.equal(1, r._play_state)
     end)
 
     it("Juntar com a próxima", function()
