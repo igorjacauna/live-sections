@@ -26,6 +26,7 @@ local function fake_imgui()
   function im.IsItemDeactivated() return im.opts.deactivate == last end
   function im.IsItemHovered() return im.opts.hover == last end
   function im.IsMouseClicked(_, b) return im.opts.mouse_click == b end
+  function im.IsMouseDoubleClicked() return im.opts.double == true end
   function im.GetMousePos() return im.opts.mx or 0, im.opts.my or 0 end
   function im.IsWindowFocused() return true end
   function im.IsAnyItemActive() return false end
@@ -114,11 +115,18 @@ describe("ui.editor_view", function()
       assert.is_nil(im.rects.add_section)
     end)
 
-    it("Selecionar: clicar numa seção seleciona e toca a partir dela", function()
+    it("Selecionar: clicar numa seção seleciona e leva o cursor ao início, sem tocar", function()
       drag(10, 10)
       assert.equal(8, r._cursor)
-      assert.equal("Verso", select(2, model.song_at(r._cursor)).name)
       assert.is_not_nil(view.state().selected)
+      assert.equal(0, #r.calls_to("OnPlayButton"))
+    end)
+
+    it("duplo clique numa seção toca a partir dela", function()
+      frame({ activate = "strip", active = "strip", mx = x_at(10), my = lane_y() })
+      frame({ deactivate = "strip", mx = x_at(10), my = lane_y(), double = true })
+      assert.equal(8, r._cursor)
+      assert.equal(1, r._play_state)
     end)
 
     it("Dividir: clicar divide no compasso mais próximo, um passo de undo", function()
@@ -132,6 +140,20 @@ describe("ui.editor_view", function()
       view.state().tool = "draw"
       drag(20, 30)
       assert.same({ { 0, 8, "Intro" }, { 8, 16, "Verso" }, { 16, 20, "Refrão" }, { 20, 30, "Seção" } }, regions())
+    end)
+
+    it("ímã: perto da borda de uma seção, o desenho gruda nela (não no compasso)", function()
+      -- música B longa (40–440 s): 1 compasso < 10 px, o ímã alcança mais que o compasso
+      r.set_project_length(440)
+      r.add_region(40, 100, "Intro B")
+      r._cursor = 40
+      frame()
+      view.state().tool = "draw"
+      local s = im.rects.strip
+      local function bx(t) return s.x + (t - 40) / 400 * s.w end
+      frame({ activate = "strip", active = "strip", mx = bx(103), my = lane_y() })
+      frame({ deactivate = "strip", mx = bx(150), my = lane_y() })
+      assert.same({ 100, 150, "Seção" }, regions()[5])
     end)
 
     it("arrastar na régua desenha; clicar nela move o cursor", function()

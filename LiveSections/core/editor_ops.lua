@@ -1,5 +1,5 @@
--- Operações de edição da estrutura: dividir, juntar, redimensionar, renomear
--- e criar música, sobre regiões e marcadores nativos do REAPER.
+-- Operações de edição da estrutura: dividir, juntar, redimensionar, renomear,
+-- remover, criar e renomear música, sobre regiões e marcadores nativos do REAPER.
 --
 -- Toda posição recebida é ajustada ao compasso mais próximo. Nenhuma operação
 -- cria sobreposição nem seção com menos de um compasso, e cada uma é um único
@@ -178,6 +178,9 @@ function M.draw(song, start_pos, end_pos, name)
     local _, measure = reaper.TimeMap2_timeToBeats(PROJ, math.min(start_pos, end_pos))
     a, b = measure_start(measure), measure_start(measure + 1)
   end
+  -- início e fim da música valem como estão, mesmo fora do compasso
+  if math.min(start_pos, end_pos) <= song.start_pos + EPS then a = song.start_pos end
+  if math.max(start_pos, end_pos) >= song.end_pos - EPS then b = song.end_pos end
   a = math.max(a, song.start_pos)
   b = math.min(b, song.end_pos)
   if b <= a + EPS then return false, "no_room" end
@@ -248,6 +251,30 @@ function M.create_song(songs, pos, name)
     end
   end)
   return true
+end
+
+-- Renomeia a música (o marcador "SONG: <nome>"), mantendo a cor. Sem marcador
+-- (projeto sem músicas), cria um no início. Retorna ok e o nome final.
+function M.rename_song(song, name)
+  name = name:gsub("^%s+", ""):gsub("%s+$", "")
+  if name == "" then return false, "empty" end
+  undoable("renomear música", function()
+    if not song.marker_idx then
+      reaper.AddProjectMarker2(PROJ, false, song.start_pos, 0, SONG_PREFIX .. name, -1, 0)
+      return
+    end
+    local i = 0
+    while true do
+      local ret, isrgn, pos, _, _, idx, color = reaper.EnumProjectMarkers3(PROJ, i)
+      if ret == 0 then break end
+      if not isrgn and idx == song.marker_idx then
+        reaper.SetProjectMarker3(PROJ, idx, false, pos, 0, SONG_PREFIX .. name, color)
+        break
+      end
+      i = i + 1
+    end
+  end)
+  return true, name
 end
 
 return M

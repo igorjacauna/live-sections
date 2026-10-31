@@ -5,8 +5,9 @@
 -- nenhuma sobreposição e um passo de undo por operação. O projeto é a fonte
 -- da verdade; a tela só redesenha o que o project_model relê.
 --
--- Faixa (ferramenta Selecionar): clicar numa seção seleciona e toca a partir
--- dela; arrastar a borda move as duas seções vizinhas juntas. Remover deixa
+-- Faixa (ferramenta Selecionar): clicar numa seção seleciona (parado, o
+-- cursor vai para o início dela); duplo clique toca a partir dela; arrastar a
+-- borda move as duas seções vizinhas juntas. Remover deixa
 -- o trecho sem seção. Dividir: clicar
 -- divide no compasso. Desenhar: arrastar cria uma seção. Na régua, clicar
 -- move o cursor e arrastar desenha. `S` divide no cursor; Ctrl/Cmd+Z desfaz.
@@ -27,14 +28,15 @@ local SIDE_W = 320
 local NARROW_W = 900       -- abaixo disso os avisos vão para baixo
 local RULER_H, LANE_H = 26, 92
 local EDGE_PX = 6          -- distância do mouse até a borda para arrastá-la
+local MAGNET_PX = 10       -- ímã: bordas de seção e início/fim da música
 local STATUS_S = 4
 local WARN_REFRESH_S = 0.5
 
 local TOOLS = { { "select", "Selecionar" }, { "split", "Dividir" }, { "draw", "Desenhar" } }
 local TOOL_HINT = {
-  select = "Clique numa seção para tocar a partir dela e editar. Arraste a borda entre duas seções para mover as duas juntas. Clique na régua para mover o cursor; arraste nela para desenhar.",
+  select = "Clique numa seção para editar; duplo clique toca a partir dela. Arraste a borda entre duas seções para mover as duas juntas. Clique na régua para mover o cursor; arraste nela para desenhar.",
   split = "Clique num compasso dentro de uma seção para dividir ali. Atalho: S divide no cursor.",
-  draw = "Arraste sobre a faixa para criar uma seção, com snap no compasso. Se ela invadir outra, a vizinha é recortada.",
+  draw = "Arraste sobre a faixa para criar uma seção, com snap no compasso e ímã nas bordas das seções e no início e fim da música. Se ela invadir outra, a vizinha é recortada.",
 }
 local ERRORS = {
   boundary = "Esse ponto já é a borda de uma seção.",
@@ -213,10 +215,11 @@ local function song_bar(ctx, x, y, w, snap)
   panel(dl, x, y, w, h)
   local cx = x + 8
   local plus_w = kit.size(ctx, "button", "Música") + 46
+  local ren_w = kit.size(ctx, "button", "Renomear") + 24
   for i, song in ipairs(model.songs()) do
     local label = i .. ". " .. song.name
     local bw = kit.size(ctx, "button", label) + 24
-    if cx + bw > x + w - plus_w - 16 then break end
+    if cx + bw > x + w - plus_w - ren_w - 22 then break end
     local current = snap.song and snap.song.id == song.id
     if kit.button(ctx, "esong" .. i, label, cx, y + 8, 32, { active = current, w = bw }) then
       perf.goto_song(i)
@@ -226,6 +229,22 @@ local function song_bar(ctx, x, y, w, snap)
   end
   if kit.button(ctx, "add_song", "Música", x + w - plus_w - 8, y + 8, 32, { icon = "plus", w = plus_w }) then
     ImGui.OpenPopup(ctx, "new_song")
+  end
+  if snap.song and kit.button(ctx, "rename_song", "Renomear", x + w - plus_w - ren_w - 14, y + 8, 32, { w = ren_w }) then
+    st.song_name = snap.song.name
+    ImGui.OpenPopup(ctx, "rename_song")
+  end
+  if ImGui.BeginPopup(ctx, "rename_song") then
+    ImGui.Text(ctx, "Nome da música")
+    ImGui.SetNextItemWidth(ctx, 220)
+    local _, name = ImGui.InputText(ctx, "##song_name", st.song_name or "")
+    st.song_name = name
+    if ImGui.Button(ctx, "Renomear") or ImGui.IsKeyPressed(ctx, ImGui.Key_Enter, false) then
+      local ok, final = ops.rename_song(snap.song, st.song_name)
+      report(ok, final, ok and ('Música renomeada para "' .. tostring(final) .. '".') or nil)
+      if ok then ImGui.CloseCurrentPopup(ctx) end
+    end
+    ImGui.EndPopup(ctx)
   end
   if ImGui.BeginPopup(ctx, "new_song") then
     ImGui.Text(ctx, "Nova música no cursor")
@@ -311,6 +330,22 @@ local function strip(ctx, x, y, w, song, snap)
   if hovered and (hover_edge or (st.drag and st.drag.kind == "edge")) then
     ImGui.SetMouseCursor(ctx, ImGui.MouseCursor_ResizeEW)
   end
+  -- ímã: perto de uma borda de seção ou do início/fim da música, gruda nela
+  local function magnet(raw, skip)
+    local best, dist = nil, MAGNET_PX / w * span
+    local function try(c)
+      if c ~= skip and math.abs(raw - c) <= dist then best, dist = c, math.abs(raw - c) end
+    end
+    try(song.start_pos); try(song.end_pos)
+    for _, s in ipairs(song.sections) do try(s.start_pos); try(s.end_pos) end
+    return best or raw, best ~= nil
+  end
+  -- posição final de um ponto do arraste: o ímã, senão o compasso mais próximo
+  local function settle(raw, hit)
+    if hit then return raw end
+    return ops.snap(raw)
+  end
+
   local t = to_t(mx)
   if ImGui.IsItemActivated(ctx) then
     local on_ruler = my < y + RULER_H + 4
@@ -321,7 +356,11 @@ local function strip(ctx, x, y, w, song, snap)
     else st.drag = { kind = "pick", t0 = t, t = t } end
   end
   local d = st.drag
-  if d then d.t = t end
+  if d then
+    local skip = d.kind == "edge" and (d.edge == "end" and d.section.end_pos or d.section.start_pos) or nil
+    if not d.mag0 then d.t0, d.hit0 = magnet(d.t0, skip); d.mag0 = true end
+    d.t, d.hit = magnet(t, skip)
+  end
   if hovered and ImGui.IsMouseClicked(ctx, ImGui.MouseButton_Right) then
     st.menu_section = section_at(song, t)
     if st.menu_section then
@@ -332,11 +371,16 @@ local function strip(ctx, x, y, w, song, snap)
 
   -- prévia do arraste
   if d and ImGui.IsItemActive(ctx) then
-    local a, b = ops.snap(math.min(d.t0, d.t)), ops.snap(math.max(d.t0, d.t))
+    local p0, p1 = settle(d.t0, d.hit0), settle(d.t, d.hit)
+    local a, b = math.min(p0, p1), math.max(p0, p1)
+    if d.hit then
+      local gx = to_x(d.t)
+      ImGui.DrawList_AddLine(dl, gx, y, gx, lane_y + LANE_H, theme.C.loop, 2)
+    end
     if d.kind == "edge" then
-      local gx = to_x(ops.snap(d.t))
+      local gx = to_x(p1)
       ImGui.DrawList_AddLine(dl, gx, y + RULER_H, gx, lane_y + LANE_H, theme.C.queue, 2)
-      kit.txt(ctx, dl, "num", gx + 6, y + RULER_H + 2, theme.C.queue, "comp. " .. (bar_at(d.t) + 1))
+      kit.txt(ctx, dl, "num", gx + 6, y + RULER_H + 2, theme.C.queue, "comp. " .. (bar_at(p1) + 1))
     elseif (d.kind == "draw" or d.kind == "ruler") and (b > a + EPS or d.kind == "draw") then
       if b <= a + EPS then
         -- clique sem arrastar desenha o compasso onde caiu
@@ -352,7 +396,7 @@ local function strip(ctx, x, y, w, song, snap)
 
   if d and ImGui.IsItemDeactivated(ctx) then
     st.drag = nil
-    local moved = math.abs(bar_at(d.t) - bar_at(d.t0)) >= 1
+    local moved = math.abs(settle(d.t, d.hit) - settle(d.t0, d.hit0)) > EPS
     if d.kind == "ruler" then
       if moved then draw_section(song, d.t0, d.t)
       else reaper.SetEditCurPos(ops.snap(d.t), true, false) end
@@ -364,7 +408,14 @@ local function strip(ctx, x, y, w, song, snap)
       split_at(song, d.t)
     else
       local s = section_at(song, d.t)
-      if s then play_from(s) else reaper.SetEditCurPos(ops.snap(d.t), true, false) end
+      if s and ImGui.IsMouseDoubleClicked(ctx, ImGui.MouseButton_Left) then
+        play_from(s)
+      elseif s then
+        st.selected = s.region_idx
+        if not snap.playing then reaper.SetEditCurPos(s.start_pos, true, false) end
+      elseif not snap.playing then
+        reaper.SetEditCurPos(ops.snap(d.t), true, false)
+      end
     end
   end
 
