@@ -2,14 +2,25 @@ local stub = require("stubs.reaper")
 
 local ENTRYPOINT = "LiveSections/LiveSections.lua"
 
+-- ImGui falsa: registra as chamadas; funções sem retorno especial devolvem
+-- 0, 0 (posições) e constantes de estilo não existem.
 local function fake_imgui()
   local calls = {}
-  local ImGui = {}
+  local ImGui = setmetatable({}, {
+    __index = function(_, name)
+      if name:match("^Col_") or name:match("^StyleVar_") then return nil end
+      return function() calls[#calls + 1] = name; return 0, 0 end
+    end,
+  })
   function ImGui.CreateContext(name) calls[#calls + 1] = "CreateContext"; return { name = name } end
   function ImGui.Begin() calls[#calls + 1] = "Begin"; return true, true end
-  function ImGui.Text() calls[#calls + 1] = "Text" end
-  function ImGui.End() calls[#calls + 1] = "End" end
   return ImGui, calls
+end
+
+local function only(calls, names)
+  local out = {}
+  for _, c in ipairs(calls) do if names[c] then out[#out + 1] = c end end
+  return out
 end
 
 describe("entrypoint", function()
@@ -68,7 +79,7 @@ describe("entrypoint", function()
     local deferred = r.calls_to("defer")
     assert.equal(1, #deferred)
     deferred[1][1]()
-    assert.same({ "CreateContext", "Begin", "Text", "End" }, calls)
+    assert.same({ "CreateContext", "Begin", "End" }, only(calls, { CreateContext = true, Begin = true, End = true }))
     assert.equal(2, #r.calls_to("defer"))
   end)
 end)

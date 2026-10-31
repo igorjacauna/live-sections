@@ -47,14 +47,49 @@ end
 package.path = script_dir() .. "?.lua;" .. reaper.ImGui_GetBuiltinPath() .. "/?.lua;" .. package.path
 local ImGui = require("imgui")(IMGUI_API_VERSION)
 
+local theme = require("ui.theme")
+local anim = require("ui.anim")
+
 local ctx = ImGui.CreateContext(APP_NAME)
+local fonts_ok = theme.init(ctx, ImGui, script_dir())
+
+-- Amostra do tema (task 4.1) até as telas existirem: tipografia e estados.
+local function preview()
+  local t = theme.font(ctx, "label")
+  ImGui.TextColored(ctx, theme.C.muted, "MÚSICA ATUAL")
+  theme.pop_font(ctx, t)
+  t = theme.font(ctx, "h1")
+  ImGui.Text(ctx, APP_NAME)
+  theme.pop_font(ctx, t)
+  t = theme.font(ctx, "readout")
+  ImGui.TextColored(ctx, theme.C.text, "96 BPM · 4/4 · 12.3")
+  theme.pop_font(ctx, t)
+  if not fonts_ok then ImGui.TextColored(ctx, theme.C.danger, "Fontes do pacote não encontradas") end
+
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local pulse = anim.pulse(reaper.time_precise(), 1)
+  for _, state in ipairs({ "playing", "queued", "loop", "error" }) do
+    local s = theme.STATE[state]
+    local x, y = ImGui.GetCursorScreenPos(ctx)
+    local color = state == "queued" and theme.mix(theme.C.faint, s.color, pulse) or s.color
+    theme.icon(dl, s.icon, x, y + 2, 16, color)
+    ImGui.SetCursorScreenPos(ctx, x + 24, y)
+    t = theme.font(ctx, "label")
+    ImGui.TextColored(ctx, s.color, s.label:upper())
+    theme.pop_font(ctx, t)
+  end
+end
 
 local function loop()
+  theme.push(ctx)
+  local t = theme.font(ctx, "body")
   local visible, open = ImGui.Begin(ctx, APP_NAME, true)
   if visible then
-    ImGui.Text(ctx, APP_NAME)
+    preview()
     ImGui.End(ctx)
   end
+  theme.pop_font(ctx, t)
+  theme.pop(ctx)
   if open then reaper.defer(loop) end
 end
 
