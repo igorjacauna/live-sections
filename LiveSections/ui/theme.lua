@@ -257,6 +257,16 @@ local ICONS = {
     stroke(dl, { { 8, 3 }, { 8, 13 } }, x, y, k, c, t)
     stroke(dl, { { 3, 8 }, { 13, 8 } }, x, y, k, c, t)
   end,
+  stage = function(dl, x, y, k, c, t)
+    ImGui.DrawList_AddRect(dl, x + 2 * k, y + 3 * k, x + 14 * k, y + 13 * k, c, 2 * k, 0, t)
+    stroke(dl, { { 2, 6.5 }, { 14, 6.5 } }, x, y, k, c, t)
+  end,
+  list = function(dl, x, y, k, c, t)
+    for _, ly in ipairs({ 4, 8, 12 }) do
+      stroke(dl, { { 5.5, ly }, { 13.5, ly } }, x, y, k, c, t)
+      ImGui.DrawList_AddCircleFilled(dl, x + 2.5 * k, y + ly * k, t * 0.6, c)
+    end
+  end,
   prev_song = function(dl, x, y, k, c)
     ImGui.DrawList_AddRectFilled(dl, x + 3.5 * k, y + 3 * k, x + 5.1 * k, y + 13 * k, c)
     ImGui.DrawList_AddTriangleFilled(dl, x + 13 * k, y + 3.2 * k, x + 13 * k, y + 12.8 * k, x + 5.8 * k, y + 8 * k, c)

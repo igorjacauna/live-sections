@@ -1,0 +1,230 @@
+local stub = require("stubs.reaper")
+
+-- ImGui falsa: aceita qualquer chamada; Begin/BeginPopup devolvem `open`.
+local function fake_imgui(opts)
+  opts = opts or {}
+  local calls = {}
+  local im = { MouseButton_Left = 0, MouseButton_Right = 1, Key_Escape = 512, DrawFlags_RoundCornersTop = 48 }
+  setmetatable(im, { __index = function(_, name)
+    return function(...) calls[#calls + 1] = { name, ... }; return 0, 0 end
+  end })
+  function im.InvisibleButton(_, id) calls[#calls + 1] = { "InvisibleButton", id }; return opts.press == id end
+  function im.IsItemClicked() return false end
+  function im.IsItemHovered() return false end
+  function im.IsItemActive() return false end
+  function im.BeginPopup() return false end
+  function im.GetContentRegionAvail() return opts.w or 1100, opts.h or 760 end
+  function im.GetCursorScreenPos() return 0, 0 end
+  function im.CalcTextSize(_, s) return #s * 7, 14 end
+  function im.GetDeltaTime() return 1 / 60 end
+  return im, calls
+end
+
+-- 4/4 a 120 BPM: compasso = 2 s. Música A (0–40) com 3 seções; B (40–80) sem seções.
+describe("ui.performance_view", function()
+  local r, view, perf, layers, mappings, learn, input, feedback, widgets, theme, anim, model, dir
+  local MASTER, KEYS = "SMC-Mixer-Master", "Keys"
+
+  local function load(im)
+    widgets.init(im, theme, anim, learn, mappings)
+    view.init({
+      ImGui = im, theme = theme, anim = anim, widgets = widgets, perf = perf, layers = layers,
+      feedback = feedback, mappings = mappings, learn = learn, input = input, model = model,
+    })
+  end
+
+  local function ev(status, d1, d2, port) return { port_name = port or MASTER, status = status, data1 = d1, data2 = d2 } end
+
+  before_each(function()
+    r = stub.install()
+    dir = os.tmpname(); os.remove(dir)
+    r._resource_path = dir
+    for _, m in ipairs({ "core.project_model", "core.quantize", "core.queue", "core.transport", "core.performance",
+      "core.layers", "midi.mappings", "midi.learn", "midi.input", "midi.feedback", "ui.widgets", "ui.theme",
+      "ui.anim", "ui.performance_view" }) do
+      package.loaded[m] = nil
+    end
+    r.set_project_length(80)
+    r.add_marker(0, "SONG: A")
+    r.add_region(0, 8, "Intro")
+    r.add_region(8, 16, "Verso")
+    r.add_region(16, 24, "Refrão")
+    r.add_marker(40, "SONG: B")
+    r.set_config("smoothseekmeas", 1)
+    r.add_midi_input(4, MASTER)
+    r.add_midi_input(5, KEYS)
+    r.add_midi_output(4, MASTER)
+    model, perf, layers = require("core.project_model"), require("core.performance"), require("core.layers")
+    mappings, learn, input = require("midi.mappings"), require("midi.learn"), require("midi.input")
+    feedback, widgets = require("midi.feedback"), require("ui.widgets")
+    theme, anim, view = require("ui.theme"), require("ui.anim"), require("ui.performance_view")
+    mappings.load()
+    input.init()
+    feedback.configure({ led_velocity = { idle = 0, playing = 127, queued = 60, loop = 90, empty = 0 }, led_blink = false })
+    layers.configure({ keyboard_port = KEYS })
+    perf.init()
+    local im = fake_imgui()
+    theme.init("ctx", im, "/sem/fontes/")
+    load(im)
+  end)
+
+  after_each(function() os.execute("rm -rf '" .. dir .. "'") end)
+
+  describe("ações", function()
+    it("run executa as ações mapeáveis", function()
+      assert.equal("started", view.run("trigger_slot", 2))
+      assert.equal(8, r._cursor)
+      assert.is_true(view.run("set_quantize", "4bar"))
+      assert.equal("4bar", perf.quantize())
+      view.run("cycle_quantize", 1)
+      assert.equal("8bar", perf.quantize())
+      assert.is_true(view.run("toggle_setlist"))
+      assert.is_true(view.ui().setlist_open)
+    end)
+
+    it("evento mapeado dispara a ação e pisca o controle; Note Off não dispara", function()
+      mappings.set({ action = "trigger_slot", arg = 3, port_name = MASTER, msg_type = "note", channel = 1, number = 24 })
+      view.handle_event(ev(0x80, 24, 0))
+      assert.equal(0, r._cursor)
+      view.handle_event(ev(0x90, 24, 127))
+      assert.equal(16, r._cursor)
+    end)
+
+    it("botão em CC dispara só na subida", function()
+      mappings.set({ action = "next_song", port_name = MASTER, msg_type = "cc", channel = 1, number = 20 })
+      local n = 0
+      perf.next_song = function() n = n + 1 end
+      view.handle_event(ev(0xB0, 20, 127))
+      view.handle_event(ev(0xB0, 20, 127))
+      view.handle_event(ev(0xB0, 20, 0))
+      view.handle_event(ev(0xB0, 20, 127))
+      assert.equal(2, n)
+    end)
+
+    it("fader em pitch bend segue o valor", function()
+      mappings.set({ action = "layer_volume", arg = 1, port_name = MASTER, msg_type = "pb", channel = 1 })
+      local got = {}
+      layers.set_layer_volume = function(slot, v) got[#got + 1] = { slot, v } end
+      view.handle_event(ev(0xE0, 0, 0x40))
+      view.handle_event(ev(0xE0, 0, 0x20))
+      assert.equal(2, #got)
+      assert.near(0x20 * 128 / 16383, got[2][2], 1e-9)
+    end)
+
+    it("durante o learn o evento vira mapeamento e não dispara ação", function()
+      learn.start({ action = "trigger_slot", arg = 2 })
+      view.handle_event(ev(0x90, 30, 127))
+      assert.equal(0, r._cursor)
+      assert.equal(30, mappings.get("trigger_slot", 2).number)
+    end)
+
+    it("notas do teclado chegam ao controle de notas seguradas", function()
+      view.handle_event(ev(0x90, 60, 100, KEYS))
+      assert.is_true(layers.held())
+    end)
+  end)
+
+  describe("update", function()
+    it("estado dos cards: tocando, na fila com batidas restantes, loop", function()
+      r.set_play(true, 9)
+      view.update(0)
+      local s = view.snapshot()
+      assert.equal("Verso", s.section.name)
+      assert.near(1 / 8, s.progress, 1e-9)
+      assert.equal("playing", view.card_state(s.section, s))
+
+      perf.trigger_slot(3)                   -- quantize 1 compasso: virada em 10 s
+      view.update(0.1)
+      s = view.snapshot()
+      assert.equal("queued", view.card_state(model.songs()[1].sections[3], s))
+      assert.equal(2, s.beats_left)          -- 9 s → 10 s: 2 batidas de 0,5 s
+    end)
+
+    it("acende os LEDs pelo estado e apaga pad sem seção", function()
+      mappings.set({ action = "trigger_slot", arg = 2, port_name = MASTER, msg_type = "note", channel = 1, number = 24 })
+      mappings.set({ action = "trigger_slot", arg = 9, port_name = MASTER, msg_type = "note", channel = 1, number = 25 })
+      r.set_play(true, 9)
+      view.update(0)
+      local leds = {}
+      for _, c in ipairs(r.calls_to("StuffMIDIMessage")) do leds[c[3]] = c[4] end
+      assert.same({ [24] = 127, [25] = 0 }, leds)
+    end)
+
+    it("troca de música ativa as camadas da nova música", function()
+      local seen = {}
+      layers.activate = function(song) seen[#seen + 1] = song and song.name end
+      view.update(0)
+      view.update(0.1)
+      r.set_play(false)
+      r._cursor = 41
+      view.update(0.2)
+      assert.same({ "A", "B" }, seen)
+    end)
+
+    it("porta mapeada que some aparece como desconectada", function()
+      mappings.set({ action = "panic", port_name = MASTER, msg_type = "note", channel = 1, number = 1 })
+      view.update(0)
+      assert.same({}, view.snapshot().disconnected)
+      r.set_midi_present(4, false)
+      view.update(0.5)
+      assert.same({}, view.snapshot().disconnected)       -- checa a cada 1 s
+      view.update(1.2)
+      assert.same({ MASTER }, view.snapshot().disconnected)
+    end)
+  end)
+
+  describe("draw", function()
+    local function draw(opts)
+      local im, calls = fake_imgui(opts)
+      load(im)
+      if opts and opts.setup then opts.setup() end
+      view.update(1)
+      assert.has_no.errors(function() view.draw("ctx") end)
+      return calls
+    end
+
+    local function ids(calls)
+      local out = {}
+      for _, c in ipairs(calls) do if c[1] == "InvisibleButton" then out[c[2]] = true end end
+      return out
+    end
+
+    it("desenha barra superior, setlist, cards, camadas e ações", function()
+      local b = ids(draw())
+      assert.is_true(b.mode_perf and b.mode_edit and b.stage and b.quantize)
+      assert.is_true(b.song1 and b.song2)
+      assert.is_true(b["sec" .. model.songs()[1].sections[1].region_idx])
+      assert.is_true(b.act_toggle_loop and b.act_cancel and b.act_play_stop and b.act_prev_song and b.act_next_song)
+    end)
+
+    it("modo palco: faixa compacta e setlist expansível", function()
+      local b = ids(draw({ setup = function() view.ui().stage = true end }))
+      assert.is_true(b.strip1 and b.strip2 and b.strip3)
+      assert.is_nil(b.song1)
+      b = ids(draw({ setup = function() view.ui().stage = true; view.ui().setlist_open = true end }))
+      assert.is_true(b.song1)
+    end)
+
+    it("janela estreita usa a faixa compacta", function()
+      local b = ids(draw({ w = 600 }))
+      assert.is_true(b.strip2)
+    end)
+
+    it("música sem seções mostra a orientação e + Seção, que leva ao modo Editar", function()
+      local b = ids(draw({ setup = function() r._cursor = 50 end }))
+      assert.is_true(b.add_section)
+      draw({ press = "add_section", setup = function() r._cursor = 50 end })
+      assert.equal("edit", view.ui().mode)
+    end)
+
+    it("o botão Play da barra de ações toca", function()
+      draw({ press = "act_play_stop" })
+      assert.equal(1, #r.calls_to("OnPlayButton"))
+    end)
+
+    it("modo Editar não desenha cards nem ações", function()
+      local b = ids(draw({ setup = function() view.ui().mode = "edit" end }))
+      assert.is_nil(b.act_play_stop)
+    end)
+  end)
+end)

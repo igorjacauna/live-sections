@@ -50,90 +50,51 @@ local ImGui = require("imgui")(IMGUI_API_VERSION)
 local theme = require("ui.theme")
 local anim = require("ui.anim")
 local widgets = require("ui.widgets")
+local view = require("ui.performance_view")
 local input = require("midi.input")
 local learn = require("midi.learn")
 local mappings = require("midi.mappings")
+local feedback = require("midi.feedback")
+local perf = require("core.performance")
+local layers = require("core.layers")
+local model = require("core.project_model")
+
+-- Configurações globais (config.json, chave "settings"); a tela de
+-- configurações (task 4.6) passa a editá-las.
+local function settings()
+  local f = io.open(mappings.config_path(), "r")
+  if not f then return {} end
+  local ok, data = pcall(require("vendor.json").decode, f:read("a"))
+  f:close()
+  return ok and type(data) == "table" and type(data.settings) == "table" and data.settings or {}
+end
 
 local ctx = ImGui.CreateContext(APP_NAME)
-local fonts_ok = theme.init(ctx, ImGui, script_dir())
+theme.init(ctx, ImGui, script_dir())
 widgets.init(ImGui, theme, anim, learn, mappings)
 mappings.load()
 input.init()
-
--- MIDI: durante o learn a mensagem vira mapeamento; fora dele, o controle
--- mapeado pisca (as ações entram com as telas).
-local function read_midi()
-  for _, e in ipairs(input.poll()) do
-    if learn.state() then
-      local m = learn.feed(e)
-      if m then widgets.flash(m) end
-    else
-      local m = mappings.match(e)
-      if m then widgets.flash(m) end
-    end
-  end
-end
-
--- Amostra do tema (task 4.1) até as telas existirem: tipografia e estados.
-local function preview()
-  local t = theme.font(ctx, "label")
-  ImGui.TextColored(ctx, theme.C.muted, "MÚSICA ATUAL")
-  theme.pop_font(ctx, t)
-  t = theme.font(ctx, "h1")
-  ImGui.Text(ctx, APP_NAME)
-  theme.pop_font(ctx, t)
-  t = theme.font(ctx, "readout")
-  ImGui.TextColored(ctx, theme.C.text, "96 BPM · 4/4 · 12.3")
-  theme.pop_font(ctx, t)
-  if not fonts_ok then ImGui.TextColored(ctx, theme.C.danger, "Fontes do pacote não encontradas") end
-
-  local dl = ImGui.GetWindowDrawList(ctx)
-  local pulse = anim.pulse(reaper.time_precise(), 1)
-  for _, state in ipairs({ "playing", "queued", "loop", "error" }) do
-    local s = theme.STATE[state]
-    local x, y = ImGui.GetCursorScreenPos(ctx)
-    local color = state == "queued" and theme.mix(theme.C.faint, s.color, pulse) or s.color
-    theme.icon(dl, s.icon, x, y + 2, 16, color)
-    ImGui.SetCursorScreenPos(ctx, x + 24, y)
-    t = theme.font(ctx, "label")
-    ImGui.TextColored(ctx, s.color, s.label:upper())
-    theme.pop_font(ctx, t)
-  end
-
-  -- cards e controles mapeáveis (task 4.2)
-  local now = reaper.time_precise()
-  local cards = {
-    { name = "Verso", color = 0, slot = 2, bars = 8, state = "playing", progress = (now / 8) % 1 },
-    { name = "Refrão", color = 0, slot = 3, bars = 8, state = "queued", beats_left = 4 - math.floor(now % 4) },
-    { name = "Ponte", color = 0, slot = 4, bars = 4, state = "loop", progress = (now / 4) % 1 },
-    { name = "Outro", color = 0, slot = 5, bars = 4 },
-  }
-  for i, card in ipairs(cards) do
-    card.control = { action = "trigger_slot", arg = card.slot }
-    if i > 1 then
-      ImGui.SameLine(ctx)
-      if ImGui.GetContentRegionAvail(ctx) < 180 then ImGui.NewLine(ctx) end
-    end
-    widgets.section_card(ctx, "card" .. i, card, 180, 140)
-  end
-  ImGui.Dummy(ctx, 0, 8)
-  ImGui.Button(ctx, "Panic")
-  widgets.mappable(ctx, { action = "panic" }, "Panic")
-  ImGui.SameLine(ctx)
-  local global = learn.state() and learn.state().mode == "global"
-  if ImGui.Button(ctx, global and "Sair do Learn global" or "Learn global") then
-    if global then learn.cancel() else learn.start_global() end
-  end
-end
+local cfg = settings()
+feedback.configure(cfg)
+layers.configure({ keyboard_port = cfg.keyboard_port, bypass_tail_s = cfg.bypass_tail_s })
+perf.init({ quantize = cfg.quantize, tolerance_ms = cfg.tolerance_ms })
+anim.set_reduced(cfg.reduced_motion == true)
+view.init({
+  ImGui = ImGui, theme = theme, anim = anim, widgets = widgets,
+  perf = perf, layers = layers, feedback = feedback, mappings = mappings,
+  learn = learn, input = input, model = model,
+})
 
 local function loop()
-  read_midi()
-  widgets.frame(ctx, reaper.time_precise())
+  local now = reaper.time_precise()
+  view.update(now)
+  widgets.frame(ctx, now)
   theme.push(ctx)
   local t = theme.font(ctx, "body")
+  ImGui.SetNextWindowSize(ctx, 1100, 760, ImGui.Cond_FirstUseEver)
   local visible, open = ImGui.Begin(ctx, APP_NAME, true)
   if visible then
-    preview()
+    view.draw(ctx)
     ImGui.End(ctx)
   end
   theme.pop_font(ctx, t)

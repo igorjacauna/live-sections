@@ -243,6 +243,19 @@ describe("layers", function()
       assert.is_false(layers.toggle_mute(1))
     end)
 
+    it("layer_state mostra posição, mute e solo; o fader da tela solta o físico", function()
+      layers.set_layer_volume(1, 0.716)
+      layers.toggle_mute(1)
+      local st = layers.layer_state(1)
+      assert.same({ "Cordas", true, false }, { st.name, st.mute, st.solo })
+      assert.near(0.716, st.pos, 1e-9)
+      assert.is_nil(layers.layer_state(3))
+
+      assert.is_true(layers.set_volume_ui(1, 0.3))
+      assert.near(0.3, pos(cordas), 1e-9)
+      assert.equal("waiting", layers.set_layer_volume(1, 0.6))     -- não cruzou 0,3
+    end)
+
     it("mute e solo por camada alternam na track da camada", function()
       assert.is_true(layers.toggle_mute(2))
       assert.equal(1, piano.info.B_MUTE)

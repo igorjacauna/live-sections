@@ -38,6 +38,7 @@ M.ACTIONS = {
   layer_volume   = { arg = "layer" },     -- camada N
   layer_mute     = { arg = "layer" },
   layer_solo     = { arg = "layer" },
+  toggle_setlist = {},                    -- setlist completa no modo palco (RF-074)
 }
 
 local list = {}
