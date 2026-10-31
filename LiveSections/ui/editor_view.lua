@@ -6,7 +6,8 @@
 -- da verdade; a tela só redesenha o que o project_model relê.
 --
 -- Faixa (ferramenta Selecionar): clicar numa seção seleciona e toca a partir
--- dela; arrastar a borda move as duas seções vizinhas juntas. Dividir: clicar
+-- dela; arrastar a borda move as duas seções vizinhas juntas. Remover deixa
+-- o trecho sem seção. Dividir: clicar
 -- divide no compasso. Desenhar: arrastar cria uma seção. Na régua, clicar
 -- move o cursor e arrastar desenha. `S` divide no cursor; Ctrl/Cmd+Z desfaz.
 --
@@ -174,6 +175,12 @@ local function draw_section(song, a, b)
   else
     report(false, name)
   end
+end
+
+local function remove(section)
+  ops.remove(section)
+  if st.selected == section.region_idx then st.selected = nil end
+  say(section.name .. " removida. O trecho fica sem seção e toca normalmente.")
 end
 
 local function undo()
@@ -378,6 +385,8 @@ local function strip(ctx, x, y, w, song, snap)
         report(ops.merge_next(song, s), nil, s.name .. " juntada com a próxima.")
       end
       if ImGui.MenuItem(ctx, "Dividir no cursor") then split_at(song, cursor_pos(snap)) end
+      ImGui.Separator(ctx)
+      if ImGui.MenuItem(ctx, "Remover seção") then remove(s) end
     end
     ImGui.EndPopup(ctx)
   end
@@ -533,7 +542,11 @@ local function inspector(ctx, x, y, w, song, snap)
   end
   bx = bx + bw + 6
   if bx + 150 > ix + iw then bx, cy = ix, cy + 36 end
-  if kit.button(ctx, "split_cursor", "Dividir no cursor  S", bx, cy, 30) then split_at(song, cursor_pos(snap)) end
+  clicked, bw = kit.button(ctx, "split_cursor", "Dividir no cursor  S", bx, cy, 30)
+  if clicked then split_at(song, cursor_pos(snap)) end
+  bx = bx + bw + 6
+  if bx + 90 > ix + iw then bx, cy = ix, cy + 36 end
+  if kit.button(ctx, "remove", "Remover", bx, cy, 30, { accent = theme.C.danger }) then remove(sec) end
   cy = cy + 30 + pad
   return cy - y
 end

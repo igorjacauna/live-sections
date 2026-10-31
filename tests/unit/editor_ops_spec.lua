@@ -69,6 +69,14 @@ describe("editor_ops", function()
     end)
   end)
 
+  describe("remove", function()
+    it("apaga a região num passo de undo; o trecho fica sem seção", function()
+      assert.is_true(ops.remove(sec(1, "Verso")))
+      assert.equal(5, #r.regions())   -- eram 6
+      assert.same({ 1, 1 }, { undo_blocks() })
+    end)
+  end)
+
   describe("merge_next", function()
     it("junta com a próxima e apaga a região dela", function()
       assert.is_true(ops.merge_next(song(1), sec(1, "Verso")))

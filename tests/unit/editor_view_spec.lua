@@ -185,6 +185,12 @@ describe("ui.editor_view", function()
       assert.same({ { 0, 8, "Intro" }, { 8, 12, "Verso" }, { 12, 24, "Refrão" } }, regions())
     end)
 
+    it("Remover deixa o trecho sem seção", function()
+      frame({ press = "remove" })
+      assert.same({ { 0, 8, "Intro" }, { 16, 24, "Refrão" } }, regions())
+      assert.is_nil(view.state().selected)
+    end)
+
     it("Juntar com a próxima", function()
       frame({ press = "merge" })
       assert.same({ { 0, 8, "Intro" }, { 8, 24, "Verso" } }, regions())

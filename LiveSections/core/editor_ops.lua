@@ -99,6 +99,12 @@ function M.merge_next(song, section)
   return true
 end
 
+-- Remove a seção. O trecho fica sem seção e continua tocando normalmente.
+function M.remove(section)
+  undoable("remover seção", function() reaper.DeleteProjectMarker(PROJ, section.region_idx, true) end)
+  return true
+end
+
 -- Move a borda `edge` ("start" ou "end") da seção para `pos`. Se a seção
 -- vizinha encosta nessa borda, ela se move junto. A posição é limitada para
 -- nenhuma das duas ficar com menos de um compasso nem invadir outra seção.
