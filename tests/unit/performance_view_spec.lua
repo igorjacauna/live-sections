@@ -172,6 +172,22 @@ describe("ui.performance_view", function()
       assert.same({ [24] = 127, [25] = 0 }, leds)
     end)
 
+    it("LEDs de mute e solo das camadas seguem o estado da track", function()
+      local k = r.add_track("Kontakt A")
+      local piano = r.add_track("Piano")
+      r.add_receive(k, piano, 0)
+      layers.link(model.songs()[1], k)
+      mappings.set({ action = "layer_mute", arg = 1, port_name = MASTER, msg_type = "note", channel = 1, number = 16 })
+      mappings.set({ action = "layer_solo", arg = 1, port_name = MASTER, msg_type = "note", channel = 1, number = 8 })
+      view.update(0)
+      view.handle_event(ev(0x90, 16, 127))
+      view.update(0.1)
+      local leds = {}
+      for _, c in ipairs(r.calls_to("StuffMIDIMessage")) do leds[c[3]] = c[4] end
+      assert.same({ [16] = 127, [8] = 0 }, leds)
+      assert.equal(1, piano.info.B_MUTE)
+    end)
+
     it("troca de música ativa as camadas da nova música", function()
       local seen = {}
       layers.activate = function(song) seen[#seen + 1] = song and song.name end

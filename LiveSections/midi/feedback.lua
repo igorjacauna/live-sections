@@ -12,9 +12,12 @@
 -- acender um LED por conta própria e ele ficaria preso.
 --
 -- Estados: "idle" (parado), "playing", "queued", "loop", "empty" (sem seção).
+-- Mute e solo de camada e o Play (tocando) acendem com a velocity de
+-- "playing": é o "aceso" do controlador.
 --
 -- M.configure(settings)                { led_velocity, feedback_out_port?, led_blink? }
--- M.state_for(mapping, ctx) -> state   ctx = { sections, playing, queued, looping }
+-- M.state_for(mapping, ctx) -> state   ctx = { sections, playing, queued, looping,
+--                                      transport, layer = function(slot) -> { mute, solo } }
 -- M.set_state(mapping, state)
 -- M.flush(now)                         envia o que mudou; `now` em segundos
 -- M.reset()                            esquece o que foi enviado (reenvia tudo)
@@ -69,6 +72,8 @@ local function same_section(a, b) return a ~= nil and b ~= nil and a.region_idx 
 --   ctx.playing   seção tocando agora
 --   ctx.queued    seção na fila
 --   ctx.looping   seção presa em loop
+--   ctx.transport true com o transporte tocando
+--   ctx.layer     função: estado { mute, solo } da camada N, ou nil
 function M.state_for(mapping, ctx)
   if mapping.action == "trigger_slot" then
     local section = ctx.sections and ctx.sections[mapping.arg]
@@ -79,6 +84,12 @@ function M.state_for(mapping, ctx)
     return "idle"
   elseif mapping.action == "toggle_loop" then
     return ctx.looping and "loop" or "idle"
+  elseif mapping.action == "play" or mapping.action == "play_stop" then
+    return ctx.transport and "playing" or "idle"
+  elseif mapping.action == "layer_mute" or mapping.action == "layer_solo" then
+    local st = ctx.layer and ctx.layer(mapping.arg)
+    local on = st and (mapping.action == "layer_mute" and st.mute or mapping.action == "layer_solo" and st.solo)
+    return on and "playing" or "idle"
   end
   return "idle"
 end

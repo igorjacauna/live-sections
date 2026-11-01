@@ -46,6 +46,23 @@ describe("midi.feedback", function()
       assert.equal("idle", fb.state_for(loop, {}))
       assert.equal("idle", fb.state_for({ action = "panic" }, ctx))
     end)
+
+    it("mute e solo de camada acendem quando ligados", function()
+      local layer = function(slot) return ({ { mute = true, solo = false }, { mute = false, solo = true } })[slot] end
+      local mute = function(n) return { action = "layer_mute", arg = n } end
+      local solo = function(n) return { action = "layer_solo", arg = n } end
+      local c = { layer = layer }
+      assert.same({ "playing", "idle", "idle", "playing", "idle" },
+        { fb.state_for(mute(1), c), fb.state_for(mute(2), c), fb.state_for(solo(1), c), fb.state_for(solo(2), c),
+          fb.state_for(mute(3), c) })
+    end)
+
+    it("Play e Play/Stop acendem com o transporte tocando", function()
+      assert.equal("playing", fb.state_for({ action = "play" }, { transport = true }))
+      assert.equal("playing", fb.state_for({ action = "play_stop" }, { transport = true }))
+      assert.equal("idle", fb.state_for({ action = "play" }, {}))
+      assert.equal("idle", fb.state_for({ action = "stop" }, { transport = true }))
+    end)
   end)
 
   describe("flush", function()

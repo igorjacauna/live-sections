@@ -200,7 +200,13 @@ local function update_leds()
     playing = s.playing and s.section or nil,
     queued = s.queued_section,
     looping = s.looping,
+    transport = s.playing,
   }
+  local layer_cache = {}
+  function ctx.layer(slot)
+    if layer_cache[slot] == nil then layer_cache[slot] = layers.layer_state(slot) or false end
+    return layer_cache[slot] or nil
+  end
   for _, m in ipairs(mappings.all()) do feedback.set_state(m, feedback.state_for(m, ctx)) end
   feedback.flush(now)
 end
