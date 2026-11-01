@@ -44,7 +44,7 @@ describe("ui.settings_view", function()
     r._resource_path = dir
     for _, m in ipairs({ "core.project_model", "core.quantize", "core.queue", "core.transport", "core.performance",
       "core.layers", "midi.mappings", "midi.learn", "midi.feedback", "ui.theme", "ui.anim", "ui.widgets",
-      "ui.performance_view", "ui.settings_view" }) do
+      "ui.performance_view", "ui.settings_view", "core.web_remote" }) do
       package.loaded[m] = nil
     end
     r.set_project_length(40)
@@ -130,6 +130,27 @@ describe("ui.settings_view", function()
     local again = require("midi.mappings")
     again.load()
     assert.equal(KEYS, again.settings().keyboard_port)
+  end)
+
+  it("celular: mostra o endereço com QR Code e copia", function()
+    os.execute("mkdir -p '" .. dir .. "'")
+    local f = io.open(dir .. "/reaper.ini", "w")
+    f:write("csurf_0=HTTP 0 8080 '' 'index.html' 0 ''\n")
+    f:close()
+    r._exec = { ["/sbin/ifconfig"] = "en0: flags=8863\n\tinet 192.168.0.23 netmask 0xffffff00\n" }
+    frame({ press = "web_refresh" })
+    im.calls = {}
+    frame({ press = "copy_url1" })
+    local url = "http://192.168.0.23:8080/livesections.html"
+    local white, dark, copied = false, 0, nil
+    for _, c in ipairs(im.calls) do
+      if c[1] == "DrawList_AddRectFilled" and c[7] == 0xFFFFFFFF then white = true end
+      if c[1] == "DrawList_AddRectFilled" and c[7] == 0x000000FF then dark = dark + 1 end
+      if c[1] == "SetClipboardText" then copied = c[3] end
+    end
+    assert.is_true(white)
+    assert.is_true(dark > 29)
+    assert.equal(url, copied)
   end)
 
   it("rótulos dos controles", function()

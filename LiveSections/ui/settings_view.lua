@@ -11,6 +11,7 @@
 -- M.draw(ctx, x, y, w, h, snap) -> altura usada
 
 local web = require("core.web_remote")
+local qr = require("core.qrcode")
 
 local M = {}
 
@@ -238,6 +239,36 @@ local function transport_card(ctx, x, y, w)
   return cy - y + 8
 end
 
+-- QR Code do endereço: fundo branco com a margem de 4 módulos que os
+-- leitores pedem; cada linha escura vira um retângulo só.
+local QR_MAX_PX = 240
+local QR_QUIET = 4
+local qr_pick = 1
+local qr_cache = {}      -- [texto] = { matriz, lado }
+
+local function draw_qr(dl, x, y, max_px, text)
+  if not qr_cache[text] then qr_cache[text] = { qr.encode(text) } end
+  local m, n = qr_cache[text][1], qr_cache[text][2]
+  if not m then return 0 end
+  local px = math.max(2, math.floor(max_px / (n + 2 * QR_QUIET)))
+  local side = px * (n + 2 * QR_QUIET)
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + side, y + side, 0xFFFFFFFF, 6)
+  local ox, oy = x + px * QR_QUIET, y + px * QR_QUIET
+  for r, row in ipairs(m) do
+    local c = 1
+    while c <= n do
+      if row[c] then
+        local start = c
+        while c <= n and row[c] do c = c + 1 end
+        ImGui.DrawList_AddRectFilled(dl, ox + (start - 1) * px, oy + (r - 1) * px, ox + (c - 1) * px, oy + r * px, 0x000000FF)
+      else
+        c = c + 1
+      end
+    end
+  end
+  return side
+end
+
 local function chart_card(ctx, x, y, w)
   local dl = ImGui.GetWindowDrawList(ctx)
   local ix, iw = x + 16, w - 32
@@ -268,10 +299,18 @@ local function chart_card(ctx, x, y, w)
   for _, t in ipairs(problems) do cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.queue, t) + 6 end
   if #info.urls > 0 then
     cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.muted,
-      "Com o celular no mesmo Wi-Fi deste computador, abra no navegador:") + 8
+      "Com o celular no mesmo Wi-Fi deste computador, aponte a câmera para o código ou abra o endereço no navegador:") + 10
+    if not info.urls[qr_pick] then qr_pick = 1 end
+    cy = cy + draw_qr(dl, ix, cy, math.min(iw, QR_MAX_PX), info.urls[qr_pick]) + 12
     for i, url in ipairs(info.urls) do
-      kit.txt(ctx, dl, "strong", ix, cy + 6, theme.C.text, url)
       local cw = kit.size(ctx, "button", "Copiar") + 24
+      local qw = #info.urls > 1 and kit.size(ctx, "button", "QR") + 24 or 0
+      ImGui.DrawList_PushClipRect(dl, ix, cy, ix + iw - cw - qw - 12, cy + 30, true)
+      kit.txt(ctx, dl, "strong", ix, cy + 6, i == qr_pick and theme.C.text or theme.C.muted, url)
+      ImGui.DrawList_PopClipRect(dl)
+      if qw > 0 and kit.button(ctx, "qr_url" .. i, "QR", ix + iw - cw - qw - 6, cy, 30, { w = qw, active = i == qr_pick }) then
+        qr_pick = i
+      end
       if kit.button(ctx, "copy_url" .. i, "Copiar", ix + iw - cw, cy, 30, { w = cw }) then
         ImGui.SetClipboardText(ctx, url)
       end
