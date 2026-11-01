@@ -284,7 +284,7 @@ local function chart_card(ctx, x, y, w)
   if moved then c.chart_lines = math.max(2, math.min(16, n)); save() end
   cy = cy + 40
   cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.muted,
-    "Conta a linha de acordes e a da letra. Um verso nunca é cortado; a janela anda conforme o compasso.") + 14
+    "Conta a linha de acordes e a da letra. Mostra a seção inteira; se não couber, rola conforme a seção avança. Um verso nunca é cortado.") + 14
   cy = cy + field_label(ctx, dl, ix, cy, "NO CELULAR OU TABLET")
   local info = web.info()
   local problems = {}

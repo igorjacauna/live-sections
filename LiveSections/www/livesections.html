@@ -30,15 +30,16 @@ header { display: grid; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid
 .sec i { width: 8px; align-self: stretch; border-radius: 3px; background: var(--c, #6C9AB0); }
 .sec b { font-size: clamp(26px, 7vw, 46px); font-weight: 800; letter-spacing: -.02em; line-height: 1.1; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sec span { font: 700 16px var(--mono); color: var(--muted); white-space: nowrap; }
+.prog { height: 6px; border-radius: 3px; background: var(--raise); overflow: hidden; }
+.prog i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--c, #6C9AB0); }
+.prog.off { visibility: hidden; }
 .next { font: 700 15px var(--ui); color: var(--muted); min-height: 20px; }
 .next.q { color: var(--queue); }
 .note { font: 700 17px var(--ui); line-height: 1.35; color: var(--text); border-left: 4px solid var(--queue); padding: 2px 0 2px 12px; margin-top: 4px; white-space: pre-line; }
 .note:empty { display: none; }
 main { flex: 1; overflow: hidden; padding-top: 14px; }
-.row { font-family: var(--mono); font-size: var(--fs); line-height: 1.25; white-space: pre; padding-left: 14px; border-left: 4px solid transparent; color: var(--faint); }
-.row.cur { border-left-color: var(--queue); color: var(--text); }
-.row.chords { font-weight: 700; color: color-mix(in oklab, var(--queue) 55%, var(--faint)); }
-.row.chords.cur { color: var(--queue); }
+.row { font-family: var(--mono); font-size: var(--fs); line-height: 1.25; white-space: pre; padding-left: 14px; color: var(--text); }
+.row.chords { font-weight: 700; color: var(--queue); }
 .row.nexthdr { font: 700 13px var(--ui); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 12px 0 6px; border: 0; padding-left: 18px; }
 .grid { display: flex; gap: 6px; flex-wrap: wrap; white-space: normal; }
 .grid span { padding: 4px 12px; border-radius: 8px; background: var(--raise); font-weight: 700; }
@@ -54,7 +55,8 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
 <body>
 <header>
   <div class="song"><span id="song">Live Sections</span><span id="play"></span></div>
-  <div class="sec"><i id="color"></i><b id="section">—</b><span id="bar"></span></div>
+  <div class="sec" id="sec"><i></i><b id="section">—</b><span id="bar"></span></div>
+  <div class="prog off" id="prog"><i id="progbar"></i></div>
   <div class="next" id="next"></div>
   <div class="note" id="note"></div>
 </header>
@@ -97,7 +99,7 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
     if (!s.open) {
       $('section').textContent = 'Live Sections fechado';
       $('song').textContent = 'Live Sections';
-      $('bar').textContent = ''; $('next').textContent = ''; $('play').textContent = ''; $('note').textContent = '';
+      $('bar').textContent = ''; $('next').textContent = ''; $('prog').className = 'prog off'; $('play').textContent = ''; $('note').textContent = '';
       $('chart').replaceChildren(el('div', 'empty', 'Abra o Live Sections no REAPER.'));
       return;
     }
@@ -105,8 +107,10 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
     $('note').textContent = s.note || '';
     $('play').textContent = s.looping ? 'LOOP' : s.playing ? 'TOCANDO' : 'PARADO';
     $('section').textContent = s.section || 'Trecho sem seção';
-    $('color').style.setProperty('--c', s.color || '#6C9AB0');
+    document.documentElement.style.setProperty('--c', s.color || '#6C9AB0');
     $('bar').textContent = s.bars ? s.bar + '/' + s.bars : '';
+    $('prog').className = 'prog' + (s.progress != null ? '' : ' off');
+    $('progbar').style.width = ((s.progress || 0) * 100).toFixed(1) + '%';
     var nx = $('next');
     nx.className = 'next' + (s.queued ? ' q' : '');
     nx.textContent = s.next ? (s.queued ? 'Na fila: ' + s.next + ' em ' + (s.beats_left || 0) + ' bat.' : 'A seguir: ' + s.next) : '';

@@ -1,5 +1,6 @@
--- Janela "Cifra": música, anotação, seção, próxima seção com contagem e as linhas da
--- cifra acompanhando o compasso, a partir do estado de core/stage. É uma
+-- Janela "Cifra": música, anotação, seção com barra de progresso, próxima
+-- seção com contagem e as linhas da cifra da seção, a partir do estado de
+-- core/stage. É uma
 -- janela separada da principal: dá para arrastá-la para outro monitor ou TV.
 --
 -- M.init(deps)            ImGui, theme, kit
@@ -43,7 +44,13 @@ local function header(ctx, dl, x, y, w, state)
     local pos = string.format("comp. %d/%d", state.bar, state.bars)
     kit.txt(ctx, dl, "readout", x + w - kit.size(ctx, "readout", pos), cy + 10, theme.C.muted, pos)
   end
-  cy = cy + 50
+  cy = cy + 46
+  -- progresso da seção, na cor dela
+  if state.progress then
+    ImGui.DrawList_AddRectFilled(dl, x, cy, x + w, cy + 6, theme.C.raise, 3)
+    ImGui.DrawList_AddRectFilled(dl, x, cy, x + w * state.progress, cy + 6, color, 3)
+  end
+  cy = cy + 16
   if state.next then
     local label = state.queued and string.format("NA FILA · %s em %d bat.", state.next, state.beats_left or 0)
       or ("A SEGUIR · " .. state.next)
@@ -102,16 +109,12 @@ function M.draw(ctx, state)
           kit.txt(ctx, dl, "label", x + 16, cy + 4, theme.C.faint, "A SEGUIR · " .. row.text:upper())
           cy = cy + 26
         else
-          if row.current then
-            ImGui.DrawList_AddRectFilled(dl, x, cy - 2, x + 5, cy + line_h - 6, theme.C.queue, 2)
-          end
-          local color = row.current and theme.C.text or theme.C.faint
           if row.kind == "grid" then
             grid_row(ctx, dl, x + 16, cy, w - 16, row, lyric, chord, line_h)
           elseif row.kind == "chords" then
-            kit.txt(ctx, dl, chord, x + 16, cy, row.current and theme.C.queue or theme.C.faint, row.text)
+            kit.txt(ctx, dl, chord, x + 16, cy, theme.C.queue, row.text)
           else
-            kit.txt(ctx, dl, lyric, x + 16, cy, color, row.text)
+            kit.txt(ctx, dl, lyric, x + 16, cy, theme.C.text, row.text)
           end
           cy = cy + line_h
         end

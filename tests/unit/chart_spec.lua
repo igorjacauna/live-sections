@@ -70,28 +70,37 @@ describe("core.chart", function()
     local verso
     before_each(function() verso = chart.parse(TEXT).blocks[2].units end)
 
-    it("os compassos se dividem entre os versos; a janela começa no verso atual", function()
-      -- 6 compassos, 3 versos: 2 compassos cada
-      local rows = chart.view(verso, 0.5, 6, 6)
-      assert.is_true(rows[1].current)
-      assert.equal("chords", rows[1].kind)
-      assert.equal("lyrics", rows[2].kind)
-      rows = chart.view(verso, 2.1, 6, 6)
-      assert.equal("Em             C", rows[1].text)
-      rows = chart.view(verso, 5, 6, 6)
-      assert.equal("Ela disse que sim", rows[1].text)
+    it("mostra a seção inteira, sem linha atual, quando cabe", function()
+      -- Verso: 2 versos de acordes + letra e 1 só de letra = 5 linhas
+      for _, bar in ipairs({ 0.5, 2.1, 5 }) do
+        local rows = chart.view(verso, bar, 6, 6)
+        assert.equal(5, #rows)
+        assert.equal("chords", rows[1].kind)
+        assert.equal("Ela disse que sim", rows[5].text)
+        for _, row in ipairs(rows) do assert.is_nil(row.current) end
+      end
     end)
 
-    it("respeita o máximo de linhas sem cortar um verso", function()
-      local rows = chart.view(verso, 0, 6, 3)
-      assert.equal(2, #rows)
+    it("se não cabe, rola com a seção sem cortar um verso", function()
+      -- 6 compassos, 3 versos: 2 compassos cada; 3 linhas na tela
+      local rows = chart.view(verso, 0.5, 6, 3)
+      assert.equal(2, #rows)                      -- o 2º verso não cabe inteiro
+      assert.equal(verso[1].lines[1], rows[1].text)
+      rows = chart.view(verso, 2.1, 6, 3)
+      assert.equal(verso[2].lines[1], rows[1].text)
+      assert.equal(3, #rows)
+      -- no último verso, o anterior volta para preencher a tela
+      rows = chart.view(verso, 5, 6, 3)
+      assert.equal(verso[2].lines[1], rows[1].text)
+      assert.equal("Ela disse que sim", rows[3].text)
     end)
 
-    it("no fim da seção mostra 'A seguir' com o começo da próxima", function()
+    it("seção inteira na tela e espaço sobrando: 'A seguir' com o começo da próxima", function()
       local refrao = chart.parse(TEXT).blocks[3].units
-      local rows = chart.view(verso, 5, 6, 6, "Refrão", refrao)
-      assert.same({ "next", "Refrão" }, { rows[2].kind, rows[2].text })
-      assert.equal("C   G   D", rows[3].text)
+      local rows = chart.view(verso, 0, 6, 8, "Refrão", refrao)
+      assert.same({ "next", "Refrão" }, { rows[6].kind, rows[6].text })
+      assert.equal("C   G   D", rows[7].text)
+      assert.is_nil(chart.view(verso, 0, 6, 5, "Refrão", refrao)[6])
     end)
 
     it("grade: o compasso atual acende a célula; versos comuns dividem o que sobra", function()
@@ -101,7 +110,8 @@ describe("core.chart", function()
       assert.equal("grid", rows[1].kind)
       assert.equal(2, rows[1].cell)
       rows = chart.view(units, 2, 6, 6)
-      assert.equal("C", rows[1].text)
+      assert.equal("grid", rows[1].kind)
+      assert.is_nil(rows[1].cell)                 -- a grade já passou
     end)
   end)
 

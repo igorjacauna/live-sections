@@ -31,7 +31,7 @@ describe("ui.chart_view", function()
 
   it("desenha seção, contagem da fila e as linhas, com a grade", function()
     assert.is_true(view.draw("ctx", {
-      song = "A", section = "Refrão", bar = 3, bars = 8, next = "Ponte", queued = true, beats_left = 3,
+      song = "A", section = "Refrão", bar = 3, bars = 8, progress = 0.3, next = "Ponte", queued = true, beats_left = 3,
       rows = { { kind = "chords", text = "G   D", current = true }, { kind = "lyrics", text = "letra", current = true },
         { kind = "next", text = "Ponte" }, { kind = "grid", text = "| Am |", cells = { "Am", "D" }, cell = 2 } },
     }))

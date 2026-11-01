@@ -1,6 +1,6 @@
 -- Estado de palco: o que a janela de cifra e a página do celular/tablet
 -- mostram — música, anotação da música, seção, próxima seção, contagem,
--- compasso e as linhas da cifra acompanhando o compasso.
+-- compasso, progresso da seção (0–1) e as linhas da cifra da seção.
 --
 -- A página do celular é servida pela Web Interface do próprio REAPER
 -- (Preferences → Control/OSC/web) e lê o estado em JSON por ExtState
@@ -62,6 +62,7 @@ function M.build(snap, opts)
   local bars = math.max(1, math.floor(bar_pos(section.end_pos) - start + 0.5))
   local bar = math.max(0, math.min(bars - 1e-6, bar_pos(snap.pos or section.start_pos) - start))
   state.bar, state.bars = math.floor(bar) + 1, bars
+  state.progress = math.floor(bar / bars * 1000 + 0.5) / 1000
 
   local units = chart.units_for(parsed, section)
   if units then

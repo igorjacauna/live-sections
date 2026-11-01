@@ -40,11 +40,12 @@ describe("core.stage", function()
     assert.equal(3, s.rows[1].cell)
   end)
 
-  it("Verso: verso atual pelo compasso; respeita as linhas configuradas", function()
+  it("Verso: rola com a seção se não couber; progresso de 0 a 1", function()
     local s = stage.build(snap(13), { max_lines = 2 })
     assert.equal("Em      C", s.rows[1].text)
-    assert.is_true(s.rows[1].current)
     assert.equal(2, #s.rows)
+    assert.equal(0.625, s.progress)               -- 2,5 de 4 compassos
+    assert.equal(0, stage.build(snap(8)).progress)
   end)
 
   it("fila: mostra a seção da fila com as batidas restantes", function()

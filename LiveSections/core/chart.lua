@@ -22,6 +22,7 @@
 -- M.units_for(parsed, section) -> versos da seção, ou nil
 -- M.view(units, bar, bars, max_lines, next_name, next_units) -> rows
 --   rows: { kind = "chords"|"lyrics"|"grid"|"next", text, current?, cells?, cell? }
+--   (current/cell só em linhas de grade: o compasso exato)
 
 local M = {}
 
@@ -177,41 +178,61 @@ local function timeline(units, bars)
   return starts
 end
 
--- Linhas para exibir: a partir do verso atual, até `max_lines` linhas de
--- texto (um verso nunca é cortado). Se sobrar espaço no fim da seção, entra
--- "A seguir" com o começo da próxima. `bar` é o compasso dentro da seção
--- (0 = primeiro, fracionário).
+-- Linhas para exibir: a seção inteira, até `max_lines` linhas de texto (um
+-- verso nunca é cortado). Não há "linha atual" (a divisão do tempo entre os
+-- versos é estimada); o progresso da seção aparece à parte. Se a seção não
+-- couber, a janela rola: começa no verso em que a estimativa está e, se
+-- sobrar espaço no fim, mostra os anteriores. Se a seção inteira couber e
+-- ainda sobrar espaço, entra "A seguir" com o começo da próxima. Linhas em
+-- grade duram um compasso por célula, então acendem o compasso atual.
+-- `bar` é o compasso dentro da seção (0 = primeiro, fracionário).
 function M.view(units, bar, bars, max_lines, next_name, next_units)
-  local rows, used = {}, 0
   units = units or {}
   max_lines = math.max(max_lines or 6, 2)
   local starts = timeline(units, bars or 0)
   local cur = 1
   for i = 1, #units do if (bar or 0) >= starts[i] - 1e-6 then cur = i end end
 
-  local function add_unit(u, current, start)
-    if used + #u.lines > max_lines and used > 0 then return false end
-    for _, l in ipairs(u.lines) do
-      local kind = u.kind == "grid" and "grid" or line_kind(l) == "chords" and "chords" or "lyrics"
-      local row = { kind = kind, text = l, current = current or nil }
-      if u.kind == "grid" then
-        row.cells = u.cells
-        if current then row.cell = math.min(#u.cells, math.floor((bar or 0) - start) + 1) end
-      end
-      rows[#rows + 1] = row
-      used = used + 1
+  -- janela [first, last] de versos que cabe, contendo o verso estimado
+  local total = 0
+  for _, u in ipairs(units) do total = total + #u.lines end
+  local first, last, used = 1, #units, total
+  if total > max_lines then
+    first, last, used = cur, cur - 1, 0
+    while last < #units and (used + #units[last + 1].lines <= max_lines or used == 0) do
+      last = last + 1
+      used = used + #units[last].lines
     end
-    return true
+    while first > 1 and used + #units[first - 1].lines <= max_lines do
+      first = first - 1
+      used = used + #units[first].lines
+    end
   end
 
-  for i = cur, #units do
-    if not add_unit(units[i], i == cur, starts[i]) then return rows end
+  local rows = {}
+  local function add_unit(u, current, start)
+    for _, l in ipairs(u.lines) do
+      local kind = u.kind == "grid" and "grid" or line_kind(l) == "chords" and "chords" or "lyrics"
+      local row = { kind = kind, text = l }
+      if u.kind == "grid" then
+        row.cells = u.cells
+        if current then
+          row.current = true
+          row.cell = math.min(#u.cells, math.floor((bar or 0) - start) + 1)
+        end
+      end
+      rows[#rows + 1] = row
+    end
   end
-  if next_name and used < max_lines then
+  for i = first, last do add_unit(units[i], i == cur, starts[i]) end
+
+  if next_name and last == #units and used < max_lines then
     rows[#rows + 1] = { kind = "next", text = next_name }
     used = used + 1
     for _, u in ipairs(next_units or {}) do
-      if not add_unit(u, false, 0) then break end
+      if used + #u.lines > max_lines then break end
+      add_unit(u, false, 0)
+      used = used + #u.lines
     end
   end
   return rows
