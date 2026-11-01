@@ -23,6 +23,7 @@
 -- M.state()             ferramenta, seleção e mensagem (para testes)
 
 local chart = require("core.chart")
+local notes = require("core.song_notes")
 
 local M = {}
 
@@ -231,10 +232,11 @@ local function song_bar(ctx, x, y, w, snap)
   local plus_w = kit.size(ctx, "button", "Música") + 46
   local ren_w = kit.size(ctx, "button", "Renomear") + 24
   local chart_w = kit.size(ctx, "button", "Cifra") + 24
+  local note_w = kit.size(ctx, "button", "Anotação") + 24
   for i, song in ipairs(model.songs()) do
     local label = i .. ". " .. song.name
     local bw = kit.size(ctx, "button", label) + 24
-    if cx + bw > x + w - plus_w - ren_w - chart_w - 28 then break end
+    if cx + bw > x + w - plus_w - ren_w - chart_w - note_w - 34 then break end
     local current = snap.song and snap.song.id == song.id
     if kit.button(ctx, "esong" .. i, label, cx, y + 8, 32, { active = current, w = bw }) then
       perf.goto_song(i)
@@ -252,6 +254,27 @@ local function song_bar(ctx, x, y, w, snap)
   if snap.song and kit.button(ctx, "song_chart", "Cifra", x + w - plus_w - ren_w - chart_w - 20, y + 8, 32, { w = chart_w }) then
     st.chart_song, st.chart_buf = snap.song, chart.get_text(snap.song)
     st.chart_open = true
+  end
+  if snap.song and kit.button(ctx, "song_note", "Anotação", x + w - plus_w - ren_w - chart_w - note_w - 26, y + 8, 32, { w = note_w }) then
+    st.note_song, st.note_buf = snap.song, notes.get(snap.song)
+    ImGui.OpenPopup(ctx, "song_note")
+  end
+  if ImGui.BeginPopup(ctx, "song_note") then
+    ImGui.Text(ctx, "Anotação de " .. (st.note_song and st.note_song.name or ""))
+    ImGui.TextColored(ctx, theme.C.faint, "Curta: tom, como começa a intro, uma dica. Aparece no Performance,\nno Palco, na janela de cifra e no celular. Ex.: Tom: G · Intro: piano sozinho, 4 comp.")
+    local _, buf = ImGui.InputTextMultiline(ctx, "##song_note", st.note_buf or "", 460, 84)
+    st.note_buf = buf
+    local left = notes.MAX_CHARS - #(st.note_buf or "")
+    ImGui.TextColored(ctx, left < 0 and theme.C.danger or theme.C.faint, string.format("%d caracteres restantes", math.max(0, left)))
+    if ImGui.Button(ctx, "Salvar") and st.note_song then
+      notes.set(st.note_song, st.note_buf)
+      reaper.MarkProjectDirty(PROJ)
+      say("Anotação de " .. st.note_song.name .. " salva no projeto.")
+      ImGui.CloseCurrentPopup(ctx)
+    end
+    ImGui.SameLine(ctx)
+    if ImGui.Button(ctx, "Cancelar") then ImGui.CloseCurrentPopup(ctx) end
+    ImGui.EndPopup(ctx)
   end
   if ImGui.BeginPopup(ctx, "rename_song") then
     ImGui.Text(ctx, "Nome da música")

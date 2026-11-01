@@ -251,6 +251,51 @@ describe("ui.performance_view", function()
       assert.is_true(colors[theme.C.ok] and colors[theme.C.queue] and colors[theme.C.danger])
     end)
 
+    it("modo palco: camadas numa faixa baixa com fader, mute e solo", function()
+      local k = r.add_track("Kontakt A")
+      r.add_receive(k, r.add_track("Piano"), 0)
+      layers.link(model.songs()[1], k)
+      local b = ids(draw({ setup = function() view.ui().stage = true end }))
+      assert.is_true(b.fader1 and b.mute1 and b.solo1)
+    end)
+
+    it("Espaço dá Play/Stop no Performance, fora de campos de texto", function()
+      local function press_space(active)
+        local im = fake_imgui()
+        function im.IsWindowFocused() return true end
+        function im.IsAnyItemActive() return active end
+        function im.IsKeyDown() return false end
+        function im.IsKeyPressed(_, key) return key == "space" end
+        im.Key_Space = "space"
+        load(im)
+        view.update(1)
+        view.draw("ctx")
+      end
+      press_space(true)
+      assert.equal(0, #r.calls_to("OnPlayButton"))
+      press_space(false)
+      assert.equal(1, #r.calls_to("OnPlayButton"))
+    end)
+
+    it("anotação da música aparece no Performance e no Palco", function()
+      local stage = require("core.stage")
+      require("core.song_notes").set(model.songs()[1], "Tom: G")
+      for _, on_stage in ipairs({ false, true }) do
+        local im, calls = fake_imgui()
+        widgets.init(im, theme, anim, learn, mappings)
+        view.init({
+          ImGui = im, theme = theme, anim = anim, widgets = widgets, perf = perf, layers = layers,
+          feedback = feedback, mappings = mappings, learn = learn, input = input, model = model, stage = stage,
+        })
+        view.ui().stage = on_stage
+        view.update(1)
+        view.draw("ctx")
+        local shown = false
+        for _, c in ipairs(calls) do if c[1] == "DrawList_AddText" and c[6] == "Tom: G" then shown = true end end
+        assert.is_true(shown)
+      end
+    end)
+
     it("modo Editar não desenha cards nem ações", function()
       local b = ids(draw({ setup = function() view.ui().mode = "edit" end }))
       assert.is_nil(b.act_play_stop)

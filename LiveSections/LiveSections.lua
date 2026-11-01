@@ -102,10 +102,31 @@ settings_view.init({
 -- salvo pelo ReaImGui.
 local MIN_W, MIN_H = 720, 480
 
--- Maximizar/restaurar (botão no topo ou F11): a posição e o tamanho só valem
+-- Maximizar/restaurar (botão no topo, F11 ou duplo clique no título): a posição e o tamanho só valem
 -- antes do Begin, então o pedido fica para o ciclo seguinte.
 local win = { pending = nil, restore = nil }
 local last_error = nil
+
+-- Área útil (sem barra de menus/tarefas) do monitor onde está a janela. No
+-- ReaImGui cada janela é um viewport próprio, então a área de trabalho dele
+-- é a própria janela: quem sabe o tamanho do monitor é o REAPER, em
+-- coordenadas nativas (no macOS o eixo y é invertido, daí a conversão).
+local function monitor_area(px, py, pw, ph)
+  if reaper.my_getViewport and ImGui.PointConvertNative then
+    local ax, ay = ImGui.PointConvertNative(ctx, px, py, true)
+    local bx, by = ImGui.PointConvertNative(ctx, px + pw, py + ph, true)
+    local l, t, r, b = reaper.my_getViewport(0, 0, 0, 0,
+      math.min(ax, bx), math.min(ay, by), math.max(ax, bx), math.max(ay, by), true)
+    local x1, y1 = ImGui.PointConvertNative(ctx, l, t, false)
+    local x2, y2 = ImGui.PointConvertNative(ctx, r, b, false)
+    local w, h = math.abs(x2 - x1), math.abs(y2 - y1)
+    if w > MIN_W and h > MIN_H then return math.min(x1, x2), math.min(y1, y2), w, h end
+  end
+  local vp = ImGui.GetMainViewport(ctx)
+  local vx, vy = ImGui.Viewport_GetWorkPos(vp)
+  local vw, vh = ImGui.Viewport_GetWorkSize(vp)
+  return vx, vy, vw, vh
+end
 
 local function toggle_maximize(ui)
   if ui.maximized then
@@ -115,10 +136,18 @@ local function toggle_maximize(ui)
   local px, py = ImGui.GetWindowPos(ctx)
   local pw, ph = ImGui.GetWindowSize(ctx)
   win.restore = { px, py, pw, ph }
-  local vp = ImGui.GetWindowViewport(ctx)
-  local vx, vy = ImGui.Viewport_GetWorkPos(vp)
-  local vw, vh = ImGui.Viewport_GetWorkSize(vp)
-  win.pending, ui.maximized = { vx, vy, vw, vh }, true
+  win.pending, ui.maximized = { monitor_area(px, py, pw, ph) }, true
+end
+
+-- Duplo clique na barra de título maximiza/restaura, como numa janela comum
+-- (o recolher do ImGui fica desligado: a janela sumia e não voltava ao
+-- tamanho de antes).
+local function title_double_clicked()
+  if not ImGui.IsMouseDoubleClicked(ctx, ImGui.MouseButton_Left) then return false end
+  if not ImGui.IsWindowHovered(ctx) then return false end
+  local _, wy = ImGui.GetWindowPos(ctx)
+  local _, my = ImGui.GetMousePos(ctx)
+  return my >= wy and my < wy + ImGui.GetFrameHeight(ctx)
 end
 
 -- Redimensionar pelas bordas da janela, não só pelo canto.
@@ -142,9 +171,11 @@ local function loop()
   end
   ImGui.SetNextWindowSize(ctx, 1100, 760, ImGui.Cond_FirstUseEver)
   ImGui.SetNextWindowSizeConstraints(ctx, MIN_W, MIN_H, 100000, 100000)
-  local visible, open = ImGui.Begin(ctx, APP_NAME, true)
+  ImGui.SetNextWindowCollapsed(ctx, false, ImGui.Cond_Always)
+  local visible, open = ImGui.Begin(ctx, APP_NAME, true, ImGui.WindowFlags_NoCollapse)
   local ui = view.ui()
   if visible then
+    local title_dbl = title_double_clicked()
     -- um erro no desenho não pode deixar a janela sem End(): mostra o erro e
     -- segue rodando (o áudio nunca depende do script)
     local depth = theme.font_depth()
@@ -159,7 +190,7 @@ local function loop()
     end
     local f11 = ImGui.IsWindowFocused(ctx, ImGui.FocusedFlags_RootAndChildWindows)
       and ImGui.IsKeyPressed(ctx, ImGui.Key_F11, false)
-    if ui.toggle_max or f11 then
+    if ui.toggle_max or f11 or title_dbl then
       ui.toggle_max = false
       toggle_maximize(ui)
     end

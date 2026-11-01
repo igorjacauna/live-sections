@@ -10,6 +10,8 @@
 --                 learn, model, ui (estado de modo da performance_view)
 -- M.draw(ctx, x, y, w, h, snap) -> altura usada
 
+local web = require("core.web_remote")
+
 local M = {}
 
 local ImGui, theme, kit, mappings, feedback, layers, perf, anim, learn, model, ui
@@ -253,13 +255,32 @@ local function chart_card(ctx, x, y, w)
   cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.muted,
     "Conta a linha de acordes e a da letra. Um verso nunca é cortado; a janela anda conforme o compasso.") + 14
   cy = cy + field_label(ctx, dl, ix, cy, "NO CELULAR OU TABLET")
-  local steps = {
-    "1. Instale a página pelo ReaPack (pacote \"livesections.html\") ou copie www/livesections.html para a pasta reaper_www_root.",
-    "2. Preferences → Control/OSC/web → Add → Web browser interface, com \"livesections.html\" como página padrão.",
-    "3. No celular, na mesma rede Wi-Fi, abra o endereço que o REAPER mostra ali.",
-  }
-  for _, t in ipairs(steps) do cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.text, t) + 6 end
-  return cy - y + 10
+  local info = web.info()
+  local problems = {}
+  if not info.page_installed then
+    problems[#problems + 1] = "Página não instalada: Extensions → ReaPack → Synchronize packages (pacote \"livesections.html\")."
+  end
+  if #info.ports == 0 then
+    problems[#problems + 1] = "Web Interface desligada: Preferences → Control/OSC/web → Add → Web browser interface → OK."
+  elseif #info.ips == 0 then
+    problems[#problems + 1] = "Não achei o IP deste computador na rede local. Ele está conectado ao Wi-Fi ou a um cabo de rede?"
+  end
+  for _, t in ipairs(problems) do cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.queue, t) + 6 end
+  if #info.urls > 0 then
+    cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.muted,
+      "Com o celular no mesmo Wi-Fi deste computador, abra no navegador:") + 8
+    for i, url in ipairs(info.urls) do
+      kit.txt(ctx, dl, "strong", ix, cy + 6, theme.C.text, url)
+      local cw = kit.size(ctx, "button", "Copiar") + 24
+      if kit.button(ctx, "copy_url" .. i, "Copiar", ix + iw - cw, cy, 30, { w = cw }) then
+        ImGui.SetClipboardText(ctx, url)
+      end
+      cy = cy + 38
+    end
+  end
+  local rw = kit.size(ctx, "button", "Verificar de novo") + 24
+  if kit.button(ctx, "web_refresh", "Verificar de novo", ix, cy + 4, 30, { w = rw }) then web.info(true) end
+  return cy + 4 + 30 - y + 16
 end
 
 local function mappings_card(ctx, x, y, w)

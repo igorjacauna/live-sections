@@ -16,7 +16,7 @@ describe("core.stage", function()
 
   before_each(function()
     r = stub.install()
-    for _, m in ipairs({ "core.project_model", "core.chart", "core.stage" }) do package.loaded[m] = nil end
+    for _, m in ipairs({ "core.project_model", "core.chart", "core.song_notes", "core.stage" }) do package.loaded[m] = nil end
     r.add_marker(0, "SONG: A")
     r.add_region(0, 8, "Intro", 0x1000000 | 0xEF8D5B)
     r.add_region(8, 16, "Verso")
@@ -51,6 +51,12 @@ describe("core.stage", function()
     local verso = model.songs()[1].sections[2]
     local s = stage.build(snap(3, { queued_section = verso, beats_left = 3 }))
     assert.same({ "Verso", true, 3 }, { s.next, s.queued, s.beats_left })
+  end)
+
+  it("leva a anotação da música", function()
+    assert.is_nil(stage.build(snap(3)).note)
+    require("core.song_notes").set(model.songs()[1], "Tom: G")
+    assert.equal("Tom: G", stage.build(snap(3)).note)
   end)
 
   it("música sem cifra: sem linhas e has_chart falso", function()

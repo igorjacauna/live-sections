@@ -1,6 +1,6 @@
 -- Estado de palco: o que a janela de cifra e a página do celular/tablet
--- mostram — música, seção, próxima seção, contagem, compasso e as linhas da
--- cifra acompanhando o compasso.
+-- mostram — música, anotação da música, seção, próxima seção, contagem,
+-- compasso e as linhas da cifra acompanhando o compasso.
 --
 -- A página do celular é servida pela Web Interface do próprio REAPER
 -- (Preferences → Control/OSC/web) e lê o estado em JSON por ExtState
@@ -11,6 +11,7 @@
 -- M.shutdown()                   apaga o estado (a página mostra "fechado")
 
 local chart = require("core.chart")
+local notes = require("core.song_notes")
 local json = require("vendor.json")
 
 local M = {}
@@ -43,6 +44,8 @@ function M.build(snap, opts)
   local state = { open = true, playing = snap.playing == true }
   if not song then return state end
   state.song = song.name
+  local note = notes.get(song)
+  if note ~= "" then state.note = note end
   local nxt = next_section(song, section, snap.queued_section)
   state.next = nxt and nxt.name or nil
   state.queued = snap.queued_section ~= nil or snap.queued_song ~= nil

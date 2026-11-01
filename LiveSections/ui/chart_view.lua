@@ -1,9 +1,11 @@
--- Janela "Cifra": música, seção, próxima seção com contagem e as linhas da
+-- Janela "Cifra": música, anotação, seção, próxima seção com contagem e as linhas da
 -- cifra acompanhando o compasso, a partir do estado de core/stage. É uma
 -- janela separada da principal: dá para arrastá-la para outro monitor ou TV.
 --
 -- M.init(deps)            ImGui, theme, kit
 -- M.draw(ctx, state) -> open   desenha a janela; false quando o usuário fecha
+
+local notes = require("core.song_notes")
 
 local M = {}
 
@@ -48,6 +50,14 @@ local function header(ctx, dl, x, y, w, state)
     kit.txt(ctx, dl, "button", x, cy, state.queued and theme.C.queue or theme.C.muted, label)
     cy = cy + 26
   end
+  if state.note then
+    local top = cy + 2
+    for _, line in ipairs(notes.lines(state.note)) do
+      cy = cy + kit.wrapped(ctx, "strong", x + 14, cy + 2, w - 14, theme.C.text, line) + 4
+    end
+    ImGui.DrawList_AddRectFilled(dl, x, top, x + 4, cy, theme.C.queue, 2)
+    cy = cy + 4
+  end
   ImGui.DrawList_AddLine(dl, x, cy + 6, x + w, cy + 6, theme.C.line)
   return cy + 18 - y
 end
@@ -65,7 +75,8 @@ end
 
 function M.draw(ctx, state)
   ImGui.SetNextWindowSize(ctx, 760, 560, ImGui.Cond_FirstUseEver)
-  local visible, open = ImGui.Begin(ctx, TITLE, true)
+  ImGui.SetNextWindowCollapsed(ctx, false, ImGui.Cond_Always)
+  local visible, open = ImGui.Begin(ctx, TITLE, true, ImGui.WindowFlags_NoCollapse)
   if not visible then return open end
   local x, y = ImGui.GetCursorScreenPos(ctx)
   local w, h = ImGui.GetContentRegionAvail(ctx)

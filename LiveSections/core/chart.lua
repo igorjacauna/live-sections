@@ -17,6 +17,7 @@
 --
 -- M.parse(text) -> { intro = { linhas }, blocks = { { name, units } } }
 -- M.get_text(song) -> texto; M.set_text(song, text)
+-- M.song_value(song, prefix) / M.set_song_value(song, prefix, text)
 -- M.for_song(song) -> parse do texto da música (em cache)
 -- M.units_for(parsed, section) -> versos da seção, ou nil
 -- M.view(units, bar, bars, max_lines, next_name, next_units) -> rows
@@ -237,22 +238,28 @@ local function unescape(s)
   return (s:gsub("\\(.)", function(c) return c == "n" and "\n" or c end))
 end
 
-function M.get_text(song)
+-- Texto guardado por música, na chave "<prefixo><GUID do marcador>".
+-- Também usado por core/song_notes.
+function M.song_value(song, prefix)
   local guid = song and marker_guid(song)
   if not guid then return "" end
-  local ok, v = reaper.GetProjExtState(PROJ, EXT_SECTION, KEY_PREFIX .. guid)
+  local ok, v = reaper.GetProjExtState(PROJ, EXT_SECTION, prefix .. guid)
   if ok == 0 or not v then return "" end
   return unescape(v)
 end
 
-local cache = {}   -- [texto] = parse
-
-function M.set_text(song, text)
-  local guid = marker_guid(song)
+function M.set_song_value(song, prefix, text)
+  local guid = song and marker_guid(song)
   if not guid then return false, "no_song" end
-  reaper.SetProjExtState(PROJ, EXT_SECTION, KEY_PREFIX .. guid, escape(text or ""))
+  reaper.SetProjExtState(PROJ, EXT_SECTION, prefix .. guid, escape(text or ""))
   return true
 end
+
+function M.get_text(song) return M.song_value(song, KEY_PREFIX) end
+
+local cache = {}   -- [texto] = parse
+
+function M.set_text(song, text) return M.set_song_value(song, KEY_PREFIX, text) end
 
 function M.for_song(song)
   local text = M.get_text(song)

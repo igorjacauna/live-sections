@@ -32,6 +32,8 @@ header { display: grid; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid
 .sec span { font: 700 16px var(--mono); color: var(--muted); white-space: nowrap; }
 .next { font: 700 15px var(--ui); color: var(--muted); min-height: 20px; }
 .next.q { color: var(--queue); }
+.note { font: 700 17px var(--ui); line-height: 1.35; color: var(--text); border-left: 4px solid var(--queue); padding: 2px 0 2px 12px; margin-top: 4px; white-space: pre-line; }
+.note:empty { display: none; }
 main { flex: 1; overflow: hidden; padding-top: 14px; }
 .row { font-family: var(--mono); font-size: var(--fs); line-height: 1.25; white-space: pre; padding-left: 14px; border-left: 4px solid transparent; color: var(--faint); }
 .row.cur { border-left-color: var(--queue); color: var(--text); }
@@ -54,6 +56,7 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
   <div class="song"><span id="song">Live Sections</span><span id="play"></span></div>
   <div class="sec"><i id="color"></i><b id="section">—</b><span id="bar"></span></div>
   <div class="next" id="next"></div>
+  <div class="note" id="note"></div>
 </header>
 <main id="chart"></main>
 <footer>
@@ -94,11 +97,12 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
     if (!s.open) {
       $('section').textContent = 'Live Sections fechado';
       $('song').textContent = 'Live Sections';
-      $('bar').textContent = ''; $('next').textContent = ''; $('play').textContent = '';
+      $('bar').textContent = ''; $('next').textContent = ''; $('play').textContent = ''; $('note').textContent = '';
       $('chart').replaceChildren(el('div', 'empty', 'Abra o Live Sections no REAPER.'));
       return;
     }
     $('song').textContent = s.song || 'Sem música';
+    $('note').textContent = s.note || '';
     $('play').textContent = s.looping ? 'LOOP' : s.playing ? 'TOCANDO' : 'PARADO';
     $('section').textContent = s.section || 'Trecho sem seção';
     $('color').style.setProperty('--c', s.color || '#6C9AB0');

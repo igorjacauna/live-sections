@@ -631,6 +631,81 @@ local function layer_strip(ctx, x, y, w)
   return 22 + fh + 92
 end
 
+-- Camadas no modo palco: uma faixa baixa, com fader horizontal, nível
+-- estéreo e M/S, para sobrar espaço para os cards.
+local function meter_h(dl, x, y, w, h, level)
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + w, y + h, theme.C.bg, 1)
+  local zones = {
+    { 0, db_level(-12), theme.C.ok }, { db_level(-12), db_level(-3), theme.C.queue }, { db_level(-3), 1, theme.C.danger },
+  }
+  for _, z in ipairs(zones) do
+    local a, b = z[1], math.min(z[2], level)
+    if b > a then ImGui.DrawList_AddRectFilled(dl, x + w * a, y, x + w * b, y + h, z[3], 1) end
+  end
+end
+
+local LAYER_ROW_H = 74
+local LAYER_ROW_MIN_W = 150
+
+local function layer_row(ctx, x, y, w)
+  local song = snap.song
+  local list = song and layers.layers(song) or {}
+  if #list == 0 then return 0 end
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local n = #list
+  local lw = math.max(LAYER_ROW_MIN_W, (w - (n - 1) * GAP) / n)
+  local h = LAYER_ROW_H
+  for i in ipairs(list) do
+    local st = layers.layer_state(i)
+    local lx = x + (i - 1) * (lw + GAP)
+    if not st or lx + lw > x + w + 1 then break end
+    ImGui.DrawList_AddRectFilled(dl, lx, y, lx + lw, y + h, theme.C.panel, theme.R.r2)
+    ImGui.DrawList_PushClipRect(dl, lx + 8, y, lx + lw - 86, y + 34, true)
+    txt(ctx, dl, "button", lx + 12, y + 11, theme.C.text, st.name)
+    ImGui.DrawList_PopClipRect(dl)
+    if button(ctx, "mute" .. i, "M", lx + lw - 80, y + 7, 26, { w = 32, active = st.mute, accent = theme.C.queue, style = "num" }) then
+      layers.toggle_mute(i)
+    end
+    widgets.mappable(ctx, { action = "layer_mute", arg = i }, "Mute " .. st.name)
+    if button(ctx, "solo" .. i, "S", lx + lw - 44, y + 7, 26, { w = 32, active = st.solo, accent = theme.C.ok, style = "num" }) then
+      layers.toggle_solo(i)
+    end
+    widgets.mappable(ctx, { action = "layer_solo", arg = i }, "Solo " .. st.name)
+
+    -- fader horizontal: arrastar na tela muda o volume
+    local fx, fy, fw, fh = lx + 12, y + 40, lw - 24, 18
+    ImGui.SetCursorScreenPos(ctx, fx, fy)
+    ImGui.InvisibleButton(ctx, "fader" .. i, fw, fh)
+    if ImGui.IsItemActive(ctx) then
+      local mx = ImGui.GetMousePos(ctx)
+      layers.set_volume_ui(i, (mx - fx) / fw)
+      st = layers.layer_state(i)
+    end
+    widgets.mappable(ctx, { action = "layer_volume", arg = i }, "Volume " .. st.name)
+    ImGui.DrawList_AddRectFilled(dl, fx, fy, fx + fw, fy + fh, theme.C.bg, 6)
+    local vx = fx + fw * st.pos
+    ImGui.DrawList_AddRectFilled(dl, fx + 2, fy + 2, vx, fy + fh - 2, st.mute and theme.C.line2 or theme.C.muted & 0xFFFFFF66, 5)
+    ImGui.DrawList_AddRectFilled(dl, vx - 3, fy - 3, vx + 3, fy + fh + 3, theme.C.text, 2)
+    local dir = layers.takeover(i)
+    if dir then
+      local label = dir == "up" and "SUBA O FADER" or "DESÇA O FADER"
+      txt(ctx, dl, "label", fx + fw - size(ctx, "label", label), y + 26, theme.C.queue, label)
+    end
+
+    local m = meter_state(i, st.peak_l, st.peak_r)
+    meter_h(dl, fx, fy + fh + 4, fw, 4, m.l)
+    meter_h(dl, fx, fy + fh + 9, fw, 4, m.r)
+  end
+  return h
+end
+
+-- Espaço: Play/Stop no Performance e no Palco (fora de campos de texto).
+local function space_key(ctx)
+  if not ImGui.IsWindowFocused(ctx) or ImGui.IsAnyItemActive(ctx) then return end
+  local mod = ImGui.IsKeyDown(ctx, ImGui.Mod_Ctrl) or (ImGui.Mod_Super and ImGui.IsKeyDown(ctx, ImGui.Mod_Super))
+  if not mod and ImGui.IsKeyPressed(ctx, ImGui.Key_Space, false) then perf.play_stop() end
+end
+
 local function action_bar(ctx, x, y, w)
   local s = snap
   local h = 44
@@ -668,6 +743,26 @@ local function song_header(ctx, x, y, w)
   return 62
 end
 
+-- Anotação da música (tom, intro, dica): faixa com destaque âmbar à
+-- esquerda, uma linha por linha do texto. A altura do fundo é a do ciclo
+-- anterior (o texto só é medido ao ser desenhado).
+local note_h = {}
+
+local function note_box(ctx, x, y, w, style)
+  local note = stage_state.note
+  if not note then return 0 end
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local h = note_h[style] or 0
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + w, y + h, theme.C.panel, theme.R.r2)
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + 4, y + h, theme.C.queue, 2)
+  local cy = y + 10
+  for _, line in ipairs(require("core.song_notes").lines(note)) do
+    cy = cy + wrapped(ctx, style, x + 18, cy, w - 32, theme.C.text, line) + 4
+  end
+  note_h[style] = cy - y + 6
+  return note_h[style]
+end
+
 -- ------------------------------------------------------------------ desenho
 
 function M.draw(ctx)
@@ -687,6 +782,7 @@ function M.draw(ctx)
     return
   end
 
+  space_key(ctx)
   local compact = ui.stage or w < NARROW_W
   local cx, cw = x, w
   if compact then
@@ -702,9 +798,21 @@ function M.draw(ctx)
   end
 
   local cy = y
-  if not ui.stage then cy = cy + song_header(ctx, cx, cy, cw) + GAP end
+  if ui.stage then
+    local nh = note_box(ctx, cx, cy, cw, "title")
+    if nh > 0 then cy = cy + nh + GAP end
+  else
+    cy = cy + song_header(ctx, cx, cy, cw)
+    local nh = note_box(ctx, cx, cy, cw, "strong")
+    cy = cy + (nh > 0 and nh + GAP or 0) + GAP
+  end
   cy = cy + cards(ctx, cx, cy, cw) + GAP * 2
-  if not ui.stage then cy = cy + layer_strip(ctx, cx, cy, cw) + GAP end
+  if ui.stage then
+    local lh = layer_row(ctx, cx, cy, cw)
+    if lh > 0 then cy = cy + lh + GAP end
+  else
+    cy = cy + layer_strip(ctx, cx, cy, cw) + GAP
+  end
   cy = cy + action_bar(ctx, cx, cy, cw) + GAP
 
   ImGui.SetCursorScreenPos(ctx, x, y)

@@ -556,6 +556,20 @@ function M.new()
 
   -- ------------------------------------------------------------------ outros
   function api.GetAppVersion() return r._app_version end
+  -- r._exec[cmd] = saída do comando (sem a linha do código de saída)
+  function api.GetOS() return r._app_version:match("/(.*)$") or "macOS-arm64" end
+  function api.ExecProcess(cmd, _)
+    log("ExecProcess", cmd)
+    local out = (rawget(r, "_exec") or {})[cmd]
+    if not out then return "-1\n" end
+    return "0\n" .. out
+  end
+  -- área útil do monitor: r._screen = { l, t, r, b }
+  function api.my_getViewport(_, _, _, _, _, _, _, _, _)
+    local sc = rawget(r, "_screen") or { 0, 25, 1920, 1080 }
+    return sc[1], sc[2], sc[3], sc[4]
+  end
+  function api.get_ini_file() return rawget(r, "_ini_path") or (r._resource_path .. "/reaper.ini") end
   function api.GetResourcePath() return r._resource_path end
   function api.RecursiveCreateDirectory(path, _)
     log("RecursiveCreateDirectory", path)

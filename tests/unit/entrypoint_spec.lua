@@ -99,4 +99,29 @@ describe("entrypoint", function()
     assert.matches("quebrou", r.calls_to("ShowConsoleMsg")[1][1])
     assert.equal(2, #r.calls_to("defer"))
   end)
+
+  it("janela não recolhe; maximizar usa a área útil do monitor, não a da própria janela", function()
+    r.install_imgui("/imgui")
+    r._screen = { 0, 25, 1920, 1080 }
+    local ImGui, calls = fake_imgui()
+    local sized = {}
+    function ImGui.SetNextWindowSize(_, w, h, cond) if cond == "always" then sized[#sized + 1] = { w, h } end end
+    function ImGui.SetNextWindowPos() end
+    ImGui.Cond_Always = "always"
+    function ImGui.GetWindowPos() return 100, 100 end
+    function ImGui.GetWindowSize() return 800, 600 end
+    function ImGui.PointConvertNative(_, x, y) return x, y end
+    function ImGui.IsKeyPressed() return false end
+    package.preload.imgui = function() return function() return ImGui end end
+    dofile(ENTRYPOINT)
+    local ui = package.loaded["ui.performance_view"].ui()
+    ui.toggle_max = true
+    r.calls_to("defer")[1][1]()
+    r.calls_to("defer")[2][1]()
+    assert.same({ 1920, 1055 }, sized[1])
+    assert.is_true(ui.maximized)
+    local collapsed = false
+    for _, c in ipairs(calls) do if c == "SetNextWindowCollapsed" then collapsed = true end end
+    assert.is_true(collapsed)
+  end)
 end)
