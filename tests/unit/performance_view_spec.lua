@@ -232,6 +232,16 @@ describe("ui.performance_view", function()
       assert.equal("Piano", layers.layer_state(1).name)
     end)
 
+    it("mostra a versão no topo, igual ao arquivo VERSION", function()
+      local f = assert(io.open("VERSION"))
+      local version = f:read("a"):gsub("%s+", "")
+      f:close()
+      assert.equal(version, require("version"))
+      local shown = false
+      for _, c in ipairs(draw()) do if c[1] == "DrawList_AddText" and c[6] == "v" .. version then shown = true end end
+      assert.is_true(shown)
+    end)
+
     it("botão maximizar pede para maximizar/restaurar", function()
       draw({ press = "maximize" })
       assert.is_true(view.ui().toggle_max)

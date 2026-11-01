@@ -184,7 +184,8 @@ local function loop()
       theme.recover_fonts(ctx, depth)
       if err ~= last_error then
         last_error = err
-        reaper.ShowConsoleMsg("Live Sections: erro ao desenhar a tela\n" .. tostring(err) .. "\n")
+        reaper.ShowConsoleMsg(string.format("Live Sections %s (REAPER %s): erro ao desenhar a tela\n%s\n",
+          require("version"), reaper.GetAppVersion(), tostring(err)))
       end
       ImGui.TextColored(ctx, theme.C.danger, "Erro ao desenhar a tela (detalhes no console do REAPER).")
     end

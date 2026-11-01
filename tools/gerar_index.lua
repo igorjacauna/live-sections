@@ -19,6 +19,12 @@ local function read(path)
   return t
 end
 local version = arg[2] or (read("VERSION") or "0.1.0"):gsub("%s+", "")
+-- a janela mostra a versão de LiveSections/version.lua: as duas andam juntas
+local shown = (read("LiveSections/version.lua") or ""):match('return "([^"]+)"')
+if shown ~= version then
+  io.stderr:write(string.format("LiveSections/version.lua (%s) difere da versão publicada (%s)\n", tostring(shown), version))
+  os.exit(1)
+end
 local changelog = read("CHANGELOG.txt")
 local output = arg[3] or "index.xml"
 if not base then

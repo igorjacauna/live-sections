@@ -16,6 +16,8 @@ local M = {}
 local ImGui, theme, anim, widgets
 local perf, layers, feedback, mappings, learn, input, model, editor, settings_view, stage
 
+local VERSION = require("version")
+
 local PROJ = 0
 local PORT_CHECK_S = 1.0
 local SETLIST_W = 240
@@ -305,6 +307,8 @@ end
 
 -- ------------------------------------------------------------------ desenho: partes
 
+-- Marca com a versão logo abaixo, para saber o que está instalado ao
+-- relatar um problema.
 local function top_bar(ctx, x, y, w)
   local dl = ImGui.GetWindowDrawList(ctx)
   local s = snap
@@ -313,8 +317,10 @@ local function top_bar(ctx, x, y, w)
 
   -- marca e modos
   local cx = x + 16
-  txt(ctx, dl, "strong", cx, y + 18, theme.C.text, "Live Sections")
-  cx = cx + size(ctx, "strong", "Live Sections") + 16
+  txt(ctx, dl, "strong", cx, y + 11, theme.C.text, "Live Sections")
+  local ver = "v" .. VERSION
+  txt(ctx, dl, "label", cx, y + 31, theme.C.faint, ver)
+  cx = cx + math.max(size(ctx, "strong", "Live Sections"), size(ctx, "label", ver)) + 16
   local clicked, bw = button(ctx, "mode_perf", "Performance", cx, y + 12, 32, { active = ui.mode == "performance" })
   if clicked then ui.mode = "performance" end
   cx = cx + bw + 6
