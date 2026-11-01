@@ -31,7 +31,7 @@ local ACTION_LABEL = {
   trigger_slot = "Seção %d", next_section = "Próxima seção", prev_section = "Seção anterior",
   next_song = "Próxima música", prev_song = "Música anterior", goto_song = "Música %d",
   toggle_loop = "Loop", set_quantize = "Quantize: %s", cycle_quantize = "Quantize (percorrer)",
-  play_stop = "Play/Stop", cancel = "Cancelar fila", panic = "Panic",
+  play_stop = "Play/Stop", play = "Play", stop = "Stop", cancel = "Cancelar fila", panic = "Panic",
   layer_volume = "Volume da camada %d", layer_mute = "Mute da camada %d", layer_solo = "Solo da camada %d",
   toggle_setlist = "Setlist", tap_tempo = "Tap tempo",
 }

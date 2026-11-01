@@ -195,15 +195,23 @@ function M.cancel()
   return entry ~= nil
 end
 
-function M.play_stop()
-  if transport.is_playing() then
-    M.cancel()
-    stop_loop(state.song)
-    transport.stop()
-    return "stopped"
-  end
-  transport.play()
+function M.stop()
+  if not transport.is_playing() then return "stopped" end
+  M.cancel()
+  stop_loop(state.song)
+  transport.stop()
+  return "stopped"
+end
+
+-- Tocando, não faz nada (o Play do REAPER voltaria ao cursor).
+function M.play()
+  if not transport.is_playing() then transport.play() end
   return "playing"
+end
+
+function M.play_stop()
+  if transport.is_playing() then return M.stop() end
+  return M.play()
 end
 
 -- Para tudo, solta as notas presas, esvazia a fila e volta o cursor ao

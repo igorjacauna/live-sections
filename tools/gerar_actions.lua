@@ -14,6 +14,7 @@ local list = {
   { "Próxima seção", "next_section" }, { "Seção anterior", "prev_section" },
   { "Próxima música", "next_song" }, { "Música anterior", "prev_song" },
   { "Loop liga-desliga", "toggle_loop" }, { "Play-Stop", "play_stop" },
+  { "Play", "play" }, { "Stop", "stop" },
   { "Cancelar fila", "cancel" }, { "Panic", "panic" },
   { "Quantize próximo", "cycle_quantize", 1 }, { "Quantize anterior", "cycle_quantize", -1 },
   { "Setlist abrir-fechar", "toggle_setlist" }, { "Tap tempo", "tap_tempo" },

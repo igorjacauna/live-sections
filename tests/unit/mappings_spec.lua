@@ -84,7 +84,7 @@ describe("midi.mappings", function()
       table.sort(names)
       assert.same({
         "cancel", "cycle_quantize", "goto_song", "layer_mute", "layer_solo", "layer_volume", "next_section",
-        "next_song", "panic", "play_stop", "prev_section", "prev_song", "set_quantize", "tap_tempo", "toggle_loop",
+        "next_song", "panic", "play", "play_stop", "prev_section", "prev_song", "set_quantize", "stop", "tap_tempo", "toggle_loop",
         "toggle_setlist", "trigger_slot",
       }, names)
       assert.has_error(function() mappings.set({ action = "explode", port_name = MASTER, msg_type = "cc", channel = 1, number = 1 }) end)

@@ -101,6 +101,28 @@ describe("ui.performance_view", function()
       assert.equal(2, n)
     end)
 
+    it("botão em CC que só manda o valor alto: cada toque conta", function()
+      mappings.set({ action = "play_stop", port_name = MASTER, msg_type = "cc", channel = 1, number = 21 })
+      local n = 0
+      perf.play_stop = function() n = n + 1 end
+      view.update(1)
+      view.handle_event(ev(0xB0, 21, 127))
+      view.update(2)
+      view.handle_event(ev(0xB0, 21, 127))
+      assert.equal(2, n)
+    end)
+
+    it("Play e Stop em botões separados", function()
+      mappings.set({ action = "play", port_name = MASTER, msg_type = "note", channel = 1, number = 94 })
+      mappings.set({ action = "stop", port_name = MASTER, msg_type = "note", channel = 1, number = 93 })
+      assert.is_truthy(mappings.get("play") and mappings.get("stop"))
+      view.handle_event(ev(0x90, 94, 127))
+      assert.equal(1, #r.calls_to("OnPlayButton"))
+      r._play_state = 1
+      view.handle_event(ev(0x90, 93, 127))
+      assert.equal(1, #r.calls_to("OnStopButton"))
+    end)
+
     it("fader em pitch bend segue o valor", function()
       mappings.set({ action = "layer_volume", arg = 1, port_name = MASTER, msg_type = "pb", channel = 1 })
       local got = {}
@@ -194,7 +216,7 @@ describe("ui.performance_view", function()
       assert.is_true(b.mode_perf and b.mode_edit and b.stage and b.quantize)
       assert.is_true(b.song1 and b.song2)
       assert.is_true(b["sec" .. model.songs()[1].sections[1].region_idx])
-      assert.is_true(b.act_toggle_loop and b.act_cancel and b.act_play_stop and b.act_prev_song and b.act_next_song)
+      assert.is_true(b.act_toggle_loop and b.act_cancel and b.act_play and b.act_stop and b.act_prev_song and b.act_next_song)
     end)
 
     it("modo palco: faixa compacta e setlist expansível", function()
@@ -218,8 +240,13 @@ describe("ui.performance_view", function()
     end)
 
     it("o botão Play da barra de ações toca", function()
-      draw({ press = "act_play_stop" })
+      draw({ press = "act_play" })
       assert.equal(1, #r.calls_to("OnPlayButton"))
+      r._play_state = 1
+      draw({ press = "act_play" })
+      assert.equal(1, #r.calls_to("OnPlayButton"))     -- tocando, Play não reinicia
+      draw({ press = "act_stop" })
+      assert.equal(1, #r.calls_to("OnStopButton"))
     end)
 
     it("Kontakt vinculado sem teclado escolhido: desenha as camadas sem erro", function()
@@ -308,7 +335,7 @@ describe("ui.performance_view", function()
 
     it("modo Editar não desenha cards nem ações", function()
       local b = ids(draw({ setup = function() view.ui().mode = "edit" end }))
-      assert.is_nil(b.act_play_stop)
+      assert.is_nil(b.act_play)
     end)
   end)
 end)

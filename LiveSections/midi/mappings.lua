@@ -33,7 +33,9 @@ M.ACTIONS = {
   toggle_loop    = {},
   set_quantize   = { arg = "quantize" },  -- modo de core/quantize
   cycle_quantize = { arg = "dir" },       -- 1 ou -1
-  play_stop      = {},
+  play_stop      = {},                    -- um botão só: alterna
+  play           = {},                    -- botões separados de Play e Stop
+  stop           = {},
   cancel         = {},
   panic          = {},
   layer_volume   = { arg = "layer" },     -- camada N

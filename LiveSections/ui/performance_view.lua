@@ -56,6 +56,7 @@ function M.init(deps)
   editor, settings_view, stage = deps.editor, deps.settings, deps.stage
   ui.mode, ui.stage, ui.setlist_open = "performance", false, false
   last_song_id, last_port_check, disconnected, last_value = nil, -math.huge, {}, {}
+  last_high = {}
   meters = {}
 end
 
@@ -76,6 +77,8 @@ function M.run(action, arg, value)
   elseif action == "set_quantize" then return perf.set_quantize(arg)
   elseif action == "cycle_quantize" then return perf.cycle_quantize(arg or 1)
   elseif action == "play_stop" then return perf.play_stop()
+  elseif action == "play" then return perf.play()
+  elseif action == "stop" then return perf.stop()
   elseif action == "cancel" then return perf.cancel()
   elseif action == "panic" then feedback.reset(); return perf.panic()
   elseif action == "layer_volume" then return layers.set_layer_volume(arg, value or 0)
@@ -87,12 +90,20 @@ function M.run(action, arg, value)
 end
 
 -- Botões mandam Note On, Program Change ou um CC/pitch bend que sobe; só a
--- subida dispara. Faders (ações contínuas) seguem o valor.
+-- subida dispara. Há controladores que mandam o CC alto a cada toque e nunca
+-- o baixo: um valor alto depois de um tempo sem mensagens altas também é um
+-- toque novo. Faders (ações contínuas) seguem o valor.
+local REPRESS_S = 0.25
+local last_high = {}       -- [mapping] = hora da última mensagem alta
+
 local function pressed(m, value)
   if m.msg_type == "note" or m.msg_type == "pc" then return true end
   local before = last_value[m] or 0
   last_value[m] = value
-  return before < 0.5 and value >= 0.5
+  if value < 0.5 then return false end
+  local quiet = now - (last_high[m] or -math.huge) >= REPRESS_S
+  last_high[m] = now
+  return before < 0.5 or quiet
 end
 
 function M.handle_event(e)
@@ -719,7 +730,8 @@ local function action_bar(ctx, x, y, w)
     { "prev_song", "Música anterior", "prev_song", function() perf.prev_song() end },
     { "toggle_loop", s.looping and "Loop ligado" or "Loop", "loop", function() perf.toggle_loop() end, s.looping and theme.C.loop },
     { "cancel", "Cancelar fila", "x", function() perf.cancel() end, s.entry and theme.C.queue },
-    { "play_stop", s.playing and "Stop" or "Play", s.playing and "stop" or "play", function() perf.play_stop() end },
+    { "play", "Play", "play", function() perf.play() end, s.playing and theme.C.ok },
+    { "stop", "Stop", "stop", function() perf.stop() end },
     { "next_song", "Próxima música", "next_song", function() perf.next_song() end },
     { "panic", "Panic", "warn", function() M.run("panic") end, theme.C.danger },
   }
