@@ -18,6 +18,11 @@ Adaptador de Rede sem Fio Wi-Fi:
    Endereço IPv4. . . . . . . . . . . . . . . : 10.0.0.7
    Máscara de Sub-rede . . . . . . . . . . . . : 255.255.255.0
    Gateway Padrão. . . . . . . . . . . . . . . : 10.0.0.1
+
+Adaptador Ethernet Ethernet:
+
+   Endereço IPv4. . . . . . . . . . . . . . . : 192.168.1.40(Preferencial)
+   Máscara de Sub-rede . . . . . . . . . . . . : 255.255.255.0
 ]]
 
 describe("core.web_remote", function()
@@ -40,7 +45,7 @@ describe("core.web_remote", function()
 
   it("parse_ips: só IPs da rede local (macOS e Windows), sem gateway nem máscara", function()
     assert.same({ "192.168.0.23" }, web.parse_ips(IFCONFIG))
-    assert.same({ "10.0.0.7" }, web.parse_ips(IPCONFIG))
+    assert.same({ "10.0.0.7", "192.168.1.40" }, web.parse_ips(IPCONFIG))
   end)
 
   it("info: monta o endereço com IP, porta e a página; avisa se a página não está instalada", function()
@@ -54,6 +59,15 @@ describe("core.web_remote", function()
     f = io.open(dir .. "/reaper_www_root/livesections.html", "w"); f:write("x"); f:close()
     assert.is_false(web.info().page_installed)      -- em cache
     assert.is_true(web.info(true).page_installed)
+  end)
+
+  it("Windows: usa o ipconfig", function()
+    r._app_version = "7.84/win64"
+    local f = io.open(dir .. "/reaper.ini", "w")
+    f:write("csurf_0=HTTP 0 8080 '' 'index.html' 0 ''\n")
+    f:close()
+    r._exec = { ipconfig = IPCONFIG }
+    assert.same({ "http://10.0.0.7:8080/livesections.html", "http://192.168.1.40:8080/livesections.html" }, web.info().urls)
   end)
 
   it("sem Web Interface: nenhuma porta e nenhum endereço", function()

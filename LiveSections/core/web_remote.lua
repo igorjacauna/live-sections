@@ -39,7 +39,8 @@ end
 function M.parse_ips(text)
   local out, seen = {}, {}
   for line in (text or ""):gmatch("[^\r\n]+") do
-    local ip = line:find("IPv4", 1, true) and line:match("(%d+%.%d+%.%d+%.%d+)%s*$")
+    -- Windows: "Endereço IPv4. . . : 192.168.0.23" (às vezes com "(Preferencial)")
+    local ip = line:find("IPv4", 1, true) and line:match("IPv4.-:%s*(%d+%.%d+%.%d+%.%d+)")
       or line:match("inet%s+(%d+%.%d+%.%d+%.%d+)") or line:match("inet addr:(%d+%.%d+%.%d+%.%d+)")
     if ip and private(ip) and not seen[ip] then
       seen[ip] = true
@@ -58,9 +59,9 @@ local function read(path)
 end
 
 local function ifconfig()
-  local os_name = reaper.GetOS()
-  local cmd = os_name:match("^Win") and "ipconfig"
-    or (os_name:match("^OSX") or os_name:match("^macOS")) and "/sbin/ifconfig"
+  local os_name = reaper.GetOS():lower()
+  local cmd = os_name:match("^win") and "ipconfig"
+    or (os_name:match("^osx") or os_name:match("^macos")) and "/sbin/ifconfig"
     or "/sbin/ip -4 addr"
   local out = reaper.ExecProcess(cmd, 2000) or ""
   return (out:gsub("^[^\n]*\n", ""))     -- 1ª linha: código de saída
