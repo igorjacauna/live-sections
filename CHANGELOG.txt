@@ -1,8 +1,5 @@
-- Play e Stop separados: cada um tem o seu botão na barra de ações e pode ser mapeado num botão diferente do controlador (Play/Stop continua para quem usa um botão só)
-- Espaço dá Play/Stop no Performance e no Palco
-- Anotação por música (tom, intro, dica), mostrada no Performance, no Palco, na janela de cifra e no celular
-- Modo Palco mostra as camadas, com fader, nível e M/S
-- Celular: as configurações mostram o endereço da cifra e um QR Code para abrir com a câmera
-- Versão aparece no topo da janela
-- Correção: a janela não recolhe mais ao dar dois cliques no título; agora maximiza, e maximizar ocupa o monitor
-- Correção: botão em CC que só manda o valor alto funcionava só no primeiro toque
+- Cifra mostra a seção inteira, com uma barra de progresso na cor da seção, em vez de adivinhar a linha atual; se a seção não couber, a cifra rola conforme a seção avança
+- Modo Palco: camadas com faders verticais, como no Performance
+- LEDs do controlador acendem para mute, solo e Play
+- Celular: o endereço ignora adaptadores virtuais (WSL, Hyper-V, VirtualBox, VPN)
+- Celular: dica para liberar "Dispositivos por perto" no Chrome do Android
