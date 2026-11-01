@@ -9,13 +9,15 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <link rel="website">https://live-sections.igor-jacauna-cloudflare.workers.dev</link>
         <link rel="website">https://github.com/igorjacauna/live-sections</link>
       </metadata>
-      <version name="0.2.0" author="Igor Jacaúna" time="2026-10-31T23:52:22Z">
-        <changelog><![CDATA[- Cifra no palco: cole a cifra de cada música no modo Editar; ela acompanha o compasso numa janela "Cifra" (outro monitor/TV) e no celular/tablet pela Web Interface do REAPER (pacote livesections.html)
-- Kontakt: o som sai só pelas camadas (a track do Kontakt não manda direto ao master); o painel de avisos corrige projetos antigos em pasta com um clique
-- Medidor de nível em cada camada
-- Botão maximizar/restaurar (F11) e redimensionar pelas bordas
-- Correção: a tela quebrava com Kontakt vinculado e nenhum teclado escolhido
-- Um erro de desenho não trava mais a janela: aparece no console e o script continua
+      <version name="0.3.0" author="Igor Jacaúna" time="2026-11-01T10:47:51Z">
+        <changelog><![CDATA[- Play e Stop separados: cada um tem o seu botão na barra de ações e pode ser mapeado num botão diferente do controlador (Play/Stop continua para quem usa um botão só)
+- Espaço dá Play/Stop no Performance e no Palco
+- Anotação por música (tom, intro, dica), mostrada no Performance, no Palco, na janela de cifra e no celular
+- Modo Palco mostra as camadas, com fader, nível e M/S
+- Celular: as configurações mostram o endereço da cifra e um QR Code para abrir com a câmera
+- Versão aparece no topo da janela
+- Correção: a janela não recolhe mais ao dar dois cliques no título; agora maximiza, e maximizar ocupa o monitor
+- Correção: botão em CC que só manda o valor alto funcionava só no primeiro toque
 ]]></changelog>
         <source file="actions/Live Sections - Camada 1 mute.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20mute.lua</source>
         <source file="actions/Live Sections - Camada 1 solo.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20solo.lua</source>
@@ -78,6 +80,7 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <source file="actions/Live Sections - Música anterior.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20M%C3%BAsica%20anterior.lua</source>
         <source file="actions/Live Sections - Panic.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Panic.lua</source>
         <source file="actions/Live Sections - Play-Stop.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Play-Stop.lua</source>
+        <source file="actions/Live Sections - Play.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Play.lua</source>
         <source file="actions/Live Sections - Próxima música.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Pr%C3%B3xima%20m%C3%BAsica.lua</source>
         <source file="actions/Live Sections - Próxima seção.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Pr%C3%B3xima%20se%C3%A7%C3%A3o.lua</source>
         <source file="actions/Live Sections - Quantize 1 compasso.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Quantize%201%20compasso.lua</source>
@@ -91,6 +94,7 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <source file="actions/Live Sections - Quantize próximo.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Quantize%20pr%C3%B3ximo.lua</source>
         <source file="actions/Live Sections - Seção anterior.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Se%C3%A7%C3%A3o%20anterior.lua</source>
         <source file="actions/Live Sections - Setlist abrir-fechar.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Setlist%20abrir-fechar.lua</source>
+        <source file="actions/Live Sections - Stop.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Stop.lua</source>
         <source file="actions/Live Sections - Tap tempo.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Tap%20tempo.lua</source>
         <source file="actions/remote.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/remote.lua</source>
         <source file="assets/fonts/JetBrainsMono-Bold.ttf">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/assets/fonts/JetBrainsMono-Bold.ttf</source>
@@ -105,12 +109,15 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <source file="core/layers.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/layers.lua</source>
         <source file="core/performance.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/performance.lua</source>
         <source file="core/project_model.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/project_model.lua</source>
+        <source file="core/qrcode.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/qrcode.lua</source>
         <source file="core/quantize.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/quantize.lua</source>
         <source file="core/queue.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/queue.lua</source>
+        <source file="core/song_notes.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/song_notes.lua</source>
         <source file="core/stage.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/stage.lua</source>
         <source file="core/tempo_align.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/tempo_align.lua</source>
         <source file="core/transport.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/transport.lua</source>
         <source file="core/validator.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/validator.lua</source>
+        <source file="core/web_remote.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/web_remote.lua</source>
         <source file="LiveSections.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/LiveSections.lua</source>
         <source file="midi/feedback.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/midi/feedback.lua</source>
         <source file="midi/input.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/midi/input.lua</source>
@@ -125,6 +132,7 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <source file="ui/theme.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/ui/theme.lua</source>
         <source file="ui/widgets.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/ui/widgets.lua</source>
         <source file="vendor/json.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/vendor/json.lua</source>
+        <source file="version.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/version.lua</source>
       </version>
     </reapack>
     <reapack name="livesections.html" type="webinterface" desc="Live Sections: cifra no celular">
@@ -133,13 +141,15 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
 
 Ative em Preferences > Control/OSC/web > Add > Web browser interface, escolha "livesections.html" como página padrão e abra o endereço mostrado no celular (mesma rede Wi-Fi).]]></description>
       </metadata>
-      <version name="0.2.0" author="Igor Jacaúna" time="2026-10-31T23:52:22Z">
-        <changelog><![CDATA[- Cifra no palco: cole a cifra de cada música no modo Editar; ela acompanha o compasso numa janela "Cifra" (outro monitor/TV) e no celular/tablet pela Web Interface do REAPER (pacote livesections.html)
-- Kontakt: o som sai só pelas camadas (a track do Kontakt não manda direto ao master); o painel de avisos corrige projetos antigos em pasta com um clique
-- Medidor de nível em cada camada
-- Botão maximizar/restaurar (F11) e redimensionar pelas bordas
-- Correção: a tela quebrava com Kontakt vinculado e nenhum teclado escolhido
-- Um erro de desenho não trava mais a janela: aparece no console e o script continua
+      <version name="0.3.0" author="Igor Jacaúna" time="2026-11-01T10:47:51Z">
+        <changelog><![CDATA[- Play e Stop separados: cada um tem o seu botão na barra de ações e pode ser mapeado num botão diferente do controlador (Play/Stop continua para quem usa um botão só)
+- Espaço dá Play/Stop no Performance e no Palco
+- Anotação por música (tom, intro, dica), mostrada no Performance, no Palco, na janela de cifra e no celular
+- Modo Palco mostra as camadas, com fader, nível e M/S
+- Celular: as configurações mostram o endereço da cifra e um QR Code para abrir com a câmera
+- Versão aparece no topo da janela
+- Correção: a janela não recolhe mais ao dar dois cliques no título; agora maximiza, e maximizar ocupa o monitor
+- Correção: botão em CC que só manda o valor alto funcionava só no primeiro toque
 ]]></changelog>
         <source file="livesections.html">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/www/livesections.html.txt</source>
       </version>

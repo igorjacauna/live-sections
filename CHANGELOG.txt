@@ -1,6 +1,8 @@
-- Cifra no palco: cole a cifra de cada música no modo Editar; ela acompanha o compasso numa janela "Cifra" (outro monitor/TV) e no celular/tablet pela Web Interface do REAPER (pacote livesections.html)
-- Kontakt: o som sai só pelas camadas (a track do Kontakt não manda direto ao master); o painel de avisos corrige projetos antigos em pasta com um clique
-- Medidor de nível em cada camada
-- Botão maximizar/restaurar (F11) e redimensionar pelas bordas
-- Correção: a tela quebrava com Kontakt vinculado e nenhum teclado escolhido
-- Um erro de desenho não trava mais a janela: aparece no console e o script continua
+- Play e Stop separados: cada um tem o seu botão na barra de ações e pode ser mapeado num botão diferente do controlador (Play/Stop continua para quem usa um botão só)
+- Espaço dá Play/Stop no Performance e no Palco
+- Anotação por música (tom, intro, dica), mostrada no Performance, no Palco, na janela de cifra e no celular
+- Modo Palco mostra as camadas, com fader, nível e M/S
+- Celular: as configurações mostram o endereço da cifra e um QR Code para abrir com a câmera
+- Versão aparece no topo da janela
+- Correção: a janela não recolhe mais ao dar dois cliques no título; agora maximiza, e maximizar ocupa o monitor
+- Correção: botão em CC que só manda o valor alto funcionava só no primeiro toque
