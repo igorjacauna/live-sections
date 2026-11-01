@@ -585,10 +585,15 @@ local function meter(dl, x, y, w, h, level)
   end
 end
 
-local function layer_strip(ctx, x, y, w)
+-- Camadas como colunas de mixer. No palco (`fh` menor) o fader é mais
+-- baixo, para sobrar espaço para os cards, e sem camadas nada aparece.
+local FADER_H, STAGE_FADER_H = 132, 96
+
+local function layer_strip(ctx, x, y, w, fh)
   local dl = ImGui.GetWindowDrawList(ctx)
   local song = snap.song
   local list = song and layers.layers(song) or {}
+  if ui.stage and #list == 0 then return 0 end
   txt(ctx, dl, "label", x, y, theme.C.muted, "CAMADAS")
   y = y + 22
   if #list == 0 then
@@ -598,7 +603,8 @@ local function layer_strip(ctx, x, y, w)
     txt(ctx, dl, "small", x + 14, y + 14, theme.C.muted, note)
     return 66
   end
-  local lw, fh = 96, 132
+  local lw = 96
+  fh = fh or FADER_H
   for i in ipairs(list) do
     local st = layers.layer_state(i)
     local lx = x + (i - 1) * (lw + GAP)
@@ -652,74 +658,6 @@ local function layer_strip(ctx, x, y, w)
     widgets.mappable(ctx, { action = "layer_solo", arg = i }, "Solo " .. st.name)
   end
   return 22 + fh + 92
-end
-
--- Camadas no modo palco: uma faixa baixa, com fader horizontal, nível
--- estéreo e M/S, para sobrar espaço para os cards.
-local function meter_h(dl, x, y, w, h, level)
-  ImGui.DrawList_AddRectFilled(dl, x, y, x + w, y + h, theme.C.bg, 1)
-  local zones = {
-    { 0, db_level(-12), theme.C.ok }, { db_level(-12), db_level(-3), theme.C.queue }, { db_level(-3), 1, theme.C.danger },
-  }
-  for _, z in ipairs(zones) do
-    local a, b = z[1], math.min(z[2], level)
-    if b > a then ImGui.DrawList_AddRectFilled(dl, x + w * a, y, x + w * b, y + h, z[3], 1) end
-  end
-end
-
-local LAYER_ROW_H = 74
-local LAYER_ROW_MIN_W = 150
-
-local function layer_row(ctx, x, y, w)
-  local song = snap.song
-  local list = song and layers.layers(song) or {}
-  if #list == 0 then return 0 end
-  local dl = ImGui.GetWindowDrawList(ctx)
-  local n = #list
-  local lw = math.max(LAYER_ROW_MIN_W, (w - (n - 1) * GAP) / n)
-  local h = LAYER_ROW_H
-  for i in ipairs(list) do
-    local st = layers.layer_state(i)
-    local lx = x + (i - 1) * (lw + GAP)
-    if not st or lx + lw > x + w + 1 then break end
-    ImGui.DrawList_AddRectFilled(dl, lx, y, lx + lw, y + h, theme.C.panel, theme.R.r2)
-    ImGui.DrawList_PushClipRect(dl, lx + 8, y, lx + lw - 86, y + 34, true)
-    txt(ctx, dl, "button", lx + 12, y + 11, theme.C.text, st.name)
-    ImGui.DrawList_PopClipRect(dl)
-    if button(ctx, "mute" .. i, "M", lx + lw - 80, y + 7, 26, { w = 32, active = st.mute, accent = theme.C.queue, style = "num" }) then
-      layers.toggle_mute(i)
-    end
-    widgets.mappable(ctx, { action = "layer_mute", arg = i }, "Mute " .. st.name)
-    if button(ctx, "solo" .. i, "S", lx + lw - 44, y + 7, 26, { w = 32, active = st.solo, accent = theme.C.ok, style = "num" }) then
-      layers.toggle_solo(i)
-    end
-    widgets.mappable(ctx, { action = "layer_solo", arg = i }, "Solo " .. st.name)
-
-    -- fader horizontal: arrastar na tela muda o volume
-    local fx, fy, fw, fh = lx + 12, y + 40, lw - 24, 18
-    ImGui.SetCursorScreenPos(ctx, fx, fy)
-    ImGui.InvisibleButton(ctx, "fader" .. i, fw, fh)
-    if ImGui.IsItemActive(ctx) then
-      local mx = ImGui.GetMousePos(ctx)
-      layers.set_volume_ui(i, (mx - fx) / fw)
-      st = layers.layer_state(i)
-    end
-    widgets.mappable(ctx, { action = "layer_volume", arg = i }, "Volume " .. st.name)
-    ImGui.DrawList_AddRectFilled(dl, fx, fy, fx + fw, fy + fh, theme.C.bg, 6)
-    local vx = fx + fw * st.pos
-    ImGui.DrawList_AddRectFilled(dl, fx + 2, fy + 2, vx, fy + fh - 2, st.mute and theme.C.line2 or theme.C.muted & 0xFFFFFF66, 5)
-    ImGui.DrawList_AddRectFilled(dl, vx - 3, fy - 3, vx + 3, fy + fh + 3, theme.C.text, 2)
-    local dir = layers.takeover(i)
-    if dir then
-      local label = dir == "up" and "SUBA O FADER" or "DESÇA O FADER"
-      txt(ctx, dl, "label", fx + fw - size(ctx, "label", label), y + 26, theme.C.queue, label)
-    end
-
-    local m = meter_state(i, st.peak_l, st.peak_r)
-    meter_h(dl, fx, fy + fh + 4, fw, 4, m.l)
-    meter_h(dl, fx, fy + fh + 9, fw, 4, m.r)
-  end
-  return h
 end
 
 -- Espaço: Play/Stop no Performance e no Palco (fora de campos de texto).
@@ -831,12 +769,8 @@ function M.draw(ctx)
     cy = cy + (nh > 0 and nh + GAP or 0) + GAP
   end
   cy = cy + cards(ctx, cx, cy, cw) + GAP * 2
-  if ui.stage then
-    local lh = layer_row(ctx, cx, cy, cw)
-    if lh > 0 then cy = cy + lh + GAP end
-  else
-    cy = cy + layer_strip(ctx, cx, cy, cw) + GAP
-  end
+  local lh = layer_strip(ctx, cx, cy, cw, ui.stage and STAGE_FADER_H or FADER_H)
+  if lh > 0 then cy = cy + lh + GAP end
   cy = cy + action_bar(ctx, cx, cy, cw) + GAP
 
   ImGui.SetCursorScreenPos(ctx, x, y)

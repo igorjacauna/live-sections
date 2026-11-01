@@ -8,7 +8,7 @@ local function fake_imgui(opts)
   setmetatable(im, { __index = function(_, name)
     return function(...) calls[#calls + 1] = { name, ... }; return 0, 0 end
   end })
-  function im.InvisibleButton(_, id) calls[#calls + 1] = { "InvisibleButton", id }; return opts.press == id end
+  function im.InvisibleButton(_, id, w, h) calls[#calls + 1] = { "InvisibleButton", id, w, h }; return opts.press == id end
   function im.IsItemClicked() return false end
   function im.IsItemHovered() return false end
   function im.IsItemActive() return false end
@@ -304,12 +304,22 @@ describe("ui.performance_view", function()
       assert.is_true(colors[theme.C.ok] and colors[theme.C.queue] and colors[theme.C.danger])
     end)
 
-    it("modo palco: camadas numa faixa baixa com fader, mute e solo", function()
+    it("modo palco: camadas com fader vertical mais baixo, mute e solo", function()
       local k = r.add_track("Kontakt A")
       r.add_receive(k, r.add_track("Piano"), 0)
       layers.link(model.songs()[1], k)
-      local b = ids(draw({ setup = function() view.ui().stage = true end }))
+      local calls = draw({ setup = function() view.ui().stage = true end })
+      local b = ids(calls)
       assert.is_true(b.fader1 and b.mute1 and b.solo1)
+      local fader
+      for _, c in ipairs(calls) do if c[1] == "InvisibleButton" and c[2] == "fader1" then fader = c end end
+      assert.is_true(fader[4] > fader[3])          -- mais alto que largo
+      assert.is_true(fader[4] < 132)               -- mais baixo que no Performance
+    end)
+
+    it("modo palco: sem camadas, nada de camadas aparece", function()
+      local calls = draw({ setup = function() view.ui().stage = true end })
+      for _, c in ipairs(calls) do assert.is_not.equal("CAMADAS", c[1] == "DrawList_AddText" and c[6]) end
     end)
 
     it("Espaço dá Play/Stop no Performance, fora de campos de texto", function()
