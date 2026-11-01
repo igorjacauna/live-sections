@@ -10,7 +10,7 @@ command -v "$LUA" >/dev/null 2>&1 || LUA=/opt/homebrew/opt/lua@5.4/bin/lua
 
 rm -rf dist
 mkdir -p dist/demo
-sed "s#__SITE_URL__#$URL#g" site/index.html > dist/index.html
+sed -e "s#__SITE_URL__#$URL#g" -e "s#__VERSION__#$VERSION#g" site/index.html > dist/index.html
 # o protótipo é um fragmento (feito para o Artifact): ganha doctype e charset
 {
   printf '<!doctype html>\n<html lang="pt-BR">\n<meta charset="utf-8">\n'

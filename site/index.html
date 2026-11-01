@@ -170,14 +170,14 @@ footer .wrap { display: flex; gap: 16px; flex-wrap: wrap; justify-content: space
   <section class="hero">
     <div class="wrap">
       <div>
-        <span class="badge">Grátis · v0.1 beta · para REAPER 7</span>
+        <span class="badge">Grátis · v__VERSION__ beta · para REAPER 7</span>
         <h1>Toque sua música <em>por seções</em>, ao vivo, no REAPER.</h1>
         <p class="lead">Dispare Verso, Refrão ou Ponte na hora certa, com quantize e fila que você cancela até o último instante. Repita uma seção quanto quiser, troque de música pelo controlador e deixe o REAPER tocar sem cortes.</p>
         <div class="cta">
           <a class="btn primary" href="#instalar">Instalar pelo ReaPack</a>
           <a class="btn" href="demo/">Ver a demo interativa</a>
         </div>
-        <p class="req">Requer REAPER 7 ou mais recente e a extensão ReaImGui. Testado no macOS.</p>
+        <p class="req">Requer REAPER 7 ou mais recente e a extensão ReaImGui. Testado no macOS e no Windows.</p>
       </div>
 
       <div class="mock" aria-label="Tela de performance do Live Sections">
@@ -248,8 +248,8 @@ footer .wrap { display: flex; gap: 16px; flex-wrap: wrap; justify-content: space
         <div class="feat" style="--c:var(--learn)">
           <div class="dot"></div>
           <h3>Controlador MIDI com LEDs</h3>
-          <p>Clique direito em qualquer controle e toque o pad: está mapeado. Os LEDs mostram o que está tocando, o que está na fila (piscando) e o loop.</p>
-          <ul><li>Notas, CC, Program Change e pitch bend (faders)</li><li>Velocity de cada estado configurável</li><li>Pads não vazam notas para os instrumentos</li></ul>
+          <p>Clique direito em qualquer controle e toque o pad: está mapeado. Os LEDs mostram o que está tocando, o que está na fila (piscando), o loop, o Play e o mute e solo de cada camada.</p>
+          <ul><li>Notas, CC, Program Change e pitch bend (faders)</li><li>Play e Stop em botões separados, ou um só para os dois; Espaço também dá Play/Stop</li><li>Velocity de cada estado configurável</li><li>Pads não vazam notas para os instrumentos</li></ul>
         </div>
         <div class="feat" style="--c:var(--ok)">
           <div class="dot"></div>
@@ -270,18 +270,18 @@ footer .wrap { display: flex; gap: 16px; flex-wrap: wrap; justify-content: space
         <div class="feat" style="--c:#FFB547">
           <div class="dot"></div>
           <h3>Cifra no palco e no celular</h3>
-          <p>Cole a cifra de cada música e ela acompanha o compasso: o verso atual em destaque, os próximos embaixo e "a seguir" no fim da seção. Numa janela que vai para outro monitor, ou no celular e no tablet da banda, pela rede.</p>
-          <ul><li>Linhas em grade "| G | D |" acendem o acorde do compasso</li><li>Sem app para instalar: abre no navegador</li></ul>
+          <p>Cole a cifra de cada música e ela acompanha a música: a seção inteira na tela, com uma barra de progresso, e "a seguir" com o começo da próxima. Numa janela que vai para outro monitor, ou no celular e no tablet da banda, pela rede.</p>
+          <ul><li>Linhas em grade "| G | D |" acendem o acorde do compasso</li><li>Anotação por música: tom, intro, uma dica</li><li>Sem app para instalar: aponte a câmera para o QR Code</li></ul>
         </div>
         <div class="feat" style="--c:#E3559F">
           <div class="dot"></div>
           <h3>Modo palco</h3>
-          <p>Cards grandes, legíveis de longe, e a setlist reduzida a anterior, atual e próxima. Avisos claros quando um dispositivo MIDI desconecta.</p>
+          <p>Cards grandes, legíveis de longe, e a setlist reduzida a anterior, atual e próxima. As camadas do Kontakt e a anotação da música ficam à vista. Avisos claros quando um dispositivo MIDI desconecta.</p>
         </div>
         <div class="feat" style="--c:#7A8AA6">
           <div class="dot"></div>
           <h3>Seguro por desenho</h3>
-          <p>O áudio nunca depende do script: se ele fechar, o REAPER continua tocando. Também tem 75 actions para mapear pelo Action List ou pelo ReaLearn.</p>
+          <p>O áudio nunca depende do script: se ele fechar, o REAPER continua tocando. Também tem 77 actions para mapear pelo Action List ou pelo ReaLearn.</p>
         </div>
       </div>
     </div>
@@ -323,9 +323,9 @@ footer .wrap { display: flex; gap: 16px; flex-wrap: wrap; justify-content: space
       <details><summary>Funciona com qualquer controlador?</summary><p>Funciona com qualquer controlador MIDI que mande notas, CC, Program Change ou pitch bend. Os LEDs acendem quando o controlador aceita a mesma mensagem de volta, com a velocity de cada estado (configurável). Foi desenvolvido com um SMC-Mixer.</p></details>
       <details><summary>Preciso do Kontakt?</summary><p>Não. Saltos, loop, fila, MIDI e modo Editar funcionam com qualquer projeto. O vínculo com o Kontakt é opcional e serve para tocar um instrumento diferente em cada música, com camadas.</p></details>
       <details><summary>E se o script travar no meio do show?</summary><p>O REAPER continua tocando: o áudio nunca passa pelo script. Ele só comanda o transporte e o roteamento do próprio REAPER.</p></details>
-      <details><summary>Funciona no Windows?</summary><p>Ele usa só a API do REAPER e a ReaImGui, então deve funcionar, mas esta versão beta foi testada no macOS. Se testar no Windows, conte como foi.</p></details>
+      <details><summary>Funciona no Windows?</summary><p>Sim. Ele usa só a API do REAPER e a ReaImGui, e é testado no macOS e no Windows. No Windows, para o celular abrir a cifra, o firewall precisa liberar o REAPER em rede privada.</p></details>
       <details><summary>É de graça? Posso modificar?</summary><p>Sim. É software livre sob a licença GPL-3.0: use, estude, modifique e compartilhe. O código está no <a href="https://github.com/igorjacauna/live-sections">GitHub</a>, onde você também pode relatar problemas e sugerir melhorias.</p></details>
-      <details><summary>Como a banda vê a cifra no celular?</summary><p>O próprio REAPER tem um servidor web. Instale a página "livesections.html" pelo ReaPack, ative em Preferences → Control/OSC/web → Add → Web browser interface com essa página, e abra no celular o endereço que o REAPER mostra, na mesma rede Wi-Fi. A cifra segue a música sozinha.</p></details>
+      <details><summary>Como a banda vê a cifra no celular?</summary><p>O próprio REAPER tem um servidor web. Instale a página "livesections.html" pelo ReaPack e ative em Preferences → Control/OSC/web → Add → Web browser interface. Nas configurações do Live Sections aparecem o endereço e um QR Code: com o celular na mesma rede Wi-Fi, é só apontar a câmera. A cifra segue a música sozinha. No Android, se o Chrome mostrar "too many retries", permita "Dispositivos por perto" para o Chrome nas configurações do celular.</p></details>
       <details><summary>Precisa da SWS?</summary><p>Não. Só da ReaImGui, que se instala pelo ReaPack.</p></details>
     </div>
   </section>
