@@ -19,6 +19,15 @@ Adaptador de Rede sem Fio Wi-Fi:
    Máscara de Sub-rede . . . . . . . . . . . . : 255.255.255.0
    Gateway Padrão. . . . . . . . . . . . . . . : 10.0.0.1
 
+Adaptador Ethernet vEthernet (WSL (Hyper-V firewall)):
+
+   Endereço IPv4. . . . . . . . . . . . . . . : 172.28.112.1
+   Máscara de Sub-rede . . . . . . . . . . . . : 255.255.240.0
+
+Adaptador Ethernet VirtualBox Host-Only Network:
+
+   Endereço IPv4. . . . . . . . . . . . . . . : 192.168.56.1
+
 Adaptador Ethernet Ethernet:
 
    Endereço IPv4. . . . . . . . . . . . . . . : 192.168.1.40(Preferencial)

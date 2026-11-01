@@ -36,13 +36,26 @@ local function private(ip)
   return a == 192 and b == 168 or a == 10 or a == 172 and b >= 16 and b <= 31
 end
 
+-- Adaptadores virtuais (WSL, Hyper-V, VirtualBox, VMware, Docker, VPN)
+-- também têm IP "de rede local", mas o celular não chega neles.
+local VIRTUAL = { "vethernet", "hyper%-v", "wsl", "virtualbox", "vmware", "vmnet", "docker", "utun", "loopback" }
+
+local function virtual(adapter)
+  adapter = adapter:lower()
+  for _, p in ipairs(VIRTUAL) do if adapter:find(p) then return true end end
+  return false
+end
+
 function M.parse_ips(text)
   local out, seen = {}, {}
+  local adapter = ""
   for line in (text or ""):gmatch("[^\r\n]+") do
+    -- cabeçalho do adaptador: linha sem recuo ("Adaptador Ethernet vEthernet (WSL):", "en0: flags=…")
+    if line:match("^%S") then adapter = line end
     -- Windows: "Endereço IPv4. . . : 192.168.0.23" (às vezes com "(Preferencial)")
     local ip = line:find("IPv4", 1, true) and line:match("IPv4.-:%s*(%d+%.%d+%.%d+%.%d+)")
       or line:match("inet%s+(%d+%.%d+%.%d+%.%d+)") or line:match("inet addr:(%d+%.%d+%.%d+%.%d+)")
-    if ip and private(ip) and not seen[ip] then
+    if ip and private(ip) and not seen[ip] and not virtual(adapter) then
       seen[ip] = true
       out[#out + 1] = ip
     end
