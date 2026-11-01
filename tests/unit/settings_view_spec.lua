@@ -151,6 +151,11 @@ describe("ui.settings_view", function()
     assert.is_true(white)
     assert.is_true(dark > 29)
     assert.equal(url, copied)
+    local text = {}
+    for _, c in ipairs(im.calls) do
+      for _, v in ipairs(c) do if type(v) == "string" then text[#text + 1] = v end end
+    end
+    assert.matches("Chrome → Permissões", table.concat(text, " "))
   end)
 
   it("rótulos dos controles", function()

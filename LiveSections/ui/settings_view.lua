@@ -321,6 +321,10 @@ local function chart_card(ctx, x, y, w)
     cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.faint,
       "Não abre no celular? No Windows, o firewall precisa liberar o REAPER em rede privada (ele pergunta na primeira vez), e o Wi-Fi deve estar como rede privada, não pública.") + 8
   end
+  if #info.urls > 0 then
+    cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.faint,
+      "Chrome do Android com erro \"too many retries\"? Nas configurações do celular: Apps → Chrome → Permissões → permita \"Dispositivos por perto\".") + 8
+  end
   local rw = kit.size(ctx, "button", "Verificar de novo") + 24
   if kit.button(ctx, "web_refresh", "Verificar de novo", ix, cy + 4, 30, { w = rw }) then web.info(true) end
   return cy + 4 + 30 - y + 16
