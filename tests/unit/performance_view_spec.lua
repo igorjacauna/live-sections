@@ -265,6 +265,47 @@ describe("ui.performance_view", function()
       assert.is_true(b.act_toggle_loop and b.act_cancel and b.act_play and b.act_stop and b.act_prev_song and b.act_next_song)
     end)
 
+    describe("aviso do Mapeamento", function()
+      local function draw_touch(touch, stage, mode)
+        local im, calls = fake_imgui()
+        local kcc = { handle = function() end, on_song = function() end, tick = function() end, led = function() end,
+          last_touch = function() return touch end }
+        widgets.init(im, theme, anim, learn, mappings)
+        view.init({
+          ImGui = im, theme = theme, anim = anim, widgets = widgets, perf = perf, layers = layers,
+          feedback = feedback, mappings = mappings, learn = learn, input = input, model = model, kontakt_cc = kcc,
+        })
+        view.ui().stage = stage or false
+        view.ui().mode = mode or "performance"
+        view.update(1)
+        view.draw("ctx")
+        local texts = {}
+        for _, c in ipairs(calls) do if c[1] == "DrawList_AddText" then texts[c[6]] = true end end
+        return texts
+      end
+
+      it("mostra nome e valor do knob em Performance e Palco", function()
+        local touch = { row = { name = "Cutoff", kind = "knob" }, value = 64 }
+        assert.is_true(draw_touch(touch)["Cutoff  64"])
+        assert.is_true(draw_touch(touch, true)["Cutoff  64"])
+      end)
+
+      it("botão mostra ON ou OFF", function()
+        assert.is_true(draw_touch({ row = { name = "Rotary", kind = "toggle" }, value = 127 })["Rotary  ON"])
+        assert.is_true(draw_touch({ row = { name = "Rotary", kind = "toggle" }, value = 0 })["Rotary  OFF"])
+      end)
+
+      it("sem toque recente não mostra nada", function()
+        local texts = draw_touch(nil)
+        for t in pairs(texts) do assert.is_nil(t:find("  64", 1, true)) end
+      end)
+
+      it("não aparece em Configurações", function()
+        local touch = { row = { name = "Cutoff", kind = "knob" }, value = 64 }
+        assert.is_nil(draw_touch(touch, false, "settings")["Cutoff  64"])
+      end)
+    end)
+
     it("modo palco: faixa compacta e setlist expansível", function()
       local b = ids(draw({ setup = function() view.ui().stage = true end }))
       assert.is_true(b.strip1 and b.strip2 and b.strip3)

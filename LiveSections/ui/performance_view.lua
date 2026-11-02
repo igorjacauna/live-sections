@@ -740,6 +740,23 @@ end
 
 -- ------------------------------------------------------------------ desenho
 
+-- Aviso "Cutoff 64" por 2 s ao mexer um controle do Mapeamento (RF-135),
+-- no topo da área da música, por cima do resto.
+local function touch_toast(ctx, x, y, w)
+  local t = kontakt_cc and kontakt_cc.last_touch(now)
+  if not t then return end
+  local v = t.value or 0
+  local s = t.row.name .. "  " .. (t.row.kind == "knob" and tostring(v) or (v >= 64 and "ON" or "OFF"))
+  local style = ui.stage and "title" or "strong"
+  local tw, th = size(ctx, style, s)
+  local pw, ph = tw + 40, th + 24
+  local px, py = x + (w - pw) / 2, y + 8
+  local dl = ImGui.GetWindowDrawList(ctx)
+  ImGui.DrawList_AddRectFilled(dl, px, py, px + pw, py + ph, theme.C.raise2, theme.R.r2)
+  ImGui.DrawList_AddRect(dl, px, py, px + pw, py + ph, theme.C.line2, theme.R.r2)
+  txt(ctx, dl, style, px + 20, py + 12, theme.C.text, s)
+end
+
 function M.draw(ctx)
   local x, y = ImGui.GetCursorScreenPos(ctx)
   local w, h = ImGui.GetContentRegionAvail(ctx)
@@ -785,6 +802,7 @@ function M.draw(ctx)
   local lh = layer_strip(ctx, cx, cy, cw, ui.stage and STAGE_FADER_H or FADER_H)
   if lh > 0 then cy = cy + lh + GAP end
   cy = cy + action_bar(ctx, cx, cy, cw) + GAP
+  touch_toast(ctx, cx, y, cw)
 
   ImGui.SetCursorScreenPos(ctx, x, y)
   ImGui.Dummy(ctx, w, math.max(0, cy - y))
