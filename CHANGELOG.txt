@@ -1,6 +1,1 @@
-- Nova tela Mapeamento: knobs, faders e botões do controlador viram um CC fixo que vai só para o Kontakt da música atual (como no Gig Performer)
-- "Aprender vários": mexa os controles um de cada vez e cada um vira uma linha, com nome, CC de saída e tipo sugeridos (knob, liga/desliga ou segurar)
-- Enviar p/ Learn manda o CC para o Learn do Kontakt; Testar varre o CC de 0 a 127; uma luz mostra quando o CC sai
-- Cada música lembra os valores dos seus controles e reenvia ao entrar; botões liga/desliga acendem o LED
-- Ao mexer um controle, Performance e Palco mostram o nome e o valor por 2 s
-- Avisos: controle que já é de uma ação, CC repetido ou reservado, e Kontakt sem o JSFX do Mapeamento (com instalação em um clique)
+- Camadas: duplo clique no nome da camada (em cima do fader) para renomear; o nome vale só para a música atual
