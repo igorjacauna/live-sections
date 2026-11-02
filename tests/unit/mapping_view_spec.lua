@@ -23,7 +23,9 @@ local function fake_imgui()
 end
 
 describe("ui.mapping_view", function()
-  local r, im, view, mappings, learn, feedback, kcc, dir, ui
+  local r, im, view, mappings, learn, feedback, kcc, dir, ui, jsfx, songs
+  local fake_layers = { track_of = function(song) return song.track end }
+  local fake_model = { songs = function() return songs end }
   local SMC = "SMC-Mixer-bt"
 
   local function ev(status, d1, d2) return { port_name = SMC, status = status, data1 = d1, data2 = d2 } end
@@ -45,6 +47,7 @@ describe("ui.mapping_view", function()
     view.init({
       ImGui = im, theme = require("ui.theme"), kit = require("ui.performance_view").kit, kontakt_cc = kcc,
       learn = learn, feedback = feedback, ui = ui, label = require("ui.settings_view").label, jsfx_status = status,
+      jsfx = jsfx, layers = fake_layers, model = fake_model,
     })
   end
 
@@ -58,8 +61,10 @@ describe("ui.mapping_view", function()
     end
     mappings, learn, feedback = require("midi.mappings"), require("midi.learn"), require("midi.feedback")
     mappings.load()
+    songs = {}
+    jsfx = require("core.kontakt_jsfx")
     kcc = require("core.kontakt_cc")
-    kcc.init({ mappings = mappings, jsfx = require("core.kontakt_jsfx"), layers = { track_of = function() end } })
+    kcc.init({ mappings = mappings, jsfx = jsfx, layers = fake_layers })
     im = fake_imgui()
     local theme = require("ui.theme")
     theme.init("ctx", im, "/sem/fontes/")
@@ -162,5 +167,70 @@ describe("ui.mapping_view", function()
     frame()
     assert.is_true(drawn("C:/REAPER/Effects/LiveSections/ls_kontakt_cc.jsfx"))
     assert.is_true(drawn("Permission denied"))
+  end)
+
+  describe("segurança", function()
+    local kt_a, kt_b
+
+    local function kontakt(name)
+      local t = r.add_track(name)
+      t.fx = { "VST3i: Kontakt 8" }
+      return t
+    end
+
+    before_each(function()
+      kt_a, kt_b = kontakt("A"), kontakt("B")
+      songs = { { name = "A", track = kt_a }, { name = "B", track = kt_b }, { name = "Sem Kontakt" } }
+      jsfx.install(kt_a)
+      kcc.add_from_learn({ port_name = SMC, msg_type = "cc", channel = 1, number = 16 })
+      kcc.on_song(songs[1])
+      init()
+      frame()
+    end)
+
+    it("conta as músicas com o JSFX e instala nas que faltam", function()
+      assert.is_true(drawn("JSFX instalado em 1 de 2 músicas com Kontakt"))
+      frame({ press = "kcc_install_all" })
+      assert.equal(0, jsfx.find(kt_b))
+      frame()
+      assert.is_true(drawn("JSFX instalado em 2 de 2 músicas com Kontakt"))
+    end)
+
+    it("sem música com Kontakt, explica", function()
+      songs = { { name = "Sem Kontakt" } }
+      init()
+      frame()
+      assert.is_true(drawn("Nenhuma música deste projeto tem Kontakt vinculado"))
+    end)
+
+    it("Testar e Enviar p/ Learn mandam o CC da linha ao Kontakt atual", function()
+      local cc = kcc.get("k1").cc
+      frame({ press = "klearn_k1" })
+      assert.equal(127, jsfx.value(kt_a, cc))
+      kcc.tick(reaper.time_precise() + 5)
+      frame({ press = "ktest_k1" })
+      assert.equal(0, jsfx.value(kt_a, cc))
+    end)
+
+    it("a barra mostra o valor e a luz acende quando o CC sai", function()
+      kcc.handle(kcc.mapping("k1"), 1, nil, reaper.time_precise())
+      local function circles()
+        local out = {}
+        for _, c in ipairs(im.calls) do
+          if c[1] == "DrawList_AddCircleFilled" and c[5] == 5 then out[#out + 1] = c[6] end
+        end
+        return out
+      end
+      im.calls = {}
+      frame()
+      local theme = require("ui.theme")
+      assert.same({ theme.C.raise2 }, circles())
+      reaper.TrackFX_SetParam(kt_a, 0, 129, 1)
+      kcc.tick(reaper.time_precise())
+      im.calls = {}
+      frame()
+      assert.same({ theme.C.ok }, circles())
+      assert.is_true(drawn("SINAL"))
+    end)
   end)
 end)

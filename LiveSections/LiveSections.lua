@@ -108,7 +108,8 @@ view.init({
 chart_view.init({ ImGui = ImGui, theme = theme, kit = view.kit })
 mapping_view.init({
   ImGui = ImGui, theme = theme, kit = view.kit, kontakt_cc = kontakt_cc, learn = learn, feedback = feedback,
-  ui = view.ui(), label = settings_view.label, jsfx_status = jsfx_status,
+  ui = view.ui(), label = settings_view.label, jsfx = kontakt_jsfx, layers = layers, model = model,
+  jsfx_status = jsfx_status,
 })
 settings_view.init({
   ImGui = ImGui, theme = theme, kit = view.kit, mappings = mappings, feedback = feedback,

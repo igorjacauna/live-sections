@@ -6,30 +6,40 @@
 -- tipo, reaprende o controle físico e é removida aqui (RF-115–RF-117). Os
 -- avisos não bloqueiam (RF-122–RF-124, RF-141).
 --
+-- Para dar segurança: cada linha mostra o valor atual numa barra e uma luz
+-- que acende quando o CC sai do JSFX (RF-118, RF-119), com Testar e Enviar
+-- p/ Learn (RF-120, RF-121); o topo conta as músicas cujo Kontakt tem o
+-- JSFX e instala nas que faltam (RF-128, RF-129).
+--
 -- M.init(deps)   ImGui, theme, kit, kontakt_cc, learn, feedback, ui,
 --                label (texto de uma ação: settings_view.label),
+--                jsfx (core/kontakt_jsfx), layers, model,
 --                jsfx_status = { ok, err, path } da gravação do JSFX
 -- M.draw(ctx, x, y, w, h, snap) -> altura usada
 
 local M = {}
 
-local ImGui, theme, kit, kcc, learn, feedback, ui, label
+local ImGui, theme, kit, kcc, learn, feedback, ui, label, jsfx, layers, model
 local jsfx_status = { ok = true }
 
 local GAP = 12
 local ROW_H = 44
 local CONFLICT_S = 5
+local COVERAGE_S = 1.0   -- recontagem das músicas com o JSFX
+local BAR_W = 90
 local KIND_LABEL = { knob = "Knob", toggle = "Liga/desliga", momentary = "Segurar" }
 local KINDS = { "knob", "toggle", "momentary" }
 
 local name_buf = {}      -- [id] = texto do nome enquanto é editado
 local height = 0
+local coverage, coverage_at = nil, -math.huge
 
 function M.init(deps)
   ImGui, theme, kit = deps.ImGui, deps.theme, deps.kit
   kcc, learn, feedback, ui, label = deps.kontakt_cc, deps.learn, deps.feedback, deps.ui, deps.label
+  jsfx, layers, model = deps.jsfx, deps.layers, deps.model
   jsfx_status = deps.jsfx_status or { ok = true }
-  name_buf, height = {}, 0
+  name_buf, height, coverage, coverage_at = {}, 0, nil, -math.huge
 end
 
 -- ------------------------------------------------------------------ apoio
@@ -73,6 +83,43 @@ local function header(ctx, dl, ix, iw, cy)
   cy = cy + kit.wrapped(ctx, "small", ix, cy, iw - bw - 16, theme.C.muted,
     "Cada controle do controlador vira um CC fixo que vai só para o Kontakt da música atual, como no Gig Performer. No Kontakt, use Learn MIDI CC# Automation num knob e mexa o controle (ou use Enviar p/ Learn).") + 12
   return cy
+end
+
+local function get_coverage(now)
+  if not coverage or now - coverage_at >= COVERAGE_S then
+    coverage, coverage_at = jsfx.coverage(model.songs(), layers.track_of), now
+  end
+  return coverage
+end
+
+local function install_missing(cov)
+  reaper.Undo_BeginBlock()
+  for _, song in ipairs(cov.missing) do
+    local tr = layers.track_of(song)
+    if tr then jsfx.install(tr) end
+  end
+  reaper.Undo_EndBlock("Live Sections: instalar o JSFX do Mapeamento", -1)
+  coverage = nil
+end
+
+local function coverage_line(ctx, dl, ix, iw, cy, now)
+  local cov = get_coverage(now)
+  if cov.total == 0 then
+    return cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.muted,
+      "Nenhuma música deste projeto tem Kontakt vinculado. Vincule no modo Editar para os controles chegarem a ele.") + 12
+  end
+  local all = cov.installed == cov.total
+  local text = string.format("JSFX instalado em %d de %d músicas com Kontakt", cov.installed, cov.total)
+  kit.txt(ctx, dl, "button", ix + (all and 22 or 0), cy + 6, all and theme.C.ok or theme.C.queue, text)
+  if all then
+    theme.icon(dl, "check", ix, cy + 6, 16, theme.C.ok)
+  else
+    local bl = "Instalar em todas"
+    local bw = kit.size(ctx, "button", bl) + 24
+    local bx = ix + kit.size(ctx, "button", text) + 16
+    if kit.button(ctx, "kcc_install_all", bl, bx, cy, 30, { w = bw }) then install_missing(cov) end
+  end
+  return cy + 42
 end
 
 local function banners(ctx, dl, ix, iw, cy, now)
@@ -129,44 +176,74 @@ local function row_controls(ctx, dl, row, cols, cy)
   ImGui.DrawList_PopClipRect(dl)
 end
 
+-- Valor atual (barra) e a luz de envio do CC.
+local function row_signal(dl, row, x, cy, now)
+  local v = kcc.value(row.id)
+  local by = cy + 16
+  ImGui.DrawList_AddRectFilled(dl, x, by, x + BAR_W, by + 8, theme.C.raise2, 4)
+  if v then ImGui.DrawList_AddRectFilled(dl, x, by, x + BAR_W * v / 127, by + 8, theme.C.text, 4) end
+  local lit = kcc.flashed(row.id, now)
+  ImGui.DrawList_AddCircleFilled(dl, x + BAR_W + 14, by + 4, 5, lit and theme.C.ok or theme.C.raise2)
+end
+
+local ROW_BUTTONS = {
+  { "remove", "kdel_", "Remover" },
+  { "relearn", "krelearn_", "Reaprender" },
+  { "send_learn", "klearn_", "Enviar p/ Learn" },
+  { "test", "ktest_", "Testar" },
+}
+
 -- Botões à direita da linha; devolve a ação pedida.
 local function row_buttons(ctx, row, right, cy)
-  local rw = kit.size(ctx, "button", "Remover") + 24
-  local x = right - rw
-  if kit.button(ctx, "kdel_" .. row.id, "Remover", x, cy + 4, 28, { w = rw }) then return "remove" end
-  local relearn = relearning(row.id)
-  local ll = relearn and "Mexa o controle…" or "Reaprender"
-  local lw = kit.size(ctx, "button", ll) + 24
-  x = x - lw - 6
-  if kit.button(ctx, "krelearn_" .. row.id, ll, x, cy + 4, 28, { w = lw, active = relearn }) then
-    return relearn and "cancel_learn" or "relearn"
+  local x = right
+  for _, b in ipairs(ROW_BUTTONS) do
+    local relearn = b[1] == "relearn" and relearning(row.id)
+    local l = relearn and "Mexa o controle…" or b[3]
+    local bw = kit.size(ctx, "button", l) + 24
+    x = x - bw
+    if kit.button(ctx, b[2] .. row.id, l, x, cy + 4, 28, { w = bw, active = relearn }) then
+      return relearn and "cancel_learn" or b[1]
+    end
+    x = x - 6
   end
 end
 
-local function rows_table(ctx, dl, ix, iw, cy)
+local function buttons_width(ctx)
+  local w = 0
+  for _, b in ipairs(ROW_BUTTONS) do
+    w = w + kit.size(ctx, "button", b[1] == "relearn" and "Mexa o controle…" or b[3]) + 30
+  end
+  return w
+end
+
+local function rows_table(ctx, dl, ix, iw, cy, now)
   local rows = kcc.rows()
   if #rows == 0 then
     return cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.muted,
       "Nenhum controle ainda. Clique em Aprender vários e mexa os knobs, faders e botões que devem mexer no Kontakt.") + 12
   end
-  local actions_w = kit.size(ctx, "button", "Mexa o controle…") + kit.size(ctx, "button", "Remover") + 60
-  local cols = { name = ix, name_w = math.max(120, (iw - actions_w) * 0.34) }
+  local actions_w = buttons_width(ctx)
+  local free = iw - actions_w - 96 - 130 - BAR_W - 28 - GAP * 5
+  local cols = { name = ix, name_w = math.max(110, free * 0.55) }
   cols.phys = cols.name + cols.name_w + GAP
-  cols.phys_w = math.max(100, (iw - actions_w) * 0.28)
+  cols.phys_w = math.max(90, free * 0.45)
   cols.cc = cols.phys + cols.phys_w + GAP
   cols.cc_w = 96
   cols.kind = cols.cc + cols.cc_w + GAP
   cols.kind_w = 130
+  cols.signal = cols.kind + cols.kind_w + GAP
   kit.txt(ctx, dl, "label", cols.name, cy, theme.C.muted, "NOME")
   kit.txt(ctx, dl, "label", cols.phys, cy, theme.C.muted, "CONTROLE")
   kit.txt(ctx, dl, "label", cols.cc, cy, theme.C.muted, "CC")
   kit.txt(ctx, dl, "label", cols.kind, cy, theme.C.muted, "TIPO")
+  kit.txt(ctx, dl, "label", cols.signal, cy, theme.C.muted, "SINAL")
   cy = cy + 22
   local warnings = kcc.warnings()
   local act, act_row
   for _, row in ipairs(rows) do
     ImGui.DrawList_AddLine(dl, ix, cy, ix + iw, cy, theme.C.line)
     row_controls(ctx, dl, row, cols, cy + 4)
+    row_signal(dl, row, cols.signal, cy + 4, now)
     local a = row_buttons(ctx, row, ix + iw, cy + 4)
     if a then act, act_row = a, row end
     cy = cy + ROW_H
@@ -185,6 +262,10 @@ local function rows_table(ctx, dl, ix, iw, cy)
     learn.start({ action = "kontakt_cc", arg = act_row.id })
   elseif act == "cancel_learn" then
     learn.cancel()
+  elseif act == "test" then
+    kcc.test(act_row.id, now)
+  elseif act == "send_learn" then
+    kcc.send_learn(act_row.id, now)
   end
   return cy
 end
@@ -198,8 +279,9 @@ function M.draw(ctx, x, y, w, h, snap)
   local ix, iw = x + 16, w - 32
   local cy = y + 16
   cy = header(ctx, dl, ix, iw, cy)
+  cy = coverage_line(ctx, dl, ix, iw, cy, now)
   cy = banners(ctx, dl, ix, iw, cy, now)
-  cy = rows_table(ctx, dl, ix, iw, cy)
+  cy = rows_table(ctx, dl, ix, iw, cy, now)
   height = cy - y + 16
   ImGui.SetCursorScreenPos(ctx, x, y)
   ImGui.Dummy(ctx, w, height)
