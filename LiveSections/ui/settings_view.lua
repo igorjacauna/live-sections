@@ -380,6 +380,24 @@ local function mappings_card(ctx, x, y, w)
   return cy - y + 16
 end
 
+-- Ciclos por segundo e tempo de cada ciclo (core/diag): se o REAPER engasga
+-- com o Live Sections aberto, estes números dizem onde.
+local function perf_card(ctx, x, y, w)
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local ix, iw = x + 16, w - 32
+  local cy = y + 16
+  cy = cy + title(ctx, dl, ix, cy, "Desempenho")
+  local s = require("core.diag").stats(reaper.time_precise())
+  local text = s and string.format("%.0f ciclos/s · ciclo %.1f ms (máx. %.0f ms) · %.0f mensagens MIDI/s",
+    s.fps, s.avg_ms, s.max_ms, s.midi_per_s) or "Medindo…"
+  local slow = s and (s.fps < 20 or s.max_ms > 50)
+  kit.txt(ctx, dl, "num", ix, cy, slow and theme.C.danger or theme.C.text, text)
+  cy = cy + 26
+  cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.faint,
+    "Normal: uns 30 ciclos/s e ciclo de poucos ms. Se ficar vermelho ao mexer num fader, mande estes números.")
+  return cy - y + 16
+end
+
 -- ------------------------------------------------------------------ desenho
 
 local function card(ctx, id, x, y, w, fn)
@@ -402,6 +420,7 @@ function M.draw(ctx, x, y, w, h, snap)
   place("controller", controller_card, 1)
   place("keyboard", function(c, cx, cy, ww) return keyboard_card(c, cx, cy, ww, snap) end, 2)
   place("leds", leds_card, 1)
+  place("perf", perf_card, 1)
   place("transport", transport_card, 2)
   place("chart", chart_card, 2)
   local wide_y = math.max(col_y[1], col_y[2])

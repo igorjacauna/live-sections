@@ -173,6 +173,8 @@ if ImGui.ConfigVar_WindowsResizeFromEdges then
   ImGui.SetConfigVar(ctx, ImGui.ConfigVar_WindowsResizeFromEdges, 1)
 end
 
+local diag = require("core.diag")
+
 local function loop()
   local now = reaper.time_precise()
   remote.heartbeat(now)
@@ -219,6 +221,7 @@ local function loop()
   if ui.chart_open and not chart_view.draw(ctx, view.stage_state()) then ui.chart_open = false end
   theme.pop_font(ctx, t)
   theme.pop(ctx)
+  diag.cycle(now, reaper.time_precise())
   if open then reaper.defer(loop) end
 end
 

@@ -123,6 +123,28 @@ describe("ui.performance_view", function()
       assert.same({ "activate", "song:A", "tick:1", "tick:2" }, log)
     end)
 
+    it("num ciclo, de cada fader e knob absoluto só a última mensagem conta", function()
+      local got = {}
+      local kcc = { handle = function(m, value) got[#got + 1] = { m.arg, math.floor(value * 127 + 0.5) } end,
+        on_song = function() end, tick = function() end, absolute = function(id) return id == "k1" end }
+      view.init({
+        ImGui = fake_imgui(), theme = theme, anim = anim, widgets = widgets, perf = perf, layers = layers,
+        feedback = feedback, mappings = mappings, learn = learn, input = input, model = model, kontakt_cc = kcc,
+      })
+      mappings.set({ action = "kontakt_cc", arg = "k1", port_name = MASTER, msg_type = "cc", channel = 1, number = 16 })
+      mappings.set({ action = "kontakt_cc", arg = "k2", port_name = MASTER, msg_type = "cc", channel = 1, number = 17 })
+      local vols = {}
+      local set = layers.set_layer_volume
+      layers.set_layer_volume = function(slot, v) vols[#vols + 1] = v; return set(slot, v) end
+      mappings.set({ action = "layer_volume", arg = 1, port_name = MASTER, msg_type = "pb", channel = 1 })
+      for v = 1, 40 do r.midi_in(4, 0xB0, 16, v) end   -- knob absoluto
+      for _ = 1, 3 do r.midi_in(4, 0xB0, 17, 1) end    -- knob sem fim: cada passo conta
+      for v = 0, 100, 10 do r.midi_in(4, 0xE0, 0, v) end
+      view.update(1)
+      assert.same({ { "k1", 40 }, { "k2", 1 }, { "k2", 1 }, { "k2", 1 } }, got)
+      assert.same({ ((100 << 7) | 0) / 16383 }, vols)
+    end)
+
     it("evento mapeado dispara a ação e pisca o controle; Note Off não dispara", function()
       mappings.set({ action = "trigger_slot", arg = 3, port_name = MASTER, msg_type = "note", channel = 1, number = 24 })
       view.handle_event(ev(0x80, 24, 0))

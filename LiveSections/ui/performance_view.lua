@@ -13,6 +13,8 @@
 
 local M = {}
 
+local diag = require("core.diag")
+
 local ImGui, theme, anim, widgets
 local perf, layers, feedback, mappings, learn, input, model, editor, settings_view, stage
 local kontakt_cc, mapping_view
@@ -225,9 +227,33 @@ local function update_leds()
   feedback.flush(now)
 end
 
+-- Fader e knob absoluto só importam pelo último valor: das mensagens de um
+-- ciclo, fica a última de cada controle. Um fader manda centenas por
+-- segundo, e tratar cada uma travava a thread principal do REAPER.
+local function coalesce_key(e)
+  if learn.state() then return nil end
+  local kind = e.status & 0xF0
+  if kind ~= 0xB0 and kind ~= 0xE0 then return nil end
+  local m = mappings.match(e)
+  if not m then return nil end
+  local absolute = CONTINUOUS[m.action] or (m.action == "kontakt_cc" and kontakt_cc and kontakt_cc.absolute(m.arg))
+  if not absolute then return nil end
+  return e.port_name .. ":" .. e.status .. ":" .. (kind == 0xB0 and e.data1 or "")
+end
+
 function M.update(t)
   now = t
-  for _, e in ipairs(input.poll()) do M.handle_event(e) end
+  layers.begin_cycle()
+  local events = input.poll()
+  diag.events(#events)
+  local keys, last = {}, {}
+  for i, e in ipairs(events) do
+    keys[i] = coalesce_key(e)
+    if keys[i] then last[keys[i]] = i end
+  end
+  for i, e in ipairs(events) do
+    if not keys[i] or last[keys[i]] == i then M.handle_event(e) end
+  end
   perf.tick()
   snap = build_snapshot()
 

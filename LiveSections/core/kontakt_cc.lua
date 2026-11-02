@@ -38,6 +38,9 @@
 -- M.led(id) -> bool?                 LED do botão liga/desliga; nil nos outros tipos
 -- M.flashed(id, now) -> bool         o CC da linha saiu do JSFX (RF-119)
 -- M.last_touch(now) -> { row, value }?   até TOUCH_S depois do último toque
+-- M.absolute(id) -> bool             linha que só depende do último valor
+--                                    (knob): as mensagens de um ciclo podem
+--                                    ser juntadas na última
 -- M.has_kontakt() -> bool            a música atual tem Kontakt
 -- M.open_kontakt() -> ok, err        abre (ou fecha, se aberta) a janela do
 --                                    Kontakt da música atual; err = "no_kontakt"
@@ -298,6 +301,11 @@ local function kontakt_fx()
 end
 
 function M.has_kontakt() return kontakt_fx() ~= nil end
+
+function M.absolute(id)
+  local row = M.get(id)
+  return row ~= nil and row.kind == "knob"
+end
 
 function M.open_kontakt()
   local i = kontakt_fx()

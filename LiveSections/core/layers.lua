@@ -45,6 +45,11 @@
 -- M.set_volume_ui(slot, pos)   fader da tela; o físico precisa alcançar de novo
 -- M.release_takeover()   o fader físico precisa alcançar de novo (ex.: o
 --                        volume mudou pela tela)
+-- M.begin_cycle()        começo de cada ciclo da instância: a partir daqui a
+--                        busca de tracks (GUID e camadas) é lembrada até o
+--                        próximo ciclo ou até o projeto mudar. Sem isso, cada
+--                        mensagem de um fader varria todas as tracks e sends
+--                        e travava a thread principal do REAPER.
 
 local M = {}
 
@@ -57,6 +62,7 @@ local TAKEOVER_TOL = 0.02   -- distância (0–1) em que o fader já conta como 
 local SOLO_IN_PLACE = 2
 
 local settings = { keyboard_port = nil, bypass_tail_s = 5 }
+local cycle = nil       -- { state, by_guid?, layers = { [kontakt] = { track } }, rows = { [kontakt] = Layer[] } }
 local notes = {}        -- [canal * 128 + nota] = true
 local sustain = {}      -- [canal] = true
 local current = nil     -- track armada da música atual
@@ -92,7 +98,28 @@ local function link_key(song)
   return guid and KEY_PREFIX .. guid
 end
 
+function M.begin_cycle() cycle = { state = reaper.GetProjectStateChangeCount(PROJ), layers = {}, rows = {} } end
+
+-- O cache do ciclo, se ainda vale: qualquer mudança no projeto o descarta.
+local function cached()
+  if not cycle then return nil end
+  local state = reaper.GetProjectStateChangeCount(PROJ)
+  if state ~= cycle.state then cycle = { state = state, layers = {}, rows = {} } end
+  return cycle
+end
+
 local function track_by_guid(guid)
+  local c = cached()
+  if c then
+    if not c.by_guid then
+      c.by_guid = {}
+      for i = 0, reaper.CountTracks(PROJ) - 1 do
+        local tr = reaper.GetTrack(PROJ, i)
+        c.by_guid[reaper.GetTrackGUID(tr)] = tr
+      end
+    end
+    return c.by_guid[guid]
+  end
   for i = 0, reaper.CountTracks(PROJ) - 1 do
     local tr = reaper.GetTrack(PROJ, i)
     if reaper.GetTrackGUID(tr) == guid then return tr end
@@ -151,6 +178,8 @@ end
 -- Camadas: as tracks que recebem do Kontakt, na ordem das saídas (1/2, 3/4…).
 -- Projetos antigos sem esses sends: as filhas diretas da pasta do Kontakt.
 function M.layers_of(kontakt)
+  local c = cached()
+  if c and c.layers[kontakt] then return { table.unpack(c.layers[kontakt]) } end
   local tracks = {}
   for _, r in ipairs(receivers(kontakt)) do tracks[#tracks + 1] = r.track end
   if #tracks == 0 then
@@ -159,6 +188,7 @@ function M.layers_of(kontakt)
       if reaper.GetParentTrack(tr) == kontakt then tracks[#tracks + 1] = tr end
     end
   end
+  if c then c.layers[kontakt] = { table.unpack(tracks) } end
   return tracks
 end
 
@@ -174,9 +204,18 @@ function M.layers(song)
   local kontakt = M.track_of(song)
   local out = {}
   if not kontakt then return out end
+  local c = cached()
+  if c and c.rows[kontakt] then
+    for i, l in ipairs(c.rows[kontakt]) do out[i] = { track = l.track, track_guid = l.track_guid, name = l.name, slot = l.slot } end
+    return out
+  end
   for _, tr in ipairs(M.layers_of(kontakt)) do
     local _, name = reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "", false)
     out[#out + 1] = { track = tr, track_guid = reaper.GetTrackGUID(tr), name = name, slot = #out + 1 }
+  end
+  if c then
+    c.rows[kontakt] = {}
+    for i, l in ipairs(out) do c.rows[kontakt][i] = { track = l.track, track_guid = l.track_guid, name = l.name, slot = l.slot } end
   end
   return out
 end

@@ -194,6 +194,23 @@ describe("layers", function()
       assert.equal(1, piano.info.D_VOL)
     end)
 
+    it("num ciclo, a busca das camadas é feita uma vez só até o projeto mudar", function()
+      local scans = 0
+      local count = reaper.GetTrackNumSends
+      reaper.GetTrackNumSends = function(...) scans = scans + 1; return count(...) end
+      local guid = reaper.GetTrackGUID
+      reaper.GetTrackGUID = function(...) scans = scans + 1; return guid(...) end
+      layers.begin_cycle()
+      layers.layer_state(1)
+      local first = scans
+      for _ = 1, 20 do layers.layer_state(1); layers.layer_state(2); layers.takeover(1) end
+      assert.is_true(first > 0)
+      assert.equal(first, scans)
+      local novo = r.add_track("Novo", "{N-1}", kt_a)
+      r._state_count = r._state_count + 1
+      assert.equal(novo, layers.layers(a)[3].track)
+    end)
+
     it("renomeia a camada N da música atual, num passo de undo", function()
       assert.same({ true, "Violinos" }, { layers.rename_layer(1, "  Violinos ") })
       assert.equal("Violinos", cordas.name)
