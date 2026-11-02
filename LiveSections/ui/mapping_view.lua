@@ -216,6 +216,16 @@ local function buttons_width(ctx)
   return w
 end
 
+-- O campo do CC tem os botões - e +, quadrados da altura do campo: a
+-- largura soma os dois e o espaço de "127", na fonte das linhas.
+local function cc_width(ctx)
+  local body = body_font(ctx)
+  local digits = ImGui.CalcTextSize(ctx, "1270") or 36
+  local frame = ImGui.GetFrameHeight(ctx) or 34
+  theme.pop_font(ctx, body)
+  return math.ceil(digits + 22 + (frame + 6) * 2)
+end
+
 local function rows_table(ctx, dl, ix, iw, cy, now)
   local rows = kcc.rows()
   if #rows == 0 then
@@ -223,12 +233,13 @@ local function rows_table(ctx, dl, ix, iw, cy, now)
       "Nenhum controle ainda. Clique em Aprender vários e mexa os knobs, faders e botões que devem mexer no Kontakt.") + 12
   end
   local actions_w = buttons_width(ctx)
-  local free = iw - actions_w - 96 - 130 - BAR_W - 28 - GAP * 5
+  local cc_w = cc_width(ctx)
+  local free = iw - actions_w - cc_w - 130 - BAR_W - 28 - GAP * 5
   local cols = { name = ix, name_w = math.max(110, free * 0.55) }
   cols.phys = cols.name + cols.name_w + GAP
   cols.phys_w = math.max(90, free * 0.45)
   cols.cc = cols.phys + cols.phys_w + GAP
-  cols.cc_w = 96
+  cols.cc_w = cc_w
   cols.kind = cols.cc + cols.cc_w + GAP
   cols.kind_w = 130
   cols.signal = cols.kind + cols.kind_w + GAP
