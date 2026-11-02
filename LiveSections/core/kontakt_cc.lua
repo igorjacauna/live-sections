@@ -6,7 +6,7 @@
 --
 -- Row = { id = "k1", name, cc (0–127), kind = "knob"|"toggle"|"momentary" }
 --
--- M.init({ mappings })               carrega as linhas
+-- M.init({ mappings, jsfx, layers })  carrega as linhas
 -- M.rows() -> { Row }; M.get(id) -> Row?; M.mapping(id) -> Mapping?
 -- M.add_from_learn(msg) -> Row       msg = { port_name, msg_type, channel, number }
 --                                    sugere tipo, CC e nome (RF-112–RF-114)
@@ -17,6 +17,20 @@
 -- M.warnings() -> { [id] = { Warning } }   Warning = { kind = "duplicate"|"reserved"|
 --                                    "unmapped", other = Row? } — avisam, não bloqueiam (RF-141)
 -- M.physical_name(msg) -> "Knob CC16" | "Botão C-2" | "Fader 1" | "Botão PC 5"
+--
+-- Ao vivo, o CC vai só para o JSFX (core/kontakt_jsfx) da track do Kontakt
+-- da música atual (RF-126); sem Kontakt ou sem JSFX nada é enviado, mas o
+-- valor da linha muda do mesmo jeito (RF-127, RF-137).
+-- M.handle(mapping, value, released, now)   evento casado com kontakt_cc;
+--                                    value 0–1 de midi/mappings
+-- M.on_song(song)                    depois de layers.activate: lê os valores
+--                                    salvos da música e pede o reenvio (RF-133)
+-- M.tick(now)                        Testar, Enviar p/ Learn e a luz de envio
+-- M.test(id, now)                    varre 0→127 em 2 s e volta (RF-120)
+-- M.send_learn(id, now)              uma variação do CC e volta (RF-121)
+-- M.value(id) -> 0–127?; M.is_on(id) -> bool
+-- M.flashed(id, now) -> bool         o CC da linha saiu do JSFX (RF-119)
+-- M.last_touch(now) -> { row, value }?   até TOUCH_S depois do último toque
 
 local M = {}
 
@@ -30,12 +44,26 @@ M.RESERVED = { [0] = true, [1] = true, [7] = true, [10] = true, [11] = true, [32
   [64] = true, [65] = true, [66] = true, [67] = true }
 for cc = 120, 127 do M.RESERVED[cc] = true end
 
-local mappings
+local TEST_S = 2.0      -- duração da varredura do Testar
+local LEARN_S = 0.15    -- tempo da variação do Enviar p/ Learn antes de voltar
+local FLASH_S = 0.3     -- luz de envio acesa
+local TOUCH_S = 2.0     -- aviso "Nome valor" na tela
+
+local mappings, jsfx, layers
 local rows = {}
+local track = nil       -- track do Kontakt da música atual
+local values = {}       -- [id] = 0–127
+local raw = {}          -- [id] = último value (0–1) recebido, para a subida
+local sweeps = {}       -- [id] = { kind = "test"|"learn", from, restore }
+local pending = {}      -- ids enviados desde a última leitura do contador
+local sent_seen = nil   -- contador "enviados" do JSFX na última leitura
+local flash_until = {}  -- [id] = instante
+local touch = nil       -- { id, at }
 
 function M.init(deps)
-  mappings = deps.mappings
+  mappings, jsfx, layers = deps.mappings, deps.jsfx, deps.layers
   rows = mappings.kontakt_rows()
+  track, values, raw, sweeps, pending, sent_seen, flash_until, touch = nil, {}, {}, {}, {}, nil, {}, nil
 end
 
 function M.rows() return rows end
@@ -120,6 +148,100 @@ function M.remove(id)
   end
   mappings.remove(ACTION, id)
   return M.save()
+end
+
+-- ------------------------------------------------------------------ ao vivo
+
+local function send(row, v)
+  if track and jsfx.set_cc(track, row.cc, v) then pending[row.id] = true end
+end
+
+local function set_value(row, v, now)
+  values[row.id] = v
+  sweeps[row.id] = nil
+  touch = { id = row.id, at = now }
+  send(row, v)
+end
+
+function M.handle(mapping, value, released, now)
+  local row = M.get(mapping.arg)
+  if not row then return end
+  local before = raw[row.id] or 0
+  raw[row.id] = released and 0 or value
+  if row.kind == "knob" then
+    set_value(row, math.floor(value * 127 + 0.5), now)
+  elseif row.kind == "momentary" then
+    set_value(row, (not released and value >= 0.5) and 127 or 0, now)
+  else
+    -- liga/desliga: só a subida (nota apertada ou CC que passa da metade)
+    local press = not released and value >= 0.5 and (mapping.msg_type ~= "cc" or before < 0.5)
+    if press then set_value(row, M.is_on(row.id) and 0 or 127, now) end
+  end
+end
+
+function M.on_song(song)
+  track = song and layers.track_of(song) or nil
+  values, raw, sweeps, pending, flash_until = {}, {}, {}, {}, {}
+  sent_seen = track and jsfx.sent_count(track) or nil
+  if not track then return end
+  for _, row in ipairs(rows) do
+    local v = jsfx.value(track, row.cc)
+    if v and v >= 0 then values[row.id] = v end
+  end
+  jsfx.resend(track)
+end
+
+function M.test(id, now)
+  local row = M.get(id)
+  if not row then return end
+  sweeps[id] = { kind = "test", from = now, restore = values[id] }
+  send(row, 0)
+end
+
+function M.send_learn(id, now)
+  local row = M.get(id)
+  if not row then return end
+  local cur = values[id]
+  sweeps[id] = { kind = "learn", from = now, restore = cur }
+  send(row, (cur or 0) >= 64 and 0 or 127)
+end
+
+local function end_sweep(row, sw)
+  sweeps[row.id] = nil
+  local final = sw.restore or (sw.kind == "test" and 127 or nil)
+  if final then
+    values[row.id] = final
+    send(row, final)
+  end
+end
+
+function M.tick(now)
+  for _, row in ipairs(rows) do
+    local sw = sweeps[row.id]
+    if sw then
+      local len = sw.kind == "test" and TEST_S or LEARN_S
+      local t = (now - sw.from) / len
+      if t >= 1 then end_sweep(row, sw)
+      elseif sw.kind == "test" then send(row, math.floor(t * 127)) end
+    end
+  end
+  local count = track and jsfx.sent_count(track)
+  if count and sent_seen and count ~= sent_seen then
+    for id in pairs(pending) do flash_until[id] = now + FLASH_S end
+    pending = {}
+  end
+  sent_seen = count
+end
+
+function M.value(id) return values[id] end
+function M.is_on(id) return (values[id] or 0) >= 64 end
+function M.flashed(id, now) return (flash_until[id] or -math.huge) > now end
+
+function M.last_touch(now)
+  if not touch or now - touch.at >= TOUCH_S then return nil end
+  local row = M.get(touch.id)
+  if not row then return nil end
+  return { row = row, value = values[row.id] }
 end
 
 -- ------------------------------------------------------------------ avisos

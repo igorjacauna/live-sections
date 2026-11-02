@@ -1,8 +1,9 @@
 local stub = require("stubs.reaper")
 
 describe("kontakt_cc", function()
-  local r, mappings, kcc, dir
+  local r, mappings, kcc, dir, jsfx
   local SMC = "SMC-Mixer-bt"
+  local fake_layers = { track_of = function(song) return song.track end }
 
   local function msg(msg_type, number, channel)
     return { port_name = SMC, msg_type = msg_type, channel = channel or 1, number = number }
@@ -13,8 +14,10 @@ describe("kontakt_cc", function()
     package.loaded["core.kontakt_cc"] = nil
     mappings = require("midi.mappings")
     mappings.load()
+    package.loaded["core.kontakt_jsfx"] = nil
+    jsfx = require("core.kontakt_jsfx")
     kcc = require("core.kontakt_cc")
-    kcc.init({ mappings = mappings })
+    kcc.init({ mappings = mappings, jsfx = jsfx, layers = fake_layers })
   end
 
   before_each(function()
@@ -119,6 +122,136 @@ describe("kontakt_cc", function()
     it("sem problemas, sem avisos", function()
       kcc.add_from_learn(msg("cc", 16))
       assert.is_nil(kcc.warnings().k1)
+    end)
+  end)
+
+  describe("ao vivo", function()
+    local kt_a, kt_b, song_a, song_b, sem
+
+    local function kontakt(name)
+      local t = r.add_track(name)
+      t.fx = { "VST3i: Kontakt 8" }
+      jsfx.install(t)
+      return t
+    end
+    local function cc_of(t, cc) return jsfx.value(t, cc) end
+    local function m(id) return kcc.mapping(id) end
+
+    before_each(function()
+      kt_a, kt_b = kontakt("A"), kontakt("B")
+      song_a, song_b, sem = { track = kt_a }, { track = kt_b }, {}
+      kcc.add_from_learn(msg("cc", 16))      -- k1 knob → CC 2
+      kcc.add_from_learn(msg("note", 0))     -- k2 liga/desliga → CC 3
+      kcc.add_from_learn(msg("note", 1))     -- k3 → CC 4
+      kcc.update("k3", { kind = "momentary" })
+      kcc.on_song(song_a)
+    end)
+
+    it("knob segue o valor e vai só para o Kontakt da música atual", function()
+      kcc.handle(m("k1"), 100 / 127, nil, 1)
+      assert.equal(100, kcc.value("k1"))
+      assert.equal(100, cc_of(kt_a, 2))
+      assert.equal(0, cc_of(kt_b, 2))
+    end)
+
+    it("fader (pitch bend) é escalado para 0–127", function()
+      kcc.handle(m("k1"), 0.5, nil, 1)
+      assert.equal(64, kcc.value("k1"))
+    end)
+
+    it("liga/desliga alterna só ao apertar", function()
+      kcc.handle(m("k2"), 1, nil, 1)
+      assert.equal(127, cc_of(kt_a, 3))
+      assert.is_true(kcc.is_on("k2"))
+      kcc.handle(m("k2"), 0, true, 1)          -- soltar não muda
+      assert.is_true(kcc.is_on("k2"))
+      kcc.handle(m("k2"), 1, nil, 2)
+      assert.equal(0, cc_of(kt_a, 3))
+      assert.is_false(kcc.is_on("k2"))
+    end)
+
+    it("liga/desliga por CC alterna só na subida", function()
+      kcc.update("k1", { kind = "toggle" })
+      kcc.handle(m("k1"), 1, nil, 1)
+      kcc.handle(m("k1"), 1, nil, 1)          -- o mesmo toque repetido
+      assert.is_true(kcc.is_on("k1"))
+      kcc.handle(m("k1"), 0, nil, 1)
+      kcc.handle(m("k1"), 1, nil, 2)
+      assert.is_false(kcc.is_on("k1"))
+    end)
+
+    it("segurar manda 127 ao apertar e 0 ao soltar", function()
+      kcc.handle(m("k3"), 1, nil, 1)
+      assert.equal(127, cc_of(kt_a, 4))
+      kcc.handle(m("k3"), 0, true, 1)
+      assert.equal(0, cc_of(kt_a, 4))
+    end)
+
+    it("música sem Kontakt não recebe nada, mas o valor muda", function()
+      kcc.on_song(sem)
+      local before = #r.calls
+      kcc.handle(m("k1"), 1, nil, 1)
+      assert.equal(127, kcc.value("k1"))
+      for i = before + 1, #r.calls do assert.not_equal("TrackFX_SetParam", r.calls[i].name) end
+    end)
+
+    it("Kontakt sem o JSFX não recebe nada", function()
+      reaper.TrackFX_Delete(kt_a, 0)
+      kcc.on_song(song_a)
+      kcc.handle(m("k1"), 1, nil, 1)
+      assert.equal(127, kcc.value("k1"))
+      assert.equal(1, #kt_a.fx)
+    end)
+
+    it("ao trocar de música lê os valores dela e pede o reenvio", function()
+      kcc.handle(m("k1"), 1, nil, 1)
+      jsfx.set_cc(kt_b, 2, 40)
+      jsfx.set_cc(kt_b, 3, 127)
+      kcc.on_song(song_b)
+      assert.same({ 40, true }, { kcc.value("k1"), kcc.is_on("k2") })
+      assert.equal(1, reaper.TrackFX_GetParam(kt_b, 0, 128))
+      kcc.on_song(song_a)
+      assert.equal(127, kcc.value("k1"))
+    end)
+
+    it("Testar varre de 0 a 127 em 2 s e volta ao valor", function()
+      kcc.handle(m("k1"), 50 / 127, nil, 0)
+      kcc.test("k1", 10)
+      assert.equal(0, cc_of(kt_a, 2))
+      kcc.tick(11)
+      assert.equal(63, cc_of(kt_a, 2))
+      kcc.tick(12)
+      assert.equal(50, cc_of(kt_a, 2))
+      assert.equal(50, kcc.value("k1"))
+    end)
+
+    it("Enviar p/ Learn manda uma variação e volta", function()
+      kcc.handle(m("k1"), 20 / 127, nil, 0)
+      kcc.send_learn("k1", 10)
+      assert.equal(127, cc_of(kt_a, 2))
+      kcc.tick(10.05)
+      assert.equal(127, cc_of(kt_a, 2))
+      kcc.tick(10.2)
+      assert.equal(20, cc_of(kt_a, 2))
+    end)
+
+    it("a luz da linha acende quando o contador do JSFX sobe", function()
+      kcc.handle(m("k1"), 1, nil, 1)
+      kcc.tick(1)
+      assert.is_false(kcc.flashed("k1", 1))
+      reaper.TrackFX_SetParam(kt_a, 0, 129, 1)  -- o JSFX mandou
+      kcc.tick(1.1)
+      assert.is_true(kcc.flashed("k1", 1.2))
+      assert.is_false(kcc.flashed("k2", 1.2))
+      assert.is_false(kcc.flashed("k1", 1.5))
+    end)
+
+    it("o último toque vale por 2 s", function()
+      kcc.update("k1", { name = "Cutoff" })
+      kcc.handle(m("k1"), 64 / 127, nil, 5)
+      local t = kcc.last_touch(6)
+      assert.same({ "Cutoff", 64 }, { t.row.name, t.value })
+      assert.is_nil(kcc.last_touch(7.1))
     end)
   end)
 end)
