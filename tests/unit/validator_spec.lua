@@ -87,6 +87,19 @@ describe("validator", function()
       r._ext.LiveSections = { ["kontakt:{SONG-A}"] = "{KT-A}" }
     end)
 
+    it("com linhas no Mapeamento, avisa Kontakt sem o JSFX e instala", function()
+      local kt = r.add_track("Kontakt A", "{KT-A}")
+      kt.fx = { "VST3i: Kontakt 8" }
+      assert.same({}, check({ links = links }))                     -- sem linhas, sem aviso
+      local list = check({ links = links, mapping_rows = 2 })
+      assert.same({ "kontakt_cc_missing" }, kinds(list))
+      assert.equal("warning", list[1].severity)
+      assert.matches("Kontakt A", list[1].text)
+      assert.is_true(validator.apply(list[1]))
+      assert.equal(0, require("core.kontakt_jsfx").find(kt))
+      assert.same({}, check({ links = links, mapping_rows = 2 }))
+    end)
+
     it("detecta track com All MIDI inputs e corrige para o teclado", function()
       local kt = r.add_track("Kontakt 7 · A", "{KT-A}")
       r.SetMediaTrackInfo_Value(kt, "I_RECINPUT", 4096 + (63 << 5))

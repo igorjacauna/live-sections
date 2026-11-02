@@ -9,12 +9,15 @@
 --   ctx.links: { [song_id] = { key = <chave no ProjExtState>, track_guid = "…" } }
 --   ctx.keyboard_input: índice do dispositivo MIDI do teclado (para corrigir
 --     a entrada do Kontakt); sem ele, a correção de "All MIDI inputs" falha.
+--   ctx.mapping_rows: quantas linhas a tela Mapeamento tem; com alguma, o
+--     Kontakt de cada música precisa do JSFX do Mapeamento (RF-136).
 -- Warning = { kind, severity = "error"|"warning", song = nome?, text, fix_label,
 --             fix = function, precheck = function? (falha antes de abrir o undo) }
 -- M.apply(warning) -> ok, err   aplica a correção num único passo de undo
 
 local editor_ops = require("core.editor_ops")
 local layers = require("core.layers")
+local kontakt_jsfx = require("core.kontakt_jsfx")
 
 local M = {}
 
@@ -129,6 +132,15 @@ local function check_kontakt(list, songs, ctx)
             fix = function()
               reaper.SetMediaTrackInfo_Value(tr, "I_RECINPUT", MIDI_INPUT + (ctx.keyboard_input << 5))
             end,
+          })
+        end
+        if (ctx.mapping_rows or 0) > 0 and kontakt_jsfx.find(tr) < 0 then
+          local _, tname = reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "", false)
+          add(list, {
+            kind = "kontakt_cc_missing", severity = "warning", song = song.name,
+            text = string.format('A track "%s" não tem o JSFX do Mapeamento: os controles mapeados não chegam a este Kontakt.', tname),
+            fix_label = "Instalar o JSFX",
+            fix = function() kontakt_jsfx.install(tr) end,
           })
         end
       end

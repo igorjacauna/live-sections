@@ -27,7 +27,7 @@ local notes = require("core.song_notes")
 
 local M = {}
 
-local ImGui, theme, widgets, perf, layers, model, ops, validator, kit, tempo, wizard
+local ImGui, theme, widgets, perf, layers, model, ops, validator, kit, tempo, wizard, kontakt_cc
 
 local PROJ = 0
 local EPS = 1e-6
@@ -74,6 +74,7 @@ function M.init(deps)
   perf, layers, model = deps.perf, deps.layers, deps.model
   ops, validator, kit = deps.editor_ops, deps.validator, deps.kit
   tempo, wizard = deps.tempo_align, deps.kontakt_wizard
+  kontakt_cc = deps.kontakt_cc
   st.round, st.tap_bpm = "int", nil
   st.tool, st.selected, st.drag, st.menu_section = "select", nil, nil, nil
   st.status, st.status_until, st.buf_for = nil, 0, nil
@@ -824,7 +825,8 @@ local function refresh_warnings()
   if count == st.warn_count and now() - st.warn_at < WARN_REFRESH_S then return end
   st.warn_count, st.warn_at = count, now()
   local songs = model.songs()
-  st.warnings = validator.check(songs, { links = layers.links(songs), keyboard_input = layers.keyboard_input() })
+  st.warnings = validator.check(songs, { links = layers.links(songs), keyboard_input = layers.keyboard_input(),
+    mapping_rows = kontakt_cc and #kontakt_cc.rows() or 0 })
 end
 
 local function warnings_panel(ctx, x, y, w, song)
