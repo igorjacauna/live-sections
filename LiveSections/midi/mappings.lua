@@ -11,9 +11,12 @@
 --             channel (1–16), number (nil em "pb") }
 --
 -- M.decode(event) -> Msg?        { msg_type, channel, number, value (0–1) }
--- M.match(event) -> Mapping?, value
+-- M.match(event) -> Mapping?, value, released
+--   released = true: Note Off do mapeamento de nota (o botão foi solto)
 -- M.set(mapping); M.remove(action, arg); M.get(action, arg); M.all()
 -- M.settings() -> tabela "settings"; M.save_settings(settings) grava junto
+-- M.kontakt_rows() -> linhas do Mapeamento (chave "kontakt_cc")
+-- M.save_kontakt_rows(rows) -> ok, err
 -- M.load() -> ok, err;  M.save() -> ok, err
 
 local json = require("vendor.json")
@@ -43,6 +46,7 @@ M.ACTIONS = {
   layer_solo     = { arg = "layer" },
   toggle_setlist = {},                    -- setlist completa no modo palco (RF-074)
   tap_tempo      = {},                    -- toque do tap tempo no modo Editar (RF-097)
+  kontakt_cc     = { arg = "row" },       -- linha da tela Mapeamento (id "k1"…)
 }
 
 local list = {}
@@ -82,6 +86,13 @@ local function same_control(m, action, arg) return m.action == action and m.arg 
 function M.match(event)
   local msg = M.decode(event)
   if not msg then return nil end
+  if msg.msg_type == "note_off" then
+    local on = { msg_type = "note", channel = msg.channel, number = msg.number }
+    for _, m in ipairs(list) do
+      if same_msg(m, event.port_name, on) then return m, 0, true end
+    end
+    return nil
+  end
   for _, m in ipairs(list) do
     if same_msg(m, event.port_name, msg) then return m, msg.value end
   end
@@ -156,6 +167,30 @@ end
 
 function M.save_settings(settings)
   doc.settings = settings
+  return M.save()
+end
+
+local KINDS = { knob = true, toggle = true, momentary = true }
+
+local function valid_row(row)
+  return type(row) == "table" and type(row.id) == "string" and type(row.name) == "string"
+    and type(row.cc) == "number" and row.cc == math.floor(row.cc) and row.cc >= 0 and row.cc <= 127
+    and KINDS[row.kind] == true
+end
+
+-- Linhas da tela Mapeamento (RF-125); as inválidas ficam de fora.
+function M.kontakt_rows()
+  local out = {}
+  for _, row in ipairs(type(doc.kontakt_cc) == "table" and doc.kontakt_cc or {}) do
+    if valid_row(row) then
+      out[#out + 1] = { id = row.id, name = row.name, cc = math.floor(row.cc), kind = row.kind }
+    end
+  end
+  return out
+end
+
+function M.save_kontakt_rows(rows)
+  doc.kontakt_cc = rows
   return M.save()
 end
 

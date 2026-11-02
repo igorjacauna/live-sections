@@ -62,7 +62,7 @@ describe("midi.mappings", function()
       assert.is_nil(mappings.match(ev(MASTER, 0x91, 24, 127)))   -- outro canal
       assert.is_nil(mappings.match(ev(MASTER, 0x90, 25, 127)))   -- outra nota
       assert.is_nil(mappings.match(ev(MASTER, 0xB0, 24, 127)))   -- outro tipo
-      assert.is_nil(mappings.match(ev(MASTER, 0x80, 24, 0)))     -- soltar o botão
+      assert.is_true(select(3, mappings.match(ev(MASTER, 0x80, 24, 0))))   -- soltar o botão
     end)
 
     it("a mesma mensagem por outra porta não dispara", function()
@@ -77,13 +77,38 @@ describe("midi.mappings", function()
     end)
   end)
 
+  describe("Note Off", function()
+    before_each(function()
+      mappings.set({ action = "kontakt_cc", arg = "k1", port_name = MASTER, msg_type = "note", channel = 1, number = 30 })
+      mappings.set({ action = "kontakt_cc", arg = "k2", port_name = MASTER, msg_type = "cc", channel = 1, number = 16 })
+    end)
+
+    it("soltar o botão casa com o mapeamento da nota e avisa que foi solto", function()
+      local m, value, released = mappings.match(ev(MASTER, 0x80, 30, 0))
+      assert.same({ "kontakt_cc", "k1", 0, true }, { m.action, m.arg, value, released })
+      m, value, released = mappings.match(ev(MASTER, 0x90, 30, 0))
+      assert.same({ "k1", true }, { m.arg, released })
+    end)
+
+    it("apertar não vem marcado como solto", function()
+      local m, _, released = mappings.match(ev(MASTER, 0x90, 30, 100))
+      assert.equal("k1", m.arg)
+      assert.is_nil(released)
+    end)
+
+    it("Note Off sem mapeamento da nota, ou por outra porta, não casa", function()
+      assert.is_nil(mappings.match(ev(MASTER, 0x80, 31, 0)))
+      assert.is_nil(mappings.match(ev(PRIVATE, 0x80, 30, 0)))
+    end)
+  end)
+
   describe("set e remove", function()
     it("todas as ações do RF-037 são mapeáveis", function()
       local names = {}
       for name in pairs(mappings.ACTIONS) do names[#names + 1] = name end
       table.sort(names)
       assert.same({
-        "cancel", "cycle_quantize", "goto_song", "layer_mute", "layer_solo", "layer_volume", "next_section",
+        "cancel", "cycle_quantize", "goto_song", "kontakt_cc", "layer_mute", "layer_solo", "layer_volume", "next_section",
         "next_song", "panic", "play", "play_stop", "prev_section", "prev_song", "set_quantize", "stop", "tap_tempo", "toggle_loop",
         "toggle_setlist", "trigger_slot",
       }, names)
@@ -134,6 +159,25 @@ describe("midi.mappings", function()
       local data = read_config()
       assert.equal(45, data.settings.tolerance_ms)
       assert.equal(1, #data.mappings)
+    end)
+
+    it("salva e recarrega as linhas do Mapeamento sem perder os mapeamentos", function()
+      mappings.set({ action = "kontakt_cc", arg = "k1", port_name = MASTER, msg_type = "cc", channel = 1, number = 16 })
+      local rows = { { id = "k1", name = "Cutoff", cc = 63, kind = "knob" }, { id = "k2", name = "Rotary", cc = 20, kind = "toggle" } }
+      assert.is_true(mappings.save_kontakt_rows(rows))
+      assert.equal("kontakt_cc", read_config().mappings[1].action)
+      mappings.load()
+      assert.same(rows, mappings.kontakt_rows())
+      assert.equal("k1", mappings.get("kontakt_cc", "k1").arg)
+    end)
+
+    it("ignora linhas inválidas do Mapeamento", function()
+      write_config([[{"kontakt_cc":[{"id":"k1","name":"A","cc":63,"kind":"knob"},{"id":"k2","name":"B","cc":200,"kind":"knob"},
+        {"id":"k3","name":"C","cc":5,"kind":"slider"},{"name":"D","cc":5,"kind":"knob"}]}]])
+      mappings.load()
+      local rows = mappings.kontakt_rows()
+      assert.equal(1, #rows)
+      assert.equal("k1", rows[1].id)
     end)
 
     it("sem arquivo começa vazio", function()

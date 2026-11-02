@@ -116,8 +116,8 @@ function M.handle_event(e)
     end
     return
   end
-  local m, value = mappings.match(e)
-  if not m then return end
+  local m, value, released = mappings.match(e)
+  if not m or released then return end
   feedback.touch(m)
   if CONTINUOUS[m.action] then
     M.run(m.action, m.arg, value)
