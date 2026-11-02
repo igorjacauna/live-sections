@@ -207,6 +207,11 @@ end
 
 local function loop()
   if track and not reaper.ValidatePtr(track, "MediaTrack*") then track = nil end
+  if not track then
+    -- Rodou de novo com o spike já instalado: adota a track selecionada.
+    local sel = reaper.GetSelectedTrack(0, 0)
+    if sel and find_kontakt(sel) >= 0 then track = sel end
+  end
   local gen = track and find_fx(track, GEN_TAG) or -1
   local mon = track and find_fx(track, MON_TAG) or -1
   local kfx = track and find_kontakt(track) or -1
