@@ -9,8 +9,11 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <link rel="website">https://live-sections.igor-jacauna-cloudflare.workers.dev</link>
         <link rel="website">https://github.com/igorjacauna/live-sections</link>
       </metadata>
-      <version name="0.4.1" author="Igor Jacaúna" time="2026-11-02T16:06:18Z">
-        <changelog><![CDATA[- Camadas: duplo clique no nome da camada (em cima do fader) para renomear; o nome vale só para a música atual
+      <version name="0.4.2" author="Igor Jacaúna" time="2026-11-02T19:36:24Z">
+        <changelog><![CDATA[- Mapeamento: novo tipo "Knob sem fim" para knobs que mandam só a direção do giro (como os do SMC-Mixer); o aprender já sugere esse tipo
+- Mapeamento: sensibilidade do knob sem fim (1×, 2×, 4× ou 8×) por linha
+- Mapeamento: botão "Abrir Kontakt" abre e fecha a janela do Kontakt da música atual, para o Learn
+- Mapeamento: o campo do CC ficou largo o bastante para mostrar o número
 ]]></changelog>
         <source file="actions/Live Sections - Camada 1 mute.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20mute.lua</source>
         <source file="actions/Live Sections - Camada 1 solo.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20solo.lua</source>
@@ -137,8 +140,11 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
 
 Ative em Preferences > Control/OSC/web > Add > Web browser interface, escolha "livesections.html" como página padrão e abra o endereço mostrado no celular (mesma rede Wi-Fi).]]></description>
       </metadata>
-      <version name="0.4.1" author="Igor Jacaúna" time="2026-11-02T16:06:18Z">
-        <changelog><![CDATA[- Camadas: duplo clique no nome da camada (em cima do fader) para renomear; o nome vale só para a música atual
+      <version name="0.4.2" author="Igor Jacaúna" time="2026-11-02T19:36:24Z">
+        <changelog><![CDATA[- Mapeamento: novo tipo "Knob sem fim" para knobs que mandam só a direção do giro (como os do SMC-Mixer); o aprender já sugere esse tipo
+- Mapeamento: sensibilidade do knob sem fim (1×, 2×, 4× ou 8×) por linha
+- Mapeamento: botão "Abrir Kontakt" abre e fecha a janela do Kontakt da música atual, para o Learn
+- Mapeamento: o campo do CC ficou largo o bastante para mostrar o número
 ]]></changelog>
         <source file="livesections.html">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/www/livesections.html.txt</source>
       </version>
