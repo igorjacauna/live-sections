@@ -1,18 +1,29 @@
 local stub = require("stubs.reaper")
 
--- ImGui falsa: aceita qualquer chamada; Begin/BeginPopup devolvem `open`.
+-- ImGui falsa: aceita qualquer chamada. `opts`: press (botão apertado),
+-- hover (botão sob o mouse), dbl (duplo clique), popup (popup aberto),
+-- text (o que foi digitado), button (ImGui.Button clicado).
 local function fake_imgui(opts)
   opts = opts or {}
   local calls = {}
+  local last
   local im = { MouseButton_Left = 0, MouseButton_Right = 1, Key_Escape = 512, DrawFlags_RoundCornersTop = 48 }
   setmetatable(im, { __index = function(_, name)
     return function(...) calls[#calls + 1] = { name, ... }; return 0, 0 end
   end })
-  function im.InvisibleButton(_, id, w, h) calls[#calls + 1] = { "InvisibleButton", id, w, h }; return opts.press == id end
+  function im.InvisibleButton(_, id, w, h)
+    calls[#calls + 1] = { "InvisibleButton", id, w, h }
+    last = id
+    return opts.press == id
+  end
   function im.IsItemClicked() return false end
-  function im.IsItemHovered() return false end
+  function im.IsItemHovered() return opts.hover ~= nil and opts.hover == last end
+  function im.IsMouseDoubleClicked() return opts.dbl == true end
   function im.IsItemActive() return false end
-  function im.BeginPopup() return false end
+  function im.BeginPopup(_, id) return opts.popup == id end
+  function im.InputText(_, _, v) if opts.text then return true, opts.text end return false, v end
+  function im.Button(_, label) return opts.button == label end
+  function im.IsKeyPressed() return false end
   function im.GetContentRegionAvail() return opts.w or 1100, opts.h or 760 end
   function im.GetCursorScreenPos() return 0, 0 end
   function im.CalcTextSize(_, s) return #s * 7, 14 end
@@ -407,6 +418,21 @@ describe("ui.performance_view", function()
       for _, c in ipairs(calls) do if c[1] == "InvisibleButton" and c[2] == "fader1" then fader = c end end
       assert.is_true(fader[4] > fader[3])          -- mais alto que largo
       assert.is_true(fader[4] < 132)               -- mais baixo que no Performance
+    end)
+
+    it("duplo clique no nome renomeia a camada desta música", function()
+      local k = r.add_track("Kontakt A")
+      local piano = r.add_track("Piano")
+      r.add_receive(k, piano, 0)
+      layers.link(model.songs()[1], k)
+      local calls = draw({ hover = "lname1", dbl = true })
+      local opened = false
+      for _, c in ipairs(calls) do if c[1] == "OpenPopup" and c[3] == "rename_layer" then opened = true end end
+      assert.is_true(opened)
+      draw({ popup = "rename_layer", text = "  Piano elétrico ", button = "Renomear" })
+      assert.equal("Piano elétrico", piano.name)
+      draw({ popup = "rename_layer", text = "Outro", button = "Renomear" })
+      assert.equal("Piano elétrico", piano.name)    -- popup já fechado
     end)
 
     it("modo palco: sem camadas, nada de camadas aparece", function()

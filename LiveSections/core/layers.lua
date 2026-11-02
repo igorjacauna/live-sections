@@ -37,6 +37,9 @@
 -- M.set_layer_volume(slot, value) -> "set"|"waiting"|"no_layer"   value 0–1 do fader
 -- M.takeover(slot) -> nil|"up"|"down"   direção para o fader alcançar a camada
 -- M.toggle_mute(slot); M.toggle_solo(slot)
+-- M.rename_layer(slot, name) -> ok, final|err   renomeia a track da camada N
+--                        da música atual, num passo de undo ("empty_name",
+--                        "no_layer")
 -- M.layer_state(slot) -> { name, pos (0–1), mute, solo, peak_l, peak_r }?
 --                       pico de saída da track (amplitude linear, 1 = 0 dB)
 -- M.set_volume_ui(slot, pos)   fader da tela; o físico precisa alcançar de novo
@@ -402,6 +405,18 @@ local function toggle(slot, key, on_value)
   local on = reaper.GetMediaTrackInfo_Value(track, key) ~= 0
   reaper.SetMediaTrackInfo_Value(track, key, on and 0 or on_value)
   return true
+end
+
+-- O nome da camada é o nome da track: cada música tem as suas.
+function M.rename_layer(slot, name)
+  local final = tostring(name or ""):gsub("^%s+", ""):gsub("%s+$", "")
+  if final == "" then return false, "empty_name" end
+  local tr = layer_track(slot)
+  if not tr then return false, "no_layer" end
+  reaper.Undo_BeginBlock()
+  reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", final, true)
+  reaper.Undo_EndBlock("Live Sections: renomear camada", -1)
+  return true, final
 end
 
 function M.toggle_mute(slot) return toggle(slot, "B_MUTE", 1) end

@@ -50,6 +50,7 @@ local last_port_check = -math.huge
 local disconnected = {}    -- nomes de portas
 local last_value = {}      -- [mapping] = último valor (borda de subida de CC/pitch bend)
 local snap = {}
+local rename = nil         -- { slot, buf }: popup de renomear camada
 
 function M.init(deps)
   ImGui, theme, anim, widgets = deps.ImGui, deps.theme, deps.anim, deps.widgets
@@ -639,6 +640,16 @@ local function layer_strip(ctx, x, y, w, fh)
     ImGui.DrawList_PushClipRect(dl, lx + 6, y, lx + lw - 6, y + 30, true)
     txt(ctx, dl, "button", lx + 10, y + 10, theme.C.text, st.name)
     ImGui.DrawList_PopClipRect(dl)
+    -- duplo clique no nome renomeia a camada desta música (a track)
+    ImGui.SetCursorScreenPos(ctx, lx + 6, y + 4)
+    ImGui.InvisibleButton(ctx, "lname" .. i, lw - 12, 26)
+    if ImGui.IsItemHovered(ctx) then
+      ImGui.SetTooltip(ctx, "Duplo clique para renomear")
+      if ImGui.IsMouseDoubleClicked(ctx, ImGui.MouseButton_Left) then
+        rename = { slot = i, buf = st.name }
+        ImGui.OpenPopup(ctx, "rename_layer")
+      end
+    end
 
     -- fader: arrastar na tela muda o volume; o físico precisa alcançar de novo
     local fx, fy = lx + (lw - 40) / 2, y + 34
@@ -682,6 +693,24 @@ local function layer_strip(ctx, x, y, w, fh)
       layers.toggle_solo(i)
     end
     widgets.mappable(ctx, { action = "layer_solo", arg = i }, "Solo " .. st.name)
+  end
+  if rename and ImGui.BeginPopup(ctx, "rename_layer") then
+    ImGui.Text(ctx, "Nome da camada nesta música")
+    ImGui.SetNextItemWidth(ctx, 220)
+    local _, buf = ImGui.InputText(ctx, "##layer_name", rename.buf)
+    rename.buf = buf
+    if ImGui.Button(ctx, "Renomear") or ImGui.IsKeyPressed(ctx, ImGui.Key_Enter, false) then
+      if layers.rename_layer(rename.slot, rename.buf) then
+        rename = nil
+        ImGui.CloseCurrentPopup(ctx)
+      end
+    end
+    ImGui.SameLine(ctx)
+    if ImGui.Button(ctx, "Cancelar") then
+      rename = nil
+      ImGui.CloseCurrentPopup(ctx)
+    end
+    ImGui.EndPopup(ctx)
   end
   return 22 + fh + 92
 end
