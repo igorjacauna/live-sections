@@ -15,6 +15,7 @@ local M = {}
 
 local ImGui, theme, anim, widgets
 local perf, layers, feedback, mappings, learn, input, model, editor, settings_view, stage
+local kontakt_cc
 
 local VERSION = require("version")
 
@@ -54,6 +55,7 @@ function M.init(deps)
   perf, layers, feedback = deps.perf, deps.layers, deps.feedback
   mappings, learn, input, model = deps.mappings, deps.learn, deps.input, deps.model
   editor, settings_view, stage = deps.editor, deps.settings, deps.stage
+  kontakt_cc = deps.kontakt_cc
   ui.mode, ui.stage, ui.setlist_open = "performance", false, false
   last_song_id, last_port_check, disconnected, last_value = nil, -math.huge, {}, {}
   last_high = {}
@@ -117,7 +119,14 @@ function M.handle_event(e)
     return
   end
   local m, value, released = mappings.match(e)
-  if not m or released then return end
+  if not m then return end
+  -- controles do Mapeamento: o CC vai para o Kontakt da música atual
+  if m.action == "kontakt_cc" then
+    if kontakt_cc then kontakt_cc.handle(m, value, released, now) end
+    feedback.touch(m)
+    return
+  end
+  if released then return end
   feedback.touch(m)
   if CONTINUOUS[m.action] then
     M.run(m.action, m.arg, value)
@@ -221,8 +230,11 @@ function M.update(t)
   if id ~= last_song_id then
     last_song_id = id
     layers.activate(snap.song, model.songs(), now)
+    -- depois do activate: o Kontakt já saiu do bypass e o JSFX processa
+    if kontakt_cc then kontakt_cc.on_song(snap.song) end
   end
   layers.tick(now)
+  if kontakt_cc then kontakt_cc.tick(now) end
 
   if now - last_port_check >= PORT_CHECK_S then
     last_port_check = now

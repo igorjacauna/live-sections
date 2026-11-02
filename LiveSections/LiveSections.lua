@@ -67,6 +67,8 @@ local model = require("core.project_model")
 local remote = require("actions.remote")
 local stage = require("core.stage")
 local chart_view = require("ui.chart_view")
+local kontakt_jsfx = require("core.kontakt_jsfx")
+local kontakt_cc = require("core.kontakt_cc")
 
 local ctx = ImGui.CreateContext(APP_NAME)
 theme.init(ctx, ImGui, script_dir())
@@ -80,6 +82,16 @@ feedback.configure(cfg)
 layers.configure({ keyboard_port = cfg.keyboard_port, bypass_tail_s = cfg.bypass_tail_s })
 perf.init({ quantize = cfg.quantize, tolerance_ms = cfg.tolerance_ms })
 anim.set_reduced(cfg.reduced_motion == true)
+-- JSFX do Mapeamento: regravado a cada abertura (atualiza com a versão).
+-- Uma falha não impede abrir; a tela Mapeamento mostra o problema de novo.
+do
+  local ok, err, path = kontakt_jsfx.write_file()
+  if not ok then
+    reaper.ShowConsoleMsg(string.format("Live Sections: não consegui gravar o JSFX do Mapeamento em %s (%s)\n",
+      path, tostring(err)))
+  end
+end
+kontakt_cc.init({ mappings = mappings, jsfx = kontakt_jsfx, layers = layers })
 local wizard = require("ui.kontakt_wizard")
 wizard.init({ ImGui = ImGui, theme = theme, layers = layers, kit = view.kit })
 editor.init({
@@ -91,6 +103,7 @@ view.init({
   ImGui = ImGui, theme = theme, anim = anim, widgets = widgets,
   perf = perf, layers = layers, feedback = feedback, mappings = mappings,
   learn = learn, input = input, model = model, editor = editor, settings = settings_view, stage = stage,
+  kontakt_cc = kontakt_cc,
 })
 chart_view.init({ ImGui = ImGui, theme = theme, kit = view.kit })
 settings_view.init({

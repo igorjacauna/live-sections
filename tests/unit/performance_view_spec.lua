@@ -82,6 +82,36 @@ describe("ui.performance_view", function()
       assert.is_true(view.ui().setlist_open)
     end)
 
+    it("controle do Mapeamento vai para o kontakt_cc, inclusive o soltar", function()
+      local got = {}
+      local kcc = { handle = function(m, value, released) got[#got + 1] = { m.arg, value, released or false } end,
+        on_song = function() end, tick = function() end }
+      view.init({
+        ImGui = fake_imgui(), theme = theme, anim = anim, widgets = widgets, perf = perf, layers = layers,
+        feedback = feedback, mappings = mappings, learn = learn, input = input, model = model, kontakt_cc = kcc,
+      })
+      mappings.set({ action = "kontakt_cc", arg = "k1", port_name = MASTER, msg_type = "note", channel = 1, number = 30 })
+      view.handle_event(ev(0x90, 30, 127))
+      view.handle_event(ev(0x80, 30, 0))
+      assert.same({ { "k1", 1, false }, { "k1", 0, true } }, got)
+      assert.equal(0, r._cursor)
+    end)
+
+    it("ao trocar de música avisa o kontakt_cc depois do activate e roda o tick", function()
+      local log = {}
+      local kcc = { handle = function() end, on_song = function(song) log[#log + 1] = "song:" .. song.name end,
+        tick = function(t) log[#log + 1] = "tick:" .. t end }
+      local activate = layers.activate
+      layers.activate = function(...) log[#log + 1] = "activate"; return activate(...) end
+      view.init({
+        ImGui = fake_imgui(), theme = theme, anim = anim, widgets = widgets, perf = perf, layers = layers,
+        feedback = feedback, mappings = mappings, learn = learn, input = input, model = model, kontakt_cc = kcc,
+      })
+      view.update(1)
+      view.update(2)
+      assert.same({ "activate", "song:A", "tick:1", "tick:2" }, log)
+    end)
+
     it("evento mapeado dispara a ação e pisca o controle; Note Off não dispara", function()
       mappings.set({ action = "trigger_slot", arg = 3, port_name = MASTER, msg_type = "note", channel = 1, number = 24 })
       view.handle_event(ev(0x80, 24, 0))
