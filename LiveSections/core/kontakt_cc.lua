@@ -4,11 +4,15 @@
 -- midi/mappings, arg = id da linha) a um CC de saída. A lista é global,
 -- salva no config.json junto dos mapeamentos (RF-125).
 --
--- Row = { id = "k1", name, cc (0–127), kind = "knob"|"toggle"|"momentary" }
+-- Row = { id = "k1", name, cc (0–127), kind = "knob"|"encoder"|"toggle"|"momentary" }
+--
+-- "encoder" é o knob sem fim (relativo): cada giro manda só o passo, 1–63
+-- para a direita e 65–127 para a esquerda (bit de sinal, 65 = -1, ou
+-- complemento de dois, 127 = -1). O valor da linha soma os passos.
 --
 -- M.init({ mappings, jsfx, layers })  carrega as linhas
 -- M.rows() -> { Row }; M.get(id) -> Row?; M.mapping(id) -> Mapping?
--- M.add_from_learn(msg) -> Row       msg = { port_name, msg_type, channel, number }
+-- M.add_from_learn(msg) -> Row       msg = { port_name, msg_type, channel, number, value? }
 --                                    sugere tipo, CC e nome (RF-112–RF-114)
 -- M.update(id, { name?, cc?, kind? }) -> ok, err
 -- M.remove(id); M.save() -> ok, err
@@ -36,7 +40,7 @@
 local M = {}
 
 local ACTION = "kontakt_cc"
-local KINDS = { knob = true, toggle = true, momentary = true }
+local KINDS = { knob = true, encoder = true, toggle = true, momentary = true }
 local NOTES = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" }
 
 -- Modulação, volume, pan, expressão, sustain/portamento/sostenuto/soft,
@@ -91,8 +95,22 @@ function M.physical_name(msg)
   else return "Botão PC " .. msg.number end
 end
 
+-- Um CC que chega com 1–3 ou 125–127 (ou 65–67) no primeiro giro é quase
+-- sempre um knob sem fim mandando o passo.
+local function relative_value(v)
+  return v ~= nil and ((v >= 1 and v <= 3) or (v >= 65 and v <= 67) or v >= 125)
+end
+
 local function suggest_kind(msg)
+  if msg.msg_type == "cc" and relative_value(msg.value) then return "encoder" end
   return (msg.msg_type == "cc" or msg.msg_type == "pb") and "knob" or "toggle"
+end
+
+-- passo de um knob sem fim: até 96 é bit de sinal, acima é complemento de dois
+local function step_of(v)
+  if v < 64 then return v end
+  if v > 96 then return v - 128 end
+  return -(v - 64)
 end
 
 function M.suggest_cc()
@@ -171,6 +189,9 @@ function M.handle(mapping, value, released, now)
   raw[row.id] = released and 0 or value
   if row.kind == "knob" then
     set_value(row, math.floor(value * 127 + 0.5), now)
+  elseif row.kind == "encoder" then
+    local v = (values[row.id] or 0) + step_of(math.floor(value * 127 + 0.5))
+    set_value(row, math.max(0, math.min(127, v)), now)
   elseif row.kind == "momentary" then
     set_value(row, (not released and value >= 0.5) and 127 or 0, now)
   else

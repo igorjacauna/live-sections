@@ -11,7 +11,7 @@
 --
 -- Em série (tela Mapeamento, RF-111): M.start_series(handler) fica ativo até
 -- M.cancel(); cada mensagem ainda não mapeada chama handler(msg) uma vez, com
--- msg = { port_name, msg_type, channel, number }, e o handler devolve o
+-- msg = { port_name, msg_type, channel, number, value }, e o handler devolve o
 -- mapeamento criado. Mexer de novo um controle que já virou linha não faz
 -- nada.
 --
@@ -51,7 +51,7 @@ local function feed_series(event, msg)
     return { conflict = used }
   end
   return current.handler({ port_name = event.port_name, msg_type = msg.msg_type,
-    channel = msg.channel, number = msg.number })
+    channel = msg.channel, number = msg.number, value = event.data2 })
 end
 
 function M.feed(event)

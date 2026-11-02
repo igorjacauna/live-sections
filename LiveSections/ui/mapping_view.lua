@@ -27,8 +27,8 @@ local ROW_H = 44
 local CONFLICT_S = 5
 local COVERAGE_S = 1.0   -- recontagem das músicas com o JSFX
 local BAR_W = 90
-local KIND_LABEL = { knob = "Knob", toggle = "Liga/desliga", momentary = "Segurar" }
-local KINDS = { "knob", "toggle", "momentary" }
+local KIND_LABEL = { knob = "Knob", encoder = "Knob sem fim", toggle = "Liga/desliga", momentary = "Segurar" }
+local KINDS = { "knob", "encoder", "toggle", "momentary" }
 
 local name_buf = {}      -- [id] = texto do nome enquanto é editado
 local height = 0
@@ -234,14 +234,14 @@ local function rows_table(ctx, dl, ix, iw, cy, now)
   end
   local actions_w = buttons_width(ctx)
   local cc_w = cc_width(ctx)
-  local free = iw - actions_w - cc_w - 130 - BAR_W - 28 - GAP * 5
+  local free = iw - actions_w - cc_w - 150 - BAR_W - 28 - GAP * 5
   local cols = { name = ix, name_w = math.max(110, free * 0.55) }
   cols.phys = cols.name + cols.name_w + GAP
   cols.phys_w = math.max(90, free * 0.45)
   cols.cc = cols.phys + cols.phys_w + GAP
   cols.cc_w = cc_w
   cols.kind = cols.cc + cols.cc_w + GAP
-  cols.kind_w = 130
+  cols.kind_w = 150
   cols.signal = cols.kind + cols.kind_w + GAP
   kit.txt(ctx, dl, "label", cols.name, cy, theme.C.muted, "NOME")
   kit.txt(ctx, dl, "label", cols.phys, cy, theme.C.muted, "CONTROLE")

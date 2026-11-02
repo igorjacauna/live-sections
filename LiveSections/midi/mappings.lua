@@ -170,7 +170,7 @@ function M.save_settings(settings)
   return M.save()
 end
 
-local KINDS = { knob = true, toggle = true, momentary = true }
+local KINDS = { knob = true, encoder = true, toggle = true, momentary = true }
 
 local function valid_row(row)
   return type(row) == "table" and type(row.id) == "string" and type(row.name) == "string"

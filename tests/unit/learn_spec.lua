@@ -100,6 +100,13 @@ describe("midi.learn", function()
       assert.equal(2, n)
     end)
 
+    it("passa o valor da mensagem, para sugerir o knob sem fim", function()
+      local got
+      learn.start_series(function(msg) got = msg.value; return handler(msg) end)
+      learn.feed(ev(0xB0, 16, 127))
+      assert.equal(127, got)
+    end)
+
     it("mexer de novo o mesmo knob não cria outra linha", function()
       learn.start_series(handler)
       learn.feed(ev(0xB0, 16, 10))

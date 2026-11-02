@@ -788,7 +788,7 @@ local function touch_toast(ctx, x, y, w)
   local t = kontakt_cc and kontakt_cc.last_touch(now)
   if not t then return end
   local v = t.value or 0
-  local s = t.row.name .. "  " .. (t.row.kind == "knob" and tostring(v) or (v >= 64 and "ON" or "OFF"))
+  local s = t.row.name .. "  " .. ((t.row.kind == "knob" or t.row.kind == "encoder") and tostring(v) or (v >= 64 and "ON" or "OFF"))
   local style = ui.stage and "title" or "strong"
   local tw, th = size(ctx, style, s)
   local pw, ph = tw + 40, th + 24

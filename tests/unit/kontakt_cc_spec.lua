@@ -49,6 +49,11 @@ describe("kontakt_cc", function()
       assert.same({ "Fader 3", "knob" }, { row.name, row.kind })
     end)
 
+    it("CC que chega com o passo de um knob sem fim vira knob sem fim", function()
+      local function kind(v) local m = msg("cc", 16); m.value = v; return kcc.add_from_learn(m).kind end
+      assert.same({ "encoder", "encoder", "encoder", "knob", "knob" }, { kind(1), kind(127), kind(65), kind(40), kind(nil) })
+    end)
+
     it("o CC sugerido pula os reservados e os já usados", function()
       local ccs = {}
       for n = 16, 30 do ccs[#ccs + 1] = kcc.add_from_learn(msg("cc", n)).cc end
@@ -152,6 +157,19 @@ describe("kontakt_cc", function()
       assert.equal(100, kcc.value("k1"))
       assert.equal(100, cc_of(kt_a, 2))
       assert.equal(0, cc_of(kt_b, 2))
+    end)
+
+    it("knob sem fim soma os passos e para em 0 e 127", function()
+      kcc.update("k1", { kind = "encoder" })
+      for _ = 1, 5 do kcc.handle(m("k1"), 1 / 127, nil, 1) end
+      assert.equal(5, cc_of(kt_a, 2))
+      kcc.handle(m("k1"), 127 / 127, nil, 1)   -- complemento de dois: -1
+      kcc.handle(m("k1"), 66 / 127, nil, 1)    -- bit de sinal: -2
+      assert.equal(2, kcc.value("k1"))
+      kcc.handle(m("k1"), 120 / 127, nil, 1)   -- -8
+      assert.equal(0, kcc.value("k1"))
+      for _ = 1, 30 do kcc.handle(m("k1"), 7 / 127, nil, 1) end
+      assert.equal(127, cc_of(kt_a, 2))
     end)
 
     it("fader (pitch bend) é escalado para 0–127", function()
