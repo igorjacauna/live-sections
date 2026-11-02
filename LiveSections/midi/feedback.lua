@@ -16,9 +16,11 @@
 -- "playing": é o "aceso" do controlador.
 --
 -- M.configure(settings)                { led_velocity, feedback_out_port?, led_blink? }
--- M.state_for(mapping, ctx) -> state   ctx = { sections, playing, queued, looping,
---                                      transport, layer = function(slot) -> { mute, solo } }
--- M.set_state(mapping, state)
+-- M.state_for(mapping, ctx) -> state?  ctx = { sections, playing, queued, looping,
+--                                      transport, layer = function(slot) -> { mute, solo },
+--                                      kontakt_on = function(id) -> bool? }
+--                                      nil: o controle não tem LED (knob do Mapeamento)
+-- M.set_state(mapping, state?)        state nil: não manda nada para o controle
 -- M.flush(now)                         envia o que mudou; `now` em segundos
 -- M.reset()                            esquece o que foi enviado (reenvia tudo)
 -- M.touch(mapping)                     reenvia aquele LED (o botão foi tocado)
@@ -90,13 +92,19 @@ function M.state_for(mapping, ctx)
     local st = ctx.layer and ctx.layer(mapping.arg)
     local on = st and (mapping.action == "layer_mute" and st.mute or mapping.action == "layer_solo" and st.solo)
     return on and "playing" or "idle"
+  elseif mapping.action == "kontakt_cc" then
+    -- só os botões liga/desliga acendem (RF-134); mandar algo a um knob
+    -- mexeria no anel de LEDs dele
+    local on = ctx.kontakt_on and ctx.kontakt_on(mapping.arg)
+    if on == nil then return nil end
+    return on and "playing" or "idle"
   end
   return "idle"
 end
 
 function M.set_state(mapping, state)
   if not STATUS[mapping.msg_type] then return end
-  wanted[key(mapping)] = { mapping = mapping, state = state }
+  wanted[key(mapping)] = state and { mapping = mapping, state = state } or nil
 end
 
 -- ------------------------------------------------------------------ envio

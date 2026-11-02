@@ -29,6 +29,7 @@
 -- M.test(id, now)                    varre 0→127 em 2 s e volta (RF-120)
 -- M.send_learn(id, now)              uma variação do CC e volta (RF-121)
 -- M.value(id) -> 0–127?; M.is_on(id) -> bool
+-- M.led(id) -> bool?                 LED do botão liga/desliga; nil nos outros tipos
 -- M.flashed(id, now) -> bool         o CC da linha saiu do JSFX (RF-119)
 -- M.last_touch(now) -> { row, value }?   até TOUCH_S depois do último toque
 
@@ -235,6 +236,12 @@ end
 
 function M.value(id) return values[id] end
 function M.is_on(id) return (values[id] or 0) >= 64 end
+
+function M.led(id)
+  local row = M.get(id)
+  if not row or row.kind ~= "toggle" then return nil end
+  return M.is_on(id)
+end
 function M.flashed(id, now) return (flash_until[id] or -math.huge) > now end
 
 function M.last_touch(now)

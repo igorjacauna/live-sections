@@ -216,6 +216,7 @@ local function update_leds()
     if layer_cache[slot] == nil then layer_cache[slot] = layers.layer_state(slot) or false end
     return layer_cache[slot] or nil
   end
+  if kontakt_cc then ctx.kontakt_on = kontakt_cc.led end
   for _, m in ipairs(mappings.all()) do feedback.set_state(m, feedback.state_for(m, ctx)) end
   feedback.flush(now)
 end

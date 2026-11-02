@@ -65,6 +65,30 @@ describe("midi.feedback", function()
     end)
   end)
 
+  describe("Mapeamento", function()
+    local function row(id, number, msg_type)
+      return { action = "kontakt_cc", arg = id, port_name = MASTER, msg_type = msg_type or "note", channel = 1, number = number }
+    end
+    local leds = { k1 = true, k2 = false }
+    local ctx = { kontakt_on = function(id) return leds[id] end }
+
+    it("botão liga/desliga acende em ON e apaga em OFF; knob não tem LED", function()
+      assert.equal("playing", fb.state_for(row("k1", 30), ctx))
+      assert.equal("idle", fb.state_for(row("k2", 31), ctx))
+      assert.is_nil(fb.state_for(row("k3", 16, "cc"), ctx))
+      assert.is_nil(fb.state_for(row("k1", 30), {}))
+    end)
+
+    it("nada é mandado para um knob", function()
+      fb.set_state(row("k3", 16, "cc"), fb.state_for(row("k3", 16, "cc"), ctx))
+      fb.set_state(row("k1", 30), fb.state_for(row("k1", 30), ctx))
+      fb.flush(0)
+      assert.same({ { 20, 0x90, 30, 21 } }, sent())
+      fb.flush(5)
+      assert.same({ { 20, 0x90, 30, 21 } }, sent())
+    end)
+  end)
+
   describe("flush", function()
     it("envia a velocity do estado pelo mesmo mapeamento, na saída de mesmo nome", function()
       fb.set_state(slot(1, 24), "playing")
