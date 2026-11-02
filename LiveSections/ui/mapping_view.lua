@@ -11,6 +11,9 @@
 -- p/ Learn (RF-120, RF-121); o topo conta as músicas cujo Kontakt tem o
 -- JSFX e instala nas que faltam (RF-128, RF-129).
 --
+-- O knob sem fim tem a sensibilidade (1×–8×) na coluna SENSIB.; "Abrir
+-- Kontakt" abre a janela do Kontakt da música atual para o Learn.
+--
 -- M.init(deps)   ImGui, theme, kit, kontakt_cc, learn, feedback, ui,
 --                label (texto de uma ação: settings_view.label),
 --                jsfx (core/kontakt_jsfx), layers, model,
@@ -25,6 +28,8 @@ local jsfx_status = { ok = true }
 local GAP = 12
 local ROW_H = 44
 local CONFLICT_S = 5
+local NO_KONTAKT_S = 3   -- aviso de "Abrir Kontakt" sem Kontakt na música
+local SPEED_W = 76
 local COVERAGE_S = 1.0   -- recontagem das músicas com o JSFX
 local BAR_W = 90
 local KIND_LABEL = { knob = "Knob", encoder = "Knob sem fim", toggle = "Liga/desliga", momentary = "Segurar" }
@@ -33,6 +38,7 @@ local KINDS = { "knob", "encoder", "toggle", "momentary" }
 local name_buf = {}      -- [id] = texto do nome enquanto é editado
 local height = 0
 local coverage, coverage_at = nil, -math.huge
+local no_kontakt_at = -math.huge
 
 function M.init(deps)
   ImGui, theme, kit = deps.ImGui, deps.theme, deps.kit
@@ -40,6 +46,7 @@ function M.init(deps)
   jsfx, layers, model = deps.jsfx, deps.layers, deps.model
   jsfx_status = deps.jsfx_status or { ok = true }
   name_buf, height, coverage, coverage_at = {}, 0, nil, -math.huge
+  no_kontakt_at = -math.huge
 end
 
 -- ------------------------------------------------------------------ apoio
@@ -71,7 +78,7 @@ local function body_font(ctx) return theme.font(ctx, "body") end
 
 -- ------------------------------------------------------------------ partes
 
-local function header(ctx, dl, ix, iw, cy)
+local function header(ctx, dl, ix, iw, cy, now)
   kit.txt(ctx, dl, "title", ix, cy, theme.C.text, "Mapeamento")
   local on = series_on()
   local bl = on and "Parar de aprender" or "Aprender vários"
@@ -79,6 +86,17 @@ local function header(ctx, dl, ix, iw, cy)
   if kit.button(ctx, "kcc_series", bl, ix + iw - bw, cy - 2, 30, { icon = "learn", w = bw, active = on }) then
     if on then learn.cancel() else start_series() end
   end
+  local ol = "Abrir Kontakt"
+  local ow = kit.size(ctx, "button", ol) + 24
+  local ox = ix + iw - bw - 8 - ow
+  if kit.button(ctx, "kcc_open", ol, ox, cy - 2, 30, { w = ow }) and not kcc.open_kontakt() then
+    no_kontakt_at = now
+  end
+  if now - no_kontakt_at < NO_KONTAKT_S then
+    local msg = "A música atual não tem Kontakt"
+    kit.txt(ctx, dl, "small", ox - kit.size(ctx, "small", msg) - 10, cy + 6, theme.C.danger, msg)
+  end
+  bw = bw + 8 + ow
   cy = cy + 40
   cy = cy + kit.wrapped(ctx, "small", ix, cy, iw - bw - 16, theme.C.muted,
     "Cada controle do controlador vira um CC fixo que vai só para o Kontakt da música atual, como no Gig Performer. No Kontakt, use Learn MIDI CC# Automation num knob e mexa o controle (ou use Enviar p/ Learn).") + 12
@@ -167,6 +185,17 @@ local function row_controls(ctx, dl, row, cols, cy)
     end
     ImGui.EndCombo(ctx)
   end
+  -- sensibilidade, só no knob sem fim
+  if row.kind == "encoder" then
+    ImGui.SetCursorScreenPos(ctx, cols.speed, cy + 4)
+    ImGui.SetNextItemWidth(ctx, SPEED_W)
+    if ImGui.BeginCombo(ctx, "##kspeed_" .. row.id, (row.speed or 1) .. "×") then
+      for _, s in ipairs(kcc.SPEEDS) do
+        if ImGui.Selectable(ctx, s .. "×", s == (row.speed or 1)) then kcc.update(row.id, { speed = s }) end
+      end
+      ImGui.EndCombo(ctx)
+    end
+  end
   theme.pop_font(ctx, body)
   -- controle físico
   local phys = m and kcc.physical_name(m) or "Sem controle"
@@ -234,7 +263,7 @@ local function rows_table(ctx, dl, ix, iw, cy, now)
   end
   local actions_w = buttons_width(ctx)
   local cc_w = cc_width(ctx)
-  local free = iw - actions_w - cc_w - 150 - BAR_W - 28 - GAP * 5
+  local free = iw - actions_w - cc_w - 150 - SPEED_W - BAR_W - 28 - GAP * 6
   local cols = { name = ix, name_w = math.max(110, free * 0.55) }
   cols.phys = cols.name + cols.name_w + GAP
   cols.phys_w = math.max(90, free * 0.45)
@@ -242,11 +271,13 @@ local function rows_table(ctx, dl, ix, iw, cy, now)
   cols.cc_w = cc_w
   cols.kind = cols.cc + cols.cc_w + GAP
   cols.kind_w = 150
-  cols.signal = cols.kind + cols.kind_w + GAP
+  cols.speed = cols.kind + cols.kind_w + GAP
+  cols.signal = cols.speed + SPEED_W + GAP
   kit.txt(ctx, dl, "label", cols.name, cy, theme.C.muted, "NOME")
   kit.txt(ctx, dl, "label", cols.phys, cy, theme.C.muted, "CONTROLE")
   kit.txt(ctx, dl, "label", cols.cc, cy, theme.C.muted, "CC")
   kit.txt(ctx, dl, "label", cols.kind, cy, theme.C.muted, "TIPO")
+  kit.txt(ctx, dl, "label", cols.speed, cy, theme.C.muted, "SENSIB.")
   kit.txt(ctx, dl, "label", cols.signal, cy, theme.C.muted, "SINAL")
   cy = cy + 22
   local warnings = kcc.warnings()
@@ -289,7 +320,7 @@ function M.draw(ctx, x, y, w, h, snap)
   ImGui.DrawList_AddRectFilled(dl, x, y, x + w, y + height, theme.C.panel, theme.R.r2)
   local ix, iw = x + 16, w - 32
   local cy = y + 16
-  cy = header(ctx, dl, ix, iw, cy)
+  cy = header(ctx, dl, ix, iw, cy, now)
   cy = coverage_line(ctx, dl, ix, iw, cy, now)
   cy = banners(ctx, dl, ix, iw, cy, now)
   cy = rows_table(ctx, dl, ix, iw, cy, now)

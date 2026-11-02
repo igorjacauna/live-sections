@@ -8,13 +8,15 @@
 --
 -- "encoder" é o knob sem fim (relativo): cada giro manda só o passo, 1–63
 -- para a direita e 65–127 para a esquerda (bit de sinal, 65 = -1, ou
--- complemento de dois, 127 = -1). O valor da linha soma os passos.
+-- complemento de dois, 127 = -1). O valor da linha soma os passos vezes a
+-- sensibilidade da linha (speed = 1, 2, 4 ou 8; sem speed vale 1).
 --
 -- M.init({ mappings, jsfx, layers })  carrega as linhas
 -- M.rows() -> { Row }; M.get(id) -> Row?; M.mapping(id) -> Mapping?
 -- M.add_from_learn(msg) -> Row       msg = { port_name, msg_type, channel, number, value? }
 --                                    sugere tipo, CC e nome (RF-112–RF-114)
--- M.update(id, { name?, cc?, kind? }) -> ok, err
+-- M.update(id, { name?, cc?, kind?, speed? }) -> ok, err
+-- M.SPEEDS                           { 1, 2, 4, 8 }
 -- M.remove(id); M.save() -> ok, err
 -- M.suggest_cc() -> n?               menor CC livre fora dos reservados (RF-113)
 -- M.RESERVED                         { [cc] = true }
@@ -36,11 +38,15 @@
 -- M.led(id) -> bool?                 LED do botão liga/desliga; nil nos outros tipos
 -- M.flashed(id, now) -> bool         o CC da linha saiu do JSFX (RF-119)
 -- M.last_touch(now) -> { row, value }?   até TOUCH_S depois do último toque
+-- M.has_kontakt() -> bool            a música atual tem Kontakt
+-- M.open_kontakt() -> ok, err        abre (ou fecha, se aberta) a janela do
+--                                    Kontakt da música atual; err = "no_kontakt"
 
 local M = {}
 
 local ACTION = "kontakt_cc"
 local KINDS = { knob = true, encoder = true, toggle = true, momentary = true }
+M.SPEEDS = { 1, 2, 4, 8 }
 local NOTES = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" }
 
 -- Modulação, volume, pan, expressão, sustain/portamento/sostenuto/soft,
@@ -154,6 +160,12 @@ function M.update(id, fields)
     if not cc or cc ~= math.floor(cc) or cc < 0 or cc > 127 then return false, "invalid_cc" end
     row.cc = math.floor(cc)
   end
+  if fields.speed ~= nil then
+    local ok = false
+    for _, s in ipairs(M.SPEEDS) do ok = ok or s == fields.speed end
+    if not ok then return false, "invalid_speed" end
+    row.speed = fields.speed ~= 1 and fields.speed or nil
+  end
   if fields.kind ~= nil then
     if not KINDS[fields.kind] then return false, "invalid_kind" end
     row.kind = fields.kind
@@ -190,7 +202,7 @@ function M.handle(mapping, value, released, now)
   if row.kind == "knob" then
     set_value(row, math.floor(value * 127 + 0.5), now)
   elseif row.kind == "encoder" then
-    local v = (values[row.id] or 0) + step_of(math.floor(value * 127 + 0.5))
+    local v = (values[row.id] or 0) + step_of(math.floor(value * 127 + 0.5)) * (row.speed or 1)
     set_value(row, math.max(0, math.min(127, v)), now)
   elseif row.kind == "momentary" then
     set_value(row, (not released and value >= 0.5) and 127 or 0, now)
@@ -270,6 +282,29 @@ function M.last_touch(now)
   local row = M.get(touch.id)
   if not row then return nil end
   return { row = row, value = values[row.id] }
+end
+
+-- ------------------------------------------------------------------ janela
+
+-- O JSFX do Mapeamento também tem "Kontakt" no nome: fica de fora.
+local function kontakt_fx()
+  if not track then return nil end
+  local ours = jsfx.find(track)
+  for i = 0, reaper.TrackFX_GetCount(track) - 1 do
+    local _, name = reaper.TrackFX_GetFXName(track, i, "")
+    if i ~= ours and name:lower():find("kontakt", 1, true) then return i end
+  end
+  return nil
+end
+
+function M.has_kontakt() return kontakt_fx() ~= nil end
+
+function M.open_kontakt()
+  local i = kontakt_fx()
+  if not i then return false, "no_kontakt" end
+  -- 3 = janela flutuante, 2 = fechar a flutuante
+  reaper.TrackFX_Show(track, i, reaper.TrackFX_GetOpen(track, i) and 2 or 3)
+  return true
 end
 
 -- ------------------------------------------------------------------ avisos

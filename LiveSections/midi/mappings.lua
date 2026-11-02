@@ -171,6 +171,7 @@ function M.save_settings(settings)
 end
 
 local KINDS = { knob = true, encoder = true, toggle = true, momentary = true }
+local SPEEDS = { [1] = true, [2] = true, [4] = true, [8] = true }
 
 local function valid_row(row)
   return type(row) == "table" and type(row.id) == "string" and type(row.name) == "string"
@@ -183,7 +184,8 @@ function M.kontakt_rows()
   local out = {}
   for _, row in ipairs(type(doc.kontakt_cc) == "table" and doc.kontakt_cc or {}) do
     if valid_row(row) then
-      out[#out + 1] = { id = row.id, name = row.name, cc = math.floor(row.cc), kind = row.kind }
+      out[#out + 1] = { id = row.id, name = row.name, cc = math.floor(row.cc), kind = row.kind,
+        speed = SPEEDS[row.speed] and row.speed or nil }
     end
   end
   return out

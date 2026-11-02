@@ -305,6 +305,12 @@ function M.new()
   function api.TrackFX_GetParam(tr, i, p)
     return fx_state(tr, i).params[p] or 0, 0, 0
   end
+  -- janela flutuante do FX: fx_state.open
+  function api.TrackFX_GetOpen(tr, i) return tr.fx[i + 1] ~= nil and fx_state(tr, i).open == true end
+  function api.TrackFX_Show(tr, i, flag)
+    fx_state(tr, i).open = flag == 3 or flag == 1
+    log("TrackFX_Show", tr, i, flag)
+  end
   function api.TrackList_AdjustWindows() end
   function api.Track_GetPeakInfo(tr, ch) return (tr.peak or {})[ch + 1] or 0 end
 
