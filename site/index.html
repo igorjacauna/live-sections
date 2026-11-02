@@ -255,7 +255,13 @@ footer .wrap { display: flex; gap: 16px; flex-wrap: wrap; justify-content: space
           <div class="dot"></div>
           <h3>Um Kontakt por música</h3>
           <p>Só o instrumento da música atual fica armado no teclado. Troque de música segurando uma nota: nada corta, nada fica preso. Os outros entram em bypass para poupar CPU.</p>
-          <ul><li>Camadas do multi-out com fader, mute e solo</li><li>Soft takeover: o volume não salta ao trocar de música</li></ul>
+          <ul><li>Camadas do multi-out com fader, mute e solo</li><li>Soft takeover: o volume não salta ao trocar de música</li><li>Duplo clique no nome da camada para renomear, em cada música</li></ul>
+        </div>
+        <div class="feat" style="--c:#9B7BFF">
+          <div class="dot"></div>
+          <h3>Mapeamento para o Kontakt</h3>
+          <p>Knobs, faders e botões do controlador viram um CC fixo que vai só para o Kontakt da música atual, como no Gig Performer: cutoff, reverb, rotary, o que o instrumento tiver. Cada música lembra os seus valores.</p>
+          <ul><li>"Aprender vários": mexa os controles um de cada vez e cada um vira uma linha</li><li>Enviar p/ Learn e Testar para ter certeza de que o Kontakt responde</li><li>Botões liga/desliga com LED; nome e valor na tela ao mexer</li></ul>
         </div>
         <div class="feat" style="--c:#5B8DEF">
           <div class="dot"></div>
@@ -326,6 +332,7 @@ footer .wrap { display: flex; gap: 16px; flex-wrap: wrap; justify-content: space
       <details><summary>Funciona no Windows?</summary><p>Sim. Ele usa só a API do REAPER e a ReaImGui, e é testado no macOS e no Windows. No Windows, para o celular abrir a cifra, o firewall precisa liberar o REAPER em rede privada.</p></details>
       <details><summary>É de graça? Posso modificar?</summary><p>Sim. É software livre sob a licença GPL-3.0: use, estude, modifique e compartilhe. O código está no <a href="https://github.com/igorjacauna/live-sections">GitHub</a>, onde você também pode relatar problemas e sugerir melhorias.</p></details>
       <details><summary>Como a banda vê a cifra no celular?</summary><p>O próprio REAPER tem um servidor web. Instale a página "livesections.html" pelo ReaPack e ative em Preferences → Control/OSC/web → Add → Web browser interface. Nas configurações do Live Sections aparecem o endereço e um QR Code: com o celular na mesma rede Wi-Fi, é só apontar a câmera. A cifra segue a música sozinha. No Android, se o Chrome mostrar "too many retries", permita "Dispositivos por perto" para o Chrome nas configurações do celular.</p></details>
+      <details><summary>Consigo controlar efeitos e parâmetros do Kontakt pelo controlador?</summary><p>Sim, pela tela Mapeamento. O controlador continua em "control messages" e o Live Sections entrega a cada knob ou botão um CC fixo, só para o Kontakt da música atual, por um pequeno JSFX no início da track do Kontakt (ele instala sozinho). No Kontakt, faça Learn MIDI CC# Automation no knob e clique em Enviar p/ Learn. CCs que você já usava, por exemplo no Gig Performer, continuam valendo: é só configurar os mesmos números.</p></details>
       <details><summary>Precisa da SWS?</summary><p>Não. Só da ReaImGui, que se instala pelo ReaPack.</p></details>
     </div>
   </section>
