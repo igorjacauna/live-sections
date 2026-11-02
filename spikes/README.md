@@ -88,11 +88,11 @@ O console lista os marcadores de tempo antes e depois e confere quatro coisas, c
 
 ## 08_cc_para_kontakt.lua: CC para o Kontakt por um JSFX
 Base dos "Controles do Kontakt" (como no Gig Performer: o knob vira um CC fixo que só o Kontakt da música atual recebe).
-1. Selecione a track do Kontakt, rode o script e clique **Instalar na track selecionada**.
-2. No Kontakt, clique direito num knob → **Learn MIDI CC# Automation** e mexa o slider **Valor** do spike.
-3. Mexa o slider, a **Varredura** e o **Botão 0↔127**: o knob do Kontakt segue?
-4. Repita com o Live Sections aberto: com a música dessa track atual e depois com outra música atual (Kontakt em bypass).
+1. Selecione a track do Kontakt, rode o script e clique **Instalar na track selecionada** (instala o gerador e um monitor de CC antes do Kontakt).
+2. **A. CC via JSFX**: mexa o slider **Valor** e anote os contadores. **blocos** sobe sozinho? **enviados** e **recebidos** sobem ao mexer?
+3. No Kontakt, clique direito num knob → **Learn MIDI CC# Automation** e mexa o **Valor** de novo: o knob aprende e segue?
+4. **B. Parâmetro do Kontakt**: na aba Auto do Kontakt → Host Automation, arraste o **#000** para um knob; no spike, deixe **Parâmetro** em 0 e mexa o **Valor do parâmetro**: o knob segue?
 5. Toque o teclado enquanto mexe: as notas continuam normais?
 6. Clique **Remover** no fim.
 
-**Mande:** o console e o que aconteceu em cada passo.
+**Mande:** o console, os contadores do passo 2 e o que aconteceu nos passos 3 a 5.
