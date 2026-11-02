@@ -85,3 +85,14 @@ O console lista os marcadores de tempo antes e depois e confere quatro coisas, c
 4. O ajuste fino (+0,01 BPM e +1 ms) também não move nada.
 
 **Mande:** o console inteiro.
+
+## 08_cc_para_kontakt.lua: CC para o Kontakt por um JSFX
+Base dos "Controles do Kontakt" (como no Gig Performer: o knob vira um CC fixo que só o Kontakt da música atual recebe).
+1. Selecione a track do Kontakt, rode o script e clique **Instalar na track selecionada**.
+2. No Kontakt, clique direito num knob → **Learn MIDI CC# Automation** e mexa o slider **Valor** do spike.
+3. Mexa o slider, a **Varredura** e o **Botão 0↔127**: o knob do Kontakt segue?
+4. Repita com o Live Sections aberto: com a música dessa track atual e depois com outra música atual (Kontakt em bypass).
+5. Toque o teclado enquanto mexe: as notas continuam normais?
+6. Clique **Remover** no fim.
+
+**Mande:** o console e o que aconteceu em cada passo.
