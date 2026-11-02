@@ -255,8 +255,56 @@ function M.new()
     src.sends = src.sends or {}
     src.sends[#src.sends + 1] = { dst = dst, info = { I_SRCCHAN = srcchan or 0 } }
   end
+  -- tr.fx: nomes dos FX, na ordem; tr.fx_state[i]: { ident, params = {} }
+  -- (criado ao adicionar pela API ou sob demanda). JSFX adicionado por
+  -- "JS:<arquivo>" ganha o nome r._js_desc[<arquivo>] ou o próprio arquivo.
+  local function fx_state(tr, i)
+    tr.fx_state = tr.fx_state or {}
+    tr.fx_state[i + 1] = tr.fx_state[i + 1] or { ident = tr.fx[i + 1], params = {} }
+    return tr.fx_state[i + 1]
+  end
   function api.TrackFX_GetCount(tr) return #(tr.fx or {}) end
   function api.TrackFX_GetFXName(tr, i, _) return true, tr.fx[i + 1] end
+  function api.TrackFX_AddByName(tr, name, _, instantiate)
+    tr.fx = tr.fx or {}
+    tr.fx_state = tr.fx_state or {}
+    for i = 1, #tr.fx do fx_state(tr, i - 1) end
+    local file = name:match("^JS:(.*)$")
+    if not file or rawget(r, "_js_missing") then return -1 end
+    local pos = instantiate <= -1000 and math.min(-instantiate - 1000, #tr.fx) or #tr.fx
+    local desc = (rawget(r, "_js_desc") or {})[file] or file
+    table.insert(tr.fx, pos + 1, "JS: " .. desc)
+    table.insert(tr.fx_state, pos + 1, { ident = file, params = {} })
+    log("TrackFX_AddByName", tr, name, pos)
+    return pos
+  end
+  function api.TrackFX_Delete(tr, i)
+    fx_state(tr, i)
+    table.remove(tr.fx, i + 1)
+    table.remove(tr.fx_state, i + 1)
+    log("TrackFX_Delete", tr, i)
+    return true
+  end
+  function api.TrackFX_CopyToTrack(src, i, dst, to, move)
+    if src ~= dst or not move then error("stub: TrackFX_CopyToTrack só simula mover na mesma track") end
+    for k = 1, #src.fx do fx_state(src, k - 1) end
+    local name, st = table.remove(src.fx, i + 1), table.remove(src.fx_state, i + 1)
+    table.insert(src.fx, to + 1, name)
+    table.insert(src.fx_state, to + 1, st)
+    log("TrackFX_CopyToTrack", src, i, to)
+  end
+  function api.TrackFX_GetNamedConfigParm(tr, i, parm)
+    if parm ~= "fx_ident" or not tr.fx or not tr.fx[i + 1] then return false, "" end
+    return true, fx_state(tr, i).ident
+  end
+  function api.TrackFX_SetParam(tr, i, p, v)
+    fx_state(tr, i).params[p] = v
+    log("TrackFX_SetParam", tr, i, p, v)
+    return true
+  end
+  function api.TrackFX_GetParam(tr, i, p)
+    return fx_state(tr, i).params[p] or 0, 0, 0
+  end
   function api.TrackList_AdjustWindows() end
   function api.Track_GetPeakInfo(tr, ch) return (tr.peak or {})[ch + 1] or 0 end
 
@@ -573,7 +621,7 @@ function M.new()
   function api.GetResourcePath() return r._resource_path end
   function api.RecursiveCreateDirectory(path, _)
     log("RecursiveCreateDirectory", path)
-    os.execute("mkdir -p '" .. path .. "'")
+    os.execute("mkdir -p '" .. path .. "' 2>/dev/null")
     return 1
   end
   -- r._midi_cc = { resolution, val }: a action foi disparada por um CC
