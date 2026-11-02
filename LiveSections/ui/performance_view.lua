@@ -110,7 +110,7 @@ function M.handle_event(e)
   layers.feed(e)
   if learn.state() then
     local m = learn.feed(e)
-    if m then
+    if m and m.action then
       widgets.flash(m)
       input.watch(M.mapped_ports())
     end

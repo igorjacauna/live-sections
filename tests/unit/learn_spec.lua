@@ -77,4 +77,77 @@ describe("midi.learn", function()
     learn.select({ action = "panic" })
     assert.is_nil(learn.state())
   end)
+
+  describe("em série (Mapeamento)", function()
+    local n
+    local function handler(msg)
+      n = n + 1
+      local m = { action = "kontakt_cc", arg = "k" .. n, port_name = msg.port_name,
+        msg_type = msg.msg_type, channel = msg.channel, number = msg.number }
+      mappings.set(m)
+      return m
+    end
+
+    before_each(function() n = 0 end)
+
+    it("cada controle novo vira uma linha, até cancelar", function()
+      learn.start_series(handler)
+      assert.equal("k1", learn.feed(ev(0xB0, 16, 10)).arg)
+      assert.equal("k2", learn.feed(ev(0x90, 0, 127)).arg)
+      assert.equal("series", learn.state().mode)
+      learn.cancel()
+      assert.is_nil(learn.feed(ev(0xB0, 17, 10)))
+      assert.equal(2, n)
+    end)
+
+    it("mexer de novo o mesmo knob não cria outra linha", function()
+      learn.start_series(handler)
+      learn.feed(ev(0xB0, 16, 10))
+      assert.is_nil(learn.feed(ev(0xB0, 16, 11)))
+      assert.is_nil(learn.feed(ev(0xB0, 16, 12)))
+      assert.equal(1, n)
+    end)
+
+    it("ignora o soltar do botão", function()
+      learn.start_series(handler)
+      learn.feed(ev(0x90, 0, 127))
+      assert.is_nil(learn.feed(ev(0x80, 0, 0)))
+      assert.equal(1, n)
+    end)
+
+    it("controle de uma ação do Live Sections não é tomado: devolve o conflito", function()
+      mappings.set({ action = "layer_mute", arg = 1, port_name = MASTER, msg_type = "note", channel = 1, number = 8 })
+      learn.start_series(handler)
+      local res = learn.feed(ev(0x90, 8, 127))
+      assert.equal("layer_mute", res.conflict.action)
+      assert.equal(0, n)
+      assert.equal("layer_mute", mappings.match(ev(0x90, 8, 127)).action)
+      assert.equal("series", learn.state().mode)
+    end)
+  end)
+
+  describe("reaprender uma linha do Mapeamento", function()
+    it("não toma o controle de outra ação e termina com o conflito", function()
+      mappings.set({ action = "next_song", port_name = MASTER, msg_type = "note", channel = 1, number = 8 })
+      learn.start({ action = "kontakt_cc", arg = "k1" })
+      local res = learn.feed(ev(0x90, 8, 127))
+      assert.equal("next_song", res.conflict.action)
+      assert.is_nil(mappings.get("kontakt_cc", "k1"))
+      assert.is_nil(learn.state())
+    end)
+
+    it("aprende um controle livre ou o próprio de novo", function()
+      learn.start({ action = "kontakt_cc", arg = "k1" })
+      assert.equal("k1", learn.feed(ev(0xB0, 16, 1)).arg)
+      learn.start({ action = "kontakt_cc", arg = "k1" })
+      assert.equal(16, learn.feed(ev(0xB0, 16, 1)).number)
+    end)
+
+    it("as ações continuam tomando a mensagem de uma linha", function()
+      mappings.set({ action = "kontakt_cc", arg = "k1", port_name = MASTER, msg_type = "cc", channel = 1, number = 16 })
+      learn.start({ action = "layer_volume", arg = 1 })
+      assert.equal("layer_volume", learn.feed(ev(0xB0, 16, 1)).action)
+      assert.is_nil(mappings.get("kontakt_cc", "k1"))
+    end)
+  end)
 end)
