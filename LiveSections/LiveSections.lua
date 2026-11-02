@@ -57,6 +57,7 @@ local widgets = require("ui.widgets")
 local view = require("ui.performance_view")
 local editor = require("ui.editor_view")
 local settings_view = require("ui.settings_view")
+local mapping_view = require("ui.mapping_view")
 local input = require("midi.input")
 local learn = require("midi.learn")
 local mappings = require("midi.mappings")
@@ -84,12 +85,11 @@ perf.init({ quantize = cfg.quantize, tolerance_ms = cfg.tolerance_ms })
 anim.set_reduced(cfg.reduced_motion == true)
 -- JSFX do Mapeamento: regravado a cada abertura (atualiza com a versão).
 -- Uma falha não impede abrir; a tela Mapeamento mostra o problema de novo.
-do
-  local ok, err, path = kontakt_jsfx.write_file()
-  if not ok then
-    reaper.ShowConsoleMsg(string.format("Live Sections: não consegui gravar o JSFX do Mapeamento em %s (%s)\n",
-      path, tostring(err)))
-  end
+local jsfx_status = {}
+jsfx_status.ok, jsfx_status.err, jsfx_status.path = kontakt_jsfx.write_file()
+if not jsfx_status.ok then
+  reaper.ShowConsoleMsg(string.format("Live Sections: não consegui gravar o JSFX do Mapeamento em %s (%s)\n",
+    jsfx_status.path, tostring(jsfx_status.err)))
 end
 kontakt_cc.init({ mappings = mappings, jsfx = kontakt_jsfx, layers = layers })
 local wizard = require("ui.kontakt_wizard")
@@ -103,9 +103,13 @@ view.init({
   ImGui = ImGui, theme = theme, anim = anim, widgets = widgets,
   perf = perf, layers = layers, feedback = feedback, mappings = mappings,
   learn = learn, input = input, model = model, editor = editor, settings = settings_view, stage = stage,
-  kontakt_cc = kontakt_cc,
+  kontakt_cc = kontakt_cc, mapping = mapping_view,
 })
 chart_view.init({ ImGui = ImGui, theme = theme, kit = view.kit })
+mapping_view.init({
+  ImGui = ImGui, theme = theme, kit = view.kit, kontakt_cc = kontakt_cc, learn = learn, feedback = feedback,
+  ui = view.ui(), label = settings_view.label, jsfx_status = jsfx_status,
+})
 settings_view.init({
   ImGui = ImGui, theme = theme, kit = view.kit, mappings = mappings, feedback = feedback,
   layers = layers, perf = perf, anim = anim, learn = learn, model = model, ui = view.ui(),

@@ -344,7 +344,10 @@ local function mappings_card(ctx, x, y, w)
   cy = cy + 40
 
   local list = {}
-  for _, m in ipairs(mappings.all()) do list[#list + 1] = m end
+  -- os controles do Mapeamento ficam na tela dele
+  for _, m in ipairs(mappings.all()) do
+    if m.action ~= "kontakt_cc" then list[#list + 1] = m end
+  end
   table.sort(list, function(a, b) return M.label(a) < M.label(b) end)
   if #list == 0 then
     cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.muted, "Nenhum mapeamento ainda.") + 10

@@ -162,4 +162,16 @@ describe("ui.settings_view", function()
     assert.equal("Seção 3", view.label({ action = "trigger_slot", arg = 3 }))
     assert.equal("Panic", view.label({ action = "panic" }))
   end)
+
+  it("os controles do Mapeamento não aparecem na lista de mapeamentos", function()
+    mappings.set({ action = "kontakt_cc", arg = "k1", port_name = MASTER, msg_type = "cc", channel = 1, number = 16 })
+    mappings.set({ action = "panic", port_name = MASTER, msg_type = "note", channel = 1, number = 3 })
+    im.calls = {}
+    frame()
+    local texts = {}
+    for _, c in ipairs(im.calls) do if c[1] == "DrawList_AddText" then texts[c[6]] = true end end
+    assert.is_true(texts["Panic"])
+    assert.is_nil(texts["kontakt_cc"])
+    assert.is_nil(texts["CC 16 · canal 1\n" .. MASTER])
+  end)
 end)

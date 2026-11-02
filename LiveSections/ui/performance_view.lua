@@ -15,7 +15,7 @@ local M = {}
 
 local ImGui, theme, anim, widgets
 local perf, layers, feedback, mappings, learn, input, model, editor, settings_view, stage
-local kontakt_cc
+local kontakt_cc, mapping_view
 
 local VERSION = require("version")
 
@@ -34,12 +34,13 @@ local QUANTIZE_LABEL = {
 M.QUANTIZE_LABEL = QUANTIZE_LABEL
 
 local ui = {
-  mode = "performance",    -- "performance" | "edit" | "settings"
+  mode = "performance",    -- "performance" | "edit" | "settings" | "mapping"
   stage = false,
   setlist_open = false,    -- setlist completa aberta no modo palco
   chart_open = false,      -- janela "Cifra"
   maximized = false,       -- janela ocupando a área útil do monitor
   toggle_max = false,      -- pedido de maximizar/restaurar (aplicado pelo entrypoint)
+  learn_conflict = nil,    -- { mapping, at }: o learn do Mapeamento recusou um controle
 }
 local stage_state = {}
 local meters = {}          -- medidor por camada: [slot] = { l, r, hold, hold_at, t }
@@ -55,7 +56,7 @@ function M.init(deps)
   perf, layers, feedback = deps.perf, deps.layers, deps.feedback
   mappings, learn, input, model = deps.mappings, deps.learn, deps.input, deps.model
   editor, settings_view, stage = deps.editor, deps.settings, deps.stage
-  kontakt_cc = deps.kontakt_cc
+  kontakt_cc, mapping_view = deps.kontakt_cc, deps.mapping
   ui.mode, ui.stage, ui.setlist_open = "performance", false, false
   last_song_id, last_port_check, disconnected, last_value = nil, -math.huge, {}, {}
   last_high = {}
@@ -112,7 +113,9 @@ function M.handle_event(e)
   layers.feed(e)
   if learn.state() then
     local m = learn.feed(e)
-    if m and m.action then
+    if m and m.conflict then
+      ui.learn_conflict = { mapping = m.conflict, at = now }
+    elseif m and m.action then
       widgets.flash(m)
       input.watch(M.mapped_ports())
     end
@@ -351,14 +354,24 @@ local function top_bar(ctx, x, y, w)
   local ver = "v" .. VERSION
   txt(ctx, dl, "label", cx, y + 31, theme.C.faint, ver)
   cx = cx + math.max(size(ctx, "strong", "Live Sections"), size(ctx, "label", ver)) + 16
+  -- o learn em série do Mapeamento só vale na tela dele
+  local function set_mode(mode)
+    local st = learn.state()
+    if mode ~= "mapping" and st and st.mode == "series" then learn.cancel() end
+    ui.mode = mode
+    if mode ~= "performance" then ui.stage = false end
+  end
   local clicked, bw = button(ctx, "mode_perf", "Performance", cx, y + 12, 32, { active = ui.mode == "performance" })
-  if clicked then ui.mode = "performance" end
+  if clicked then set_mode("performance") end
   cx = cx + bw + 6
   clicked, bw = button(ctx, "mode_edit", "Editar", cx, y + 12, 32, { active = ui.mode == "edit" })
-  if clicked then ui.mode = "edit"; ui.stage = false end
+  if clicked then set_mode("edit") end
   cx = cx + bw + 6
   clicked, bw = button(ctx, "mode_settings", "Configurações", cx, y + 12, 32, { active = ui.mode == "settings" })
-  if clicked then ui.mode = "settings"; ui.stage = false end
+  if clicked then set_mode("settings") end
+  cx = cx + bw + 6
+  clicked, bw = button(ctx, "mode_mapping", "Mapeamento", cx, y + 12, 32, { active = ui.mode == "mapping" })
+  if clicked then set_mode("mapping") end
   cx = cx + bw + 16
 
   -- leituras: posição, tempo, BPM e fórmula
@@ -771,6 +784,10 @@ function M.draw(ctx)
   end
   if ui.mode == "settings" then
     if settings_view then settings_view.draw(ctx, x, y, w, h, snap) end
+    return
+  end
+  if ui.mode == "mapping" then
+    if mapping_view then mapping_view.draw(ctx, x, y, w, h, snap) end
     return
   end
 
