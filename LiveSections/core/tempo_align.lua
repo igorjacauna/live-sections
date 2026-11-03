@@ -24,6 +24,7 @@ local EPS = 1e-6
 local MIN_TAPS = 4
 local TAP_RESET_S = 2.0        -- pausa maior que isso começa uma nova contagem
 local MAX_TAPS = 16
+M.MIN_BPM, M.MAX_BPM = 20, 400
 
 local taps = {}
 
@@ -191,8 +192,9 @@ local function rebuild_after(later, g)
 end
 
 -- Põe o compasso 1 da música em `pos` com `bpm`, trocando os marcadores que a
--- música tinha e preservando tudo o que vem depois.
-local function place_downbeat(song, next_song, pos, bpm)
+-- música tinha e preservando tudo o que vem depois. Com `tempo_only`, só troca
+-- o tempo no início da música (sem compasso 1 marcado, a grade continua).
+local function place_downbeat(song, next_song, pos, bpm, tempo_only)
   local _, num, denom = tempo_at(pos)
   local later = tempo_markers_between(limit(next_song), math.huge)
   if next_song and not (later[1] and math.abs(later[1].time - next_song.start_pos) < EPS) then
@@ -204,9 +206,15 @@ local function place_downbeat(song, next_song, pos, bpm)
   local start = grid_before(song.start_pos)
 
   delete_tempo_from(song.start_pos)
-  if pos - song.start_pos > EPS then add_tempo(song.start_pos, lead_in_bpm(start, pos, bpm)) end
-  add_tempo(pos, bpm, num, denom)
-  rebuild_after(later, { time = pos, beat = 0, bar = bar_qn(num, denom), bpm = bpm })
+  if tempo_only then
+    add_tempo(song.start_pos, bpm)
+    start.bpm = bpm
+    rebuild_after(later, start)
+  else
+    if pos - song.start_pos > EPS then add_tempo(song.start_pos, lead_in_bpm(start, pos, bpm)) end
+    add_tempo(pos, bpm, num, denom)
+    rebuild_after(later, { time = pos, beat = 0, bar = bar_qn(num, denom), bpm = bpm })
+  end
   reaper.UpdateTimeline()
   restore_markers(markers)
 end
@@ -233,14 +241,39 @@ function M.downbeat(song, next_song)
   if db then return db.time, db.bpm end
 end
 
+-- BPM da música: o do compasso 1 marcado, senão o que vale no início dela.
+function M.song_bpm(song, next_song)
+  local db = downbeat_of(song.start_pos, limit(next_song))
+  return db and db.bpm or (tempo_at(song.start_pos))
+end
+
+-- Troca o BPM da música (digitado). Com compasso 1 marcado ele fica no mesmo
+-- ponto; sem, só o tempo do início da música muda. Retorna ok, bpm.
+function M.set_bpm(song, next_song, bpm)
+  if not bpm or bpm < M.MIN_BPM or bpm > M.MAX_BPM then return false, "bad_bpm" end
+  bpm = M.round(bpm)
+  local db = downbeat_of(song.start_pos, limit(next_song))
+  undoable("BPM da música", function()
+    place_downbeat(song, next_song, db and db.time or song.start_pos, bpm, not db)
+  end)
+  return true, bpm
+end
+
 -- Ajuste fino: BPM em `d_bpm` e posição do compasso 1 em `d_ms` milissegundos.
--- Retorna ok, bpm, posição do compasso 1.
+-- Sem compasso 1 marcado, só o BPM pode mudar. Retorna ok, bpm, posição do
+-- compasso 1 (nil sem ele).
 function M.nudge(song, next_song, d_bpm, d_ms)
   local db = downbeat_of(song.start_pos, limit(next_song))
-  if not db then return false, "no_downbeat" end
+  if not db then
+    if (d_ms or 0) ~= 0 then return false, "no_downbeat" end
+    local new_bpm = M.round(M.song_bpm(song, next_song) + (d_bpm or 0))
+    if new_bpm < M.MIN_BPM or new_bpm > M.MAX_BPM then return false, "out_of_range" end
+    undoable("ajuste fino do tempo", function() place_downbeat(song, next_song, song.start_pos, new_bpm, true) end)
+    return true, new_bpm
+  end
   local new_time = db.time + (d_ms or 0) / 1000
   local new_bpm = M.round(db.bpm + (d_bpm or 0))
-  if new_time < song.start_pos - EPS or new_time >= limit(next_song) - EPS or new_bpm <= 0 then
+  if new_time < song.start_pos - EPS or new_time >= limit(next_song) - EPS or new_bpm < M.MIN_BPM or new_bpm > M.MAX_BPM then
     return false, "out_of_range"
   end
   undoable("ajuste fino do tempo", function() place_downbeat(song, next_song, new_time, new_bpm) end)

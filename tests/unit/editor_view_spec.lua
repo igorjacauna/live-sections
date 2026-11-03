@@ -18,7 +18,7 @@ local function fake_imgui()
     last = id
     return im.opts.press == id
   end
-  function im.InputText(_, id, buf) last = id; return false, buf end
+  function im.InputText(_, id, buf) last = id; return false, (im.opts.text and im.opts.text[id]) or buf end
   function im.InputInt(_, id, v) last = id; return false, im.opts.int_value or v end
   function im.IsItemDeactivatedAfterEdit() return im.opts.edited == last end
   function im.IsItemActivated() return im.opts.activate == last end
@@ -287,9 +287,32 @@ describe("ui.editor_view", function()
       assert.equal(100, view.state().tap_bpm)
     end)
 
-    it("ajuste fino sem compasso 1 marcado avisa", function()
+    local function tempo_marker_at(t)
+      for _, m in ipairs(r._tempo_markers) do if math.abs(m.time - t) < 1e-9 then return m end end
+    end
+
+    it("+0,01 sem compasso 1 marcado muda o BPM da música e avisa no painel", function()
       frame({ press = "bpm_up" })
-      assert.matches("Marque o compasso 1", view.state().status)
+      assert.near(120.01, tempo_marker_at(0).bpm, 1e-9)
+      assert.equal(0, tempo_marker_at(0).num)
+      assert.matches("BPM da música: 120,01", view.state().tempo_msg.text)
+      assert.is_false(view.state().tempo_msg.err)
+    end)
+
+    it("mover o compasso 1 sem ele marcado avisa no painel", function()
+      frame({ press = "ms_up" })
+      assert.matches("Marque o compasso 1", view.state().tempo_msg.text)
+      assert.is_true(view.state().tempo_msg.err)
+    end)
+
+    it("digitar o BPM (com vírgula) aplica ao sair do campo", function()
+      frame({ text = { ["##song_bpm"] = "95,5" }, edited = "##song_bpm" })
+      assert.near(95.5, tempo_marker_at(0).bpm, 1e-9)
+      assert.equal("95,5", view.state().bpm_buf)
+      frame({ text = { ["##song_bpm"] = "abc" }, edited = "##song_bpm" })
+      assert.matches("entre 20 e 400", view.state().tempo_msg.text)
+      frame()
+      assert.equal("95,5", view.state().bpm_buf)
     end)
 
     it("metrônomo liga pela ação do REAPER", function()

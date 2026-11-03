@@ -708,7 +708,8 @@ local ROUNDS = { { "exact", "Exato" }, { "int", "Inteiro" }, { "half", "Meio BPM
 local TEMPO_ERRORS = {
   outside_song = "O cursor precisa estar dentro da música atual.",
   no_bpm = "Toque o tap pelo menos 4 vezes antes.",
-  no_downbeat = "Marque o compasso 1 antes do ajuste fino.",
+  no_downbeat = "Marque o compasso 1 antes de ajustar a posição dele.",
+  bad_bpm = "Digite um BPM entre 20 e 400.",
   out_of_range = "O ajuste sairia da música.",
 }
 
@@ -733,8 +734,15 @@ local function tap_value()
   return st.tap_bpm and tempo.round(st.tap_bpm, st.round ~= "exact" and st.round or nil)
 end
 
+-- O resultado aparece no próprio painel de tempo, perto do botão clicado.
 local function tempo_report(ok, err, done)
-  if ok then say(done) else say(TEMPO_ERRORS[err] or ERRORS[err] or ("Não foi possível: " .. tostring(err))) end
+  local text = ok and done or (TEMPO_ERRORS[err] or ERRORS[err] or ("Não foi possível: " .. tostring(err)))
+  st.tempo_msg = { text = text, err = not ok, ["until"] = now() + STATUS_S }
+end
+
+-- "95,5" ou "95.5" -> 95.5
+local function parse_bpm(text)
+  return tonumber((tostring(text):gsub("%s", ""):gsub(",", ".")))
 end
 
 local function tempo_panel(ctx, x, y, w, song)
@@ -786,14 +794,37 @@ local function tempo_panel(ctx, x, y, w, song)
   end
   cy = cy + 42
 
-  -- ajuste fino ouvindo o metrônomo
+  -- BPM da música: digitado (Enter ou clicar fora aplica) ou no ajuste fino,
+  -- ouvindo o metrônomo
+  local song_bpm = tempo.song_bpm(song, nxt)
   local rows = {
-    { "BPM DA MÚSICA", db_bpm and fmt_bpm(db_bpm) or "—", { { "bpm_dn", "−0,01", -0.01, 0 }, { "bpm_up", "+0,01", 0.01, 0 } } },
+    { "BPM DA MÚSICA", nil, { { "bpm_dn", "−0,01", -0.01, 0 }, { "bpm_up", "+0,01", 0.01, 0 } } },
     { "COMPASSO 1", db_pos and string.format("%.3f s", db_pos):gsub("%.", ",") or "—", { { "ms_dn", "−1 ms", 0, -1 }, { "ms_up", "+1 ms", 0, 1 } } },
   }
   for _, row in ipairs(rows) do
     kit.txt(ctx, dl, "label", ix, cy + 9, theme.C.muted, row[1])
-    kit.txt(ctx, dl, "num", ix + 120, cy + 7, db_pos and theme.C.text or theme.C.faint, row[2])
+    if row[2] then
+      kit.txt(ctx, dl, "num", ix + 120, cy + 7, db_pos and theme.C.text or theme.C.faint, row[2])
+    else
+      if not st.bpm_editing then st.bpm_buf = fmt_bpm(song_bpm) end
+      local body = theme.font(ctx, "body")
+      ImGui.SetCursorScreenPos(ctx, ix + 116, cy)
+      ImGui.SetNextItemWidth(ctx, 84)
+      local _, buf = ImGui.InputText(ctx, "##song_bpm", st.bpm_buf)
+      st.bpm_buf = buf
+      st.bpm_editing = ImGui.IsItemActive(ctx)
+      if ImGui.IsItemDeactivatedAfterEdit(ctx) then
+        st.bpm_editing = false
+        local typed = parse_bpm(st.bpm_buf)
+        if typed and math.abs(typed - song_bpm) < 0.005 then
+          st.bpm_buf = fmt_bpm(song_bpm)
+        else
+          local ok, nb = tempo.set_bpm(song, nxt, typed)
+          tempo_report(ok, nb, ok and string.format("BPM da música: %s.", fmt_bpm(nb or 0)))
+        end
+      end
+      theme.pop_font(ctx, body)
+    end
     local fx = x + w - pad
     for k = #row[3], 1, -1 do
       local b = row[3][k]
@@ -801,7 +832,9 @@ local function tempo_panel(ctx, x, y, w, song)
       fx = fx - bw
       if kit.button(ctx, b[1], b[2], fx, cy, 28, { w = bw, style = "small" }) then
         local ok, nb, np = tempo.nudge(song, nxt, b[3], b[4])
-        tempo_report(ok, nb, ok and string.format("Compasso 1 em %.3f s a %s BPM.", np or 0, fmt_bpm(nb or 0)):gsub("(%d)%.(%d)", "%1,%2"))
+        local done = ok and (np and string.format("Compasso 1 em %.3f s a %s BPM.", np, fmt_bpm(nb)):gsub("(%d)%.(%d)", "%1,%2")
+          or string.format("BPM da música: %s.", fmt_bpm(nb)))
+        tempo_report(ok, nb, done)
       end
       fx = fx - 4
     end
@@ -813,6 +846,10 @@ local function tempo_panel(ctx, x, y, w, song)
     reaper.Main_OnCommand(METRONOME, 0)
   end
   cy = cy + 38
+  local m = st.tempo_msg
+  if m and now() < m["until"] then
+    cy = cy + wrapped(ctx, "small", ix, cy, iw, m.err and theme.C.danger or theme.C.text, m.text) + 8
+  end
   cy = cy + wrapped(ctx, "small", ix, cy, iw, theme.C.faint,
     "O áudio não é esticado: o grid é que passa a seguir o áudio. O ajuste desta música não muda o tempo das outras.")
   return cy - y + pad
