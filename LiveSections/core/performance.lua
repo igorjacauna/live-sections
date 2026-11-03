@@ -12,7 +12,8 @@ local M = {}
 
 local PROJ = 0
 local SONG_END_MARGIN = 0.25   -- s: parada a menos disso do fim conta como fim da música
-local START_SLACK_S = 0.5      -- s: logo depois do play, posição até isso antes do início vale o início
+local START_WINDOW_S = 1.0     -- s: depois do play, posições impossíveis valem o ponto de partida
+local START_AHEAD_S = 0.25     -- s: folga à frente do tempo que já passou desde o play
 
 local state = {
   quantize = "bar",
@@ -21,7 +22,8 @@ local state = {
   song = nil,              -- música atual (onde a reprodução está)
   was_playing = false,
   last_pos = 0,
-  play_from = nil,         -- onde o play começou, até a reprodução passar dali
+  play_from = nil,         -- onde o play começou (primeiro segundo da reprodução)
+  play_at = 0,             -- quando (time_precise)
 }
 
 -- ------------------------------------------------------------------ estado
@@ -31,7 +33,9 @@ function M.init(opts)
   state.quantize = opts.quantize or "bar"
   state.tolerance_s = (opts.tolerance_ms or 30) / 1000
   state.loop_section, state.song = nil, nil
-  state.was_playing, state.last_pos = false, 0
+  -- já tocando ao abrir o script não conta como play (a proteção do 1º
+  -- segundo usaria o cursor, longe de onde a reprodução está)
+  state.was_playing, state.last_pos, state.play_from = transport.is_playing(), transport.position(), nil
   queue.cancel()
   model.refresh(PROJ)
   return transport.ensure_setup()
@@ -64,17 +68,24 @@ end
 
 -- ------------------------------------------------------------------ apoio
 
--- Posição de reprodução. Nos primeiros instantes depois do play, o REAPER
--- pode informar uma posição um pouco antes de onde o play começou. Com o
--- cursor no início exato de uma música, isso caía na anterior: o motor
--- trocava de música, marcava o fim dela como trecho de parada, o REAPER
--- parava ali e o motor voltava para a música atual, em ciclo.
+-- Posição de reprodução. Logo depois do play, o REAPER pode informar uma
+-- posição impossível (spike 09): 0,01 ms antes do cursor (arredondamento) ou,
+-- no primeiro ciclo, onde a reprodução anterior parou. Com o cursor no início
+-- exato de uma música, isso caía na anterior: o motor trocava de música,
+-- marcava o fim dela como trecho de parada, o REAPER parava ali e o motor
+-- voltava para a música atual, em ciclo. No primeiro segundo, uma posição
+-- antes do ponto de partida ou à frente do tempo que já passou vale o ponto
+-- de partida.
 local function play_pos()
   local pos = transport.position()
   local from = state.play_from
   if from and transport.is_playing() then
-    if pos >= from then state.play_from = nil
-    elseif pos >= from - START_SLACK_S then return from end
+    local elapsed = reaper.time_precise() - state.play_at
+    if elapsed > START_WINDOW_S then
+      state.play_from = nil
+    elseif pos < from or pos > from + elapsed + START_AHEAD_S then
+      return from
+    end
   end
   return pos
 end
@@ -254,7 +265,7 @@ end
 function M.tick()
   model.refresh(PROJ)
   local playing = transport.is_playing()
-  if playing and not state.was_playing then state.play_from = transport.cursor() end
+  if playing and not state.was_playing then state.play_from, state.play_at = transport.cursor(), reaper.time_precise() end
   if not playing then state.play_from = nil end
   local pos = play_pos()
 

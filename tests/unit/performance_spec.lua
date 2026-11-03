@@ -31,9 +31,13 @@ describe("performance", function()
     return list[#list]
   end
 
+  -- Tocando em `pos`; se o transporte estava parado, o play começou ali (o
+  -- motor ignora, no 1º segundo, posições longe de onde o play começou).
   local function playing_at(pos)
+    if r._play_state ~= 1 then r._cursor = pos end
     r.set_play(true, pos)
     perf.tick()
+    r.set_now(r._now + 2)                 -- passado o 1º segundo do play
     r.calls = {}
   end
 
@@ -157,17 +161,21 @@ describe("performance", function()
       assert.equal("B", perf.current_song().name)
     end)
 
-    it("play no início exato de uma música: posição um pouco antes não troca de música", function()
+    it("play no início exato de uma música: posições impossíveis no 1º segundo não trocam de música", function()
+      r.set_now(100)
       r.set_play(false); r._cursor = 40; perf.tick()
       assert.equal("B", perf.current_song().name)
       r.calls = {}
-      r.set_play(true, 39.98)                       -- o REAPER informa 20 ms antes do cursor
+      r.set_play(true, 10)                          -- 1º ciclo: onde a reprodução anterior parou
+      perf.tick()
+      assert.equal("B", perf.current_song().name)
+      r.set_now(100.02); r.set_play(true, 40 - 1e-5) -- 0,01 ms antes do cursor
       perf.tick()
       assert.equal("B", perf.current_song().name)
       assert.equal(0, #r.calls_to("GetSet_LoopTimeRange2"))
-      r.set_play(true, 40.1)
+      r.set_now(100.05); r.set_play(true, 40.05)
       perf.tick()
-      r.set_play(true, 39.9)                        -- depois de passar do início, vale a posição real
+      r.set_now(102); r.set_play(true, 39.9)         -- passado o 1º segundo, vale a posição real
       perf.tick()
       assert.equal("A", perf.current_song().name)
     end)

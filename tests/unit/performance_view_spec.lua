@@ -214,6 +214,7 @@ describe("ui.performance_view", function()
 
   describe("update", function()
     it("estado dos cards: tocando, na fila com batidas restantes, loop", function()
+      r._cursor = 9
       r.set_play(true, 9)
       view.update(0)
       local s = view.snapshot()
@@ -231,6 +232,7 @@ describe("ui.performance_view", function()
     it("acende os LEDs pelo estado e apaga pad sem seção", function()
       mappings.set({ action = "trigger_slot", arg = 2, port_name = MASTER, msg_type = "note", channel = 1, number = 24 })
       mappings.set({ action = "trigger_slot", arg = 9, port_name = MASTER, msg_type = "note", channel = 1, number = 25 })
+      r._cursor = 9
       r.set_play(true, 9)
       view.update(0)
       local leds = {}
