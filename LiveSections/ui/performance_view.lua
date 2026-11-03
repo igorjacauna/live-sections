@@ -316,10 +316,25 @@ local function size(ctx, style, s)
   return w, h
 end
 
+-- Corta `s` com "…" até caber em `w` (o rótulo não vaza do botão).
+local function fit(ctx, style, s, w)
+  if size(ctx, style, s) <= w then return s end
+  local n = utf8.len(s)
+  if not n then return s end
+  while n > 0 do
+    local cut = s:sub(1, utf8.offset(s, n) - 1) .. "…"
+    if size(ctx, style, cut) <= w then return cut end
+    n = n - 1
+  end
+  return "…"
+end
+
 -- Botão desenhado; `opts`: icon, active, accent, style, w. Retorna clicado.
+-- Com `w` fixo, o rótulo que não cabe é cortado com "…".
 local function button(ctx, id, label, x, y, h, opts)
   opts = opts or {}
   local style = opts.style or "button"
+  if opts.w and label ~= "" then label = fit(ctx, style, label, opts.w - (opts.icon and 22 or 0) - 16) end
   local tw = label ~= "" and size(ctx, style, label) or 0
   local w = opts.w or (tw + (opts.icon and 22 or 0) + 24)
   ImGui.SetCursorScreenPos(ctx, x, y)

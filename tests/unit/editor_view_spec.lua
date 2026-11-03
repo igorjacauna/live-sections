@@ -190,6 +190,21 @@ describe("ui.editor_view", function()
       frame({ press = "undo" })
       assert.equal(2, #r.calls_to("Undo_DoUndo2"))
     end)
+
+    it("Desfazer com nome longo corta o rótulo dentro do botão", function()
+      r._undo[1] = "Edit FX parameter: Track 3 Kontakt: Live Sections - Mapeamento do Kontakt"
+      frame()
+      local b = im.rects.undo
+      local found
+      for _, c in ipairs(im.calls) do
+        if c[1] == "DrawList_AddText" and c[3] >= b.x and c[3] < b.x + b.w and c[4] >= b.y and c[4] < b.y + b.h then
+          found = c
+        end
+      end
+      assert.is_not_nil(found)
+      assert.truthy(found[6]:find("…$"))
+      assert.truthy(found[3] + #found[6] * 7 <= b.x + b.w)
+    end)
   end)
 
   describe("inspetor", function()
