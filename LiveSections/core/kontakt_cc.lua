@@ -38,6 +38,8 @@
 -- M.led(id) -> bool?                 LED do botão liga/desliga; nil nos outros tipos
 -- M.flashed(id, now) -> bool         o CC da linha saiu do JSFX (RF-119)
 -- M.last_touch(now) -> { row, value }?   até TOUCH_S depois do último toque
+-- M.touched(id, now) -> bool         a linha foi mexida há menos de
+--                                    TOUCHED_S (pisca do parâmetro da camada)
 -- M.absolute(id) -> bool             linha que só depende do último valor
 --                                    (knob): as mensagens de um ciclo podem
 --                                    ser juntadas na última
@@ -62,6 +64,7 @@ local TEST_S = 2.0      -- duração da varredura do Testar
 local LEARN_S = 0.15    -- tempo da variação do Enviar p/ Learn antes de voltar
 local FLASH_S = 0.3     -- luz de envio acesa
 local TOUCH_S = 2.0     -- aviso "Nome valor" na tela
+local TOUCHED_S = 0.35  -- pisca do parâmetro na coluna da camada
 
 local mappings, jsfx, layers
 local rows = {}
@@ -73,6 +76,7 @@ local pending = {}      -- ids enviados desde a última leitura do contador
 local sent_seen = nil   -- contador "enviados" do JSFX na última leitura
 local flash_until = {}  -- [id] = instante
 local touch = nil       -- { id, at }
+local touched_at = {}   -- [id] = instante do último toque
 
 function M.init(deps)
   mappings, jsfx, layers = deps.mappings, deps.jsfx, deps.layers
@@ -194,6 +198,7 @@ local function set_value(row, v, now)
   values[row.id] = v
   sweeps[row.id] = nil
   touch = { id = row.id, at = now }
+  touched_at[row.id] = now
   send(row, v)
 end
 
@@ -218,7 +223,7 @@ end
 
 function M.on_song(song)
   track = song and layers.track_of(song) or nil
-  values, raw, sweeps, pending, flash_until = {}, {}, {}, {}, {}
+  values, raw, sweeps, pending, flash_until, touched_at = {}, {}, {}, {}, {}, {}
   sent_seen = track and jsfx.sent_count(track) or nil
   if not track then return end
   for _, row in ipairs(rows) do
@@ -279,6 +284,8 @@ function M.led(id)
   return M.is_on(id)
 end
 function M.flashed(id, now) return (flash_until[id] or -math.huge) > now end
+
+function M.touched(id, now) return now - (touched_at[id] or -math.huge) < TOUCHED_S end
 
 function M.last_touch(now)
   if not touch or now - touch.at >= TOUCH_S then return nil end

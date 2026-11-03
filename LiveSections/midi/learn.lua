@@ -20,9 +20,16 @@
 -- { conflict = Mapping } (RF-140). As outras ações continuam tomando a
 -- mensagem para si.
 --
+-- Escolher um controle (parâmetro da camada): M.start_pick(handler) espera um
+-- controle e termina. Uma linha do Mapeamento já existente chama
+-- handler({ row_id = id }); um controle sem mapeamento chama
+-- handler({ msg = { port_name, msg_type, channel, number, value } }); o
+-- handler devolve o mapeamento da linha. Controle de outra ação devolve
+-- { conflict = Mapping } e continua esperando.
+--
 -- control = { action, arg? }
 -- M.feed(event) -> Mapping? | { conflict = Mapping }
--- M.state() -> { mode = "control"|"global"|"series", control? }?
+-- M.state() -> { mode = "control"|"global"|"series"|"pick", control? }?
 
 local mappings = require("midi.mappings")
 
@@ -35,6 +42,7 @@ local current = nil
 function M.start(control) current = { mode = "control", control = control } end
 function M.start_global() current = { mode = "global" } end
 function M.start_series(handler) current = { mode = "series", handler = handler } end
+function M.start_pick(handler) current = { mode = "pick", handler = handler } end
 function M.cancel() current = nil end
 function M.state() return current end
 
@@ -54,11 +62,22 @@ local function feed_series(event, msg)
     channel = msg.channel, number = msg.number, value = event.data2 })
 end
 
+local function feed_pick(event, msg)
+  local used = mappings.match(event)
+  if used and used.action ~= KONTAKT then return { conflict = used } end
+  local handler = current.handler
+  current = nil
+  if used then return handler({ row_id = used.arg }) end
+  return handler({ msg = { port_name = event.port_name, msg_type = msg.msg_type,
+    channel = msg.channel, number = msg.number, value = event.data2 } })
+end
+
 function M.feed(event)
   if not current then return nil end
   local msg = mappings.decode(event)
   if not msg or not ACCEPTED[msg.msg_type] then return nil end
   if current.mode == "series" then return feed_series(event, msg) end
+  if current.mode == "pick" then return feed_pick(event, msg) end
   if not current.control then return nil end
   if current.control.action == KONTAKT then
     local used = mappings.match(event)

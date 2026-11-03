@@ -133,6 +133,37 @@ describe("midi.learn", function()
     end)
   end)
 
+  describe("escolher um controle (parâmetro da camada)", function()
+    local kcc_map = { action = "kontakt_cc", arg = "k1", port_name = MASTER, msg_type = "cc", channel = 1, number = 16 }
+
+    it("linha do Mapeamento existente: entrega o id e termina", function()
+      mappings.set(kcc_map)
+      local got
+      learn.start_pick(function(p) got = p; return kcc_map end)
+      assert.equal(kcc_map, learn.feed(ev(0xB0, 16, 5)))
+      assert.same({ row_id = "k1" }, got)
+      assert.is_nil(learn.state())
+    end)
+
+    it("controle novo: entrega a mensagem e termina", function()
+      local got
+      learn.start_pick(function(p) got = p; return nil end)
+      learn.feed(ev(0x90, 3, 127))
+      assert.same({ port_name = MASTER, msg_type = "note", channel = 1, number = 3, value = 127 }, got.msg)
+      assert.is_nil(learn.state())
+    end)
+
+    it("controle de uma ação: devolve o conflito e continua esperando", function()
+      mappings.set({ action = "next_song", port_name = MASTER, msg_type = "note", channel = 1, number = 8 })
+      local calls = 0
+      learn.start_pick(function() calls = calls + 1 end)
+      assert.equal("next_song", learn.feed(ev(0x90, 8, 127)).conflict.action)
+      assert.equal("pick", learn.state().mode)
+      assert.is_nil(learn.feed(ev(0x80, 8, 0)))          -- soltar é ignorado
+      assert.equal(0, calls)
+    end)
+  end)
+
   describe("reaprender uma linha do Mapeamento", function()
     it("não toma o controle de outra ação e termina com o conflito", function()
       mappings.set({ action = "next_song", port_name = MASTER, msg_type = "note", channel = 1, number = 8 })
