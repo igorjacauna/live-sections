@@ -24,7 +24,7 @@ for i = 1, SONGS do list[#list + 1] = { string.format("Ir para música %02d", i)
 for _, q in ipairs(QUANTIZE) do list[#list + 1] = { "Quantize " .. q[2], "set_quantize", q[1] } end
 for i = 1, LAYERS do
   list[#list + 1] = { string.format("Camada %d volume (CC)", i), "layer_volume", i }
-  list[#list + 1] = { string.format("Camada %d mute", i), "layer_mute", i }
+  list[#list + 1] = { string.format("Camada %d liga-desliga", i), "layer_mute", i }
 end
 
 local TEMPLATE = [[

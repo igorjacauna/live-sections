@@ -1,4 +1,4 @@
--- Live Sections: Camada 8 mute
+-- Live Sections: Camada 8 liga-desliga
 -- Envia o comando para a janela do Live Sections aberta.
 local _, path = reaper.get_action_context()
 package.path = path:match("^(.*[/\\])") .. "?.lua;" .. package.path
