@@ -1,13 +1,15 @@
 -- Tela de configurações globais (RF-041, RF-042, RF-046, RF-061): teclado do
 -- Kontakt e cauda do bypass, saída e velocities dos LEDs (com teste no
 -- controlador), tolerância do disparo, cifra no palco (linhas e como abrir no
--- celular), os modos MIDI do REAPER e a lista de mapeamentos.
+-- celular), a pasta da biblioteca de músicas, os modos MIDI do REAPER e a
+-- lista de mapeamentos.
 --
 -- Tudo vale para todos os projetos e fica na chave "settings" do config.json,
 -- gravada por midi/mappings. Cada mudança é aplicada na hora.
 --
 -- M.init(deps)    ImGui, theme, kit, mappings, feedback, layers, perf, anim,
---                 learn, model, ui (estado de modo da performance_view)
+--                 learn, model, ui (estado de modo da performance_view),
+--                 library (pasta da biblioteca de músicas, RF-192)
 -- M.draw(ctx, x, y, w, h, snap) -> altura usada
 
 local web = require("core.web_remote")
@@ -15,7 +17,7 @@ local qr = require("core.qrcode")
 
 local M = {}
 
-local ImGui, theme, kit, mappings, feedback, layers, perf, anim, learn, model, ui
+local ImGui, theme, kit, mappings, feedback, layers, perf, anim, learn, model, ui, library
 
 local GAP = 12
 local TWO_COLS_W = 900
@@ -42,6 +44,7 @@ function M.init(deps)
   ImGui, theme, kit = deps.ImGui, deps.theme, deps.kit
   mappings, feedback, layers, perf = deps.mappings, deps.feedback, deps.layers, deps.perf
   anim, learn, model, ui = deps.anim, deps.learn, deps.model, deps.ui
+  library = deps.library
 end
 
 -- ------------------------------------------------------------------ apoio
@@ -427,6 +430,74 @@ local function perf_card(ctx, x, y, w)
   return cy - y + 16
 end
 
+-- Pasta da biblioteca de músicas (RF-192). Sem SWS não há seletor de pasta:
+-- Escolher pede qualquer arquivo de dentro dela; o caminho também pode ser
+-- digitado.
+local lib_buf = nil
+
+local function parent(path) return path and path:match("^(.*)[\\/][^\\/]*$") end
+
+-- Pasta da biblioteca a partir do arquivo escolhido: um musica.json ou um
+-- áudio de uma música apontam para a pasta acima da música.
+local function library_of(file)
+  local folder = parent(file)
+  local name = (file or ""):match("([^\\/]*)$"):lower()
+  if name == "musica.json" then return parent(folder) end
+  if folder and folder:match("[\\/]audio$") and reaper.file_exists(parent(folder) .. "/musica.json") then
+    return parent(parent(folder))
+  end
+  return folder
+end
+
+local function library_card(ctx, x, y, w)
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local ix, iw = x + 16, w - 32
+  local cy = y + 16
+  cy = cy + title(ctx, dl, ix, cy, "Biblioteca de músicas")
+  cy = cy + field_label(ctx, dl, ix, cy, "PASTA DA BIBLIOTECA")
+  local path, ok = library.dir()
+  local chosen = type(cfg().library_dir) == "string" and cfg().library_dir ~= ""
+  local body = theme.font(ctx, "body")
+  ImGui.SetCursorScreenPos(ctx, ix, cy)
+  ImGui.SetNextItemWidth(ctx, iw)
+  local _, buf = ImGui.InputText(ctx, "##library_dir", lib_buf or path)
+  lib_buf = buf ~= path and buf or nil
+  if ImGui.IsItemDeactivatedAfterEdit(ctx) then
+    local typed = (buf or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    library.set_dir(typed ~= "" and typed or nil)
+    lib_buf = nil
+  end
+  theme.pop_font(ctx, body)
+  cy = cy + 36
+  local status = not ok and "Pasta não encontrada. Escolha outra ou volte à padrão."
+    or chosen and "Pasta escolhida." or "Pasta padrão, nos recursos do REAPER."
+  cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, ok and theme.C.muted or theme.C.danger, status) + 10
+  local bx = ix
+  local choose_w = kit.size(ctx, "button", "Escolher") + 24
+  if kit.button(ctx, "library_choose", "Escolher", bx, cy, 30, { w = choose_w }) then
+    local picked, file = reaper.GetUserFileNameForRead("", "Escolha qualquer arquivo dentro da pasta da biblioteca", "")
+    local folder = picked and library_of(file)
+    if folder and folder ~= "" then library.set_dir(folder); lib_buf = nil end
+  end
+  bx = bx + choose_w + 6
+  if chosen then
+    local def_w = kit.size(ctx, "button", "Padrão") + 24
+    if kit.button(ctx, "library_default", "Padrão", bx, cy, 30, { w = def_w }) then
+      library.set_dir(nil)
+      lib_buf = nil
+    end
+    bx = bx + def_w + 6
+  end
+  local open_w = kit.size(ctx, "button", "Abrir pasta") + 24
+  if ok and kit.button(ctx, "library_open", "Abrir pasta", bx, cy, 30, { w = open_w }) then
+    library.open_folder(path)
+  end
+  cy = cy + 40
+  cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.faint,
+    "Cada música exportada fica numa pasta com os áudios. Para montar setlists em outro computador, leve esta pasta.") + 4
+  return cy - y + 16
+end
+
 -- ------------------------------------------------------------------ desenho
 
 local function card(ctx, id, x, y, w, fn)
@@ -452,6 +523,7 @@ function M.draw(ctx, x, y, w, h, snap)
   place("perf", perf_card, 1)
   place("transport", transport_card, 2)
   place("chart", chart_card, 2)
+  if library then place("library", library_card, 1) end
   local wide_y = math.max(col_y[1], col_y[2])
   local mh = card(ctx, "mappings", x, wide_y, w, mappings_card)
   local bottom = wide_y + mh + GAP

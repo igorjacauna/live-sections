@@ -685,6 +685,12 @@ function M.new()
     p:close()
     return names[i + 1]
   end
+  -- r._user_file: arquivo "escolhido" no diálogo (nil = cancelou)
+  function api.GetUserFileNameForRead(file, title, ext)
+    log("GetUserFileNameForRead", file, title, ext)
+    local picked = rawget(r, "_user_file")
+    return picked ~= nil, picked or file
+  end
   -- r._installed_fx = { { name, ident } }
   function api.EnumInstalledFX(i)
     local fx = (rawget(r, "_installed_fx") or {})[i + 1]

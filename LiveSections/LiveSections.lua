@@ -131,7 +131,7 @@ mapping_view.init({
 })
 settings_view.init({
   ImGui = ImGui, theme = theme, kit = view.kit, mappings = mappings, feedback = feedback,
-  layers = layers, perf = perf, anim = anim, learn = learn, model = model, ui = view.ui(),
+  layers = layers, perf = perf, anim = anim, learn = learn, model = model, ui = view.ui(), library = library,
 })
 
 -- Tamanho mínimo: a janela não abre estreita mesmo com um tamanho antigo
