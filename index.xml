@@ -9,8 +9,8 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <link rel="website">https://live-sections.igor-jacauna-cloudflare.workers.dev</link>
         <link rel="website">https://github.com/igorjacauna/live-sections</link>
       </metadata>
-      <version name="0.5.5" author="Igor Jacaúna" time="2026-11-03T18:30:49Z">
-        <changelog><![CDATA[- Cifra: ao entrar na seção seguinte, o fim da anterior continua na tela (apagado) e a rolagem segue sem pular; o cabeçalho da seção nova aparece onde estava o "A seguir"
+      <version name="0.5.6" author="Igor Jacaúna" time="2026-11-03T18:53:05Z">
+        <changelog><![CDATA[- Correção: editar seções, tempo, fórmula ou parâmetros com a música tocando podia cortar o áudio por um instante (o desfazer guardava o estado de todos os plugins, inclusive cada Kontakt); agora guarda só o que a edição muda
 ]]></changelog>
         <source file="actions/Live Sections - Camada 1 liga-desliga.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20liga-desliga.lua</source>
         <source file="actions/Live Sections - Camada 1 volume (CC).lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20volume%20(CC).lua</source>
@@ -131,8 +131,8 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
 
 Ative em Preferences > Control/OSC/web > Add > Web browser interface, escolha "livesections.html" como página padrão e abra o endereço mostrado no celular (mesma rede Wi-Fi).]]></description>
       </metadata>
-      <version name="0.5.5" author="Igor Jacaúna" time="2026-11-03T18:30:49Z">
-        <changelog><![CDATA[- Cifra: ao entrar na seção seguinte, o fim da anterior continua na tela (apagado) e a rolagem segue sem pular; o cabeçalho da seção nova aparece onde estava o "A seguir"
+      <version name="0.5.6" author="Igor Jacaúna" time="2026-11-03T18:53:05Z">
+        <changelog><![CDATA[- Correção: editar seções, tempo, fórmula ou parâmetros com a música tocando podia cortar o áudio por um instante (o desfazer guardava o estado de todos os plugins, inclusive cada Kontakt); agora guarda só o que a edição muda
 ]]></changelog>
         <source file="livesections.html">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/www/livesections.html.txt</source>
       </version>

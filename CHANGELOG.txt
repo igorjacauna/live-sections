@@ -1,1 +1,1 @@
-- Cifra: ao entrar na seção seguinte, o fim da anterior continua na tela (apagado) e a rolagem segue sem pular; o cabeçalho da seção nova aparece onde estava o "A seguir"
+- Correção: editar seções, tempo, fórmula ou parâmetros com a música tocando podia cortar o áudio por um instante (o desfazer guardava o estado de todos os plugins, inclusive cada Kontakt); agora guarda só o que a edição muda
