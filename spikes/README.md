@@ -96,3 +96,11 @@ Base dos "Controles do Kontakt" (como no Gig Performer: o knob vira um CC fixo q
 6. Clique **Remover** no fim.
 
 **Mande:** o console, os contadores do passo 2 e o que aconteceu nos passos 3 a 5.
+
+## 09_posicao_no_play.lua: posição logo depois do play
+Confere se, nos primeiros instantes depois do play, o REAPER informa uma posição um pouco **antes** do cursor. Com o cursor no início exato de uma música, isso fazia o Live Sections ver a música anterior.
+1. **Feche o Live Sections.**
+2. Ponha o cursor exatamente no marcador "SONG:" da 2ª música (clique no marcador) e rode o script. Ele dá play, registra 25 ciclos, para e devolve o cursor.
+3. Mova o cursor um compasso para dentro da música e rode de novo.
+
+**Mande:** o console das duas rodadas.
