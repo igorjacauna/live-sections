@@ -7,9 +7,15 @@
 -- livre), e cada uma é um único passo de undo. Retornam ok, err. Os argumentos vêm do project_model; depois
 -- de uma operação, chame project_model.refresh para reler o projeto.
 
+local diag = require("core.diag")
+
 local M = {}
 
 local PROJ = 0
+-- Só marcadores e regiões (UNDO_STATE_MISCCFG). Com -1 (tudo), o REAPER
+-- guarda o estado de todos os plugins a cada edição, e cada Kontakt pausa o
+-- áudio para salvar o dele: a música engasgava ao editar tocando.
+local UNDO_MARKERS = 8
 local EPS = 1e-6
 local SONG_PREFIX = "SONG: "
 local DEFAULT_SECTION = "Seção"
@@ -91,7 +97,8 @@ end
 local function undoable(desc, fn)
   reaper.Undo_BeginBlock()
   fn()
-  reaper.Undo_EndBlock("Live Sections: " .. desc, -1)
+  reaper.Undo_EndBlock("Live Sections: " .. desc, UNDO_MARKERS)
+  diag.note("undo")
 end
 
 local function set_region(sec, start_pos, end_pos, name)

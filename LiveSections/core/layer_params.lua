@@ -85,7 +85,7 @@ end
 local function write(key, list)
   reaper.Undo_BeginBlock()
   reaper.SetProjExtState(PROJ, EXT_SECTION, key, #list > 0 and json.encode(list) or "")
-  reaper.Undo_EndBlock(UNDO, -1)
+  reaper.Undo_EndBlock(UNDO, 8)   -- só extensões do projeto (ProjExtState), sem estado de plugins
   cache = nil
 end
 

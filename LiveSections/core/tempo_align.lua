@@ -17,6 +17,8 @@
 --     recalculada para o compasso 1 dela continuar no mesmo ponto do áudio.
 -- Automação de tracks não é preservada (fora do uso previsto).
 
+local diag = require("core.diag")
+
 local M = {}
 
 local PROJ = 0
@@ -224,7 +226,10 @@ end
 local function undoable(desc, fn)
   reaper.Undo_BeginBlock()
   with_items_locked(fn)
-  reaper.Undo_EndBlock("Live Sections: " .. desc, -1)
+  -- envelopes (o tempo é o do master), itens e marcadores, sem o estado dos
+  -- plugins: guardar o do Kontakt pausava o áudio
+  reaper.Undo_EndBlock("Live Sections: " .. desc, 1 | 4 | 8)
+  diag.note("undo")
 end
 
 -- Marca o compasso 1 da música em `pos` (o primeiro tempo forte do áudio) com

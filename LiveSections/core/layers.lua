@@ -460,7 +460,7 @@ function M.rename_layer(slot, name)
   if not tr then return false, "no_layer" end
   reaper.Undo_BeginBlock()
   reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", final, true)
-  reaper.Undo_EndBlock("Live Sections: renomear camada", -1)
+  reaper.Undo_EndBlock("Live Sections: renomear camada", 1)   -- só a track, sem plugins
   return true, final
 end
 
