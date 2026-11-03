@@ -16,7 +16,9 @@ local function fake_imgui(opts)
     last = id
     return opts.press == id
   end
-  function im.IsItemClicked() return false end
+  function im.IsItemClicked(_, btn) return btn == 1 and opts.rclick ~= nil and opts.rclick == last end
+  function im.MenuItem(_, label) return opts.menu == label end
+  function im.BeginMenu(_, label) return opts.submenu == label end
   function im.IsItemHovered() return opts.hover ~= nil and opts.hover == last end
   function im.IsMouseDoubleClicked() return opts.dbl == true end
   function im.IsItemActive() return false end
@@ -584,6 +586,47 @@ describe("ui.performance_view", function()
         assert.equal("pick", learn.state().mode)
         assert.is_true(texts['Esse controle já é "next_song"'])
         assert.same({}, lp.list(song))
+      end)
+
+      describe("no parâmetro", function()
+        local row, organ_row
+        before_each(function()
+          local k = layers.track_of(song)
+          r.add_receive(k, r.add_track("Orgão", "{ORGAO}"), 0)
+          row = kcc.add_from_learn({ port_name = MASTER, msg_type = "cc", channel = 1, number = 16 })
+          lp.bind(song, 1, row.id)
+          lp.rename(song, row.id, "Reverb")
+        end)
+
+        it("duplo clique abre o nome já preenchido", function()
+          frame({ hover = "param1_" .. row.id, dbl = true, popup = "param_name" })
+          frame({ popup = "param_name", text = "Hall", button = "Salvar" })
+          assert.equal("Hall", lp.for_layer(song, 1, 1)[1].name)
+        end)
+
+        it("botão direito: mover para outra camada e remover", function()
+          frame({ rclick = "param1_" .. row.id, popup = "param_menu", submenu = "Mover para outra camada", menu = "Orgão" })
+          assert.same({}, lp.for_layer(song, 1, 1))
+          assert.equal("Reverb", lp.for_layer(song, 2, 1)[1].name)
+          frame({ rclick = "param2_" .. row.id, popup = "param_menu", menu = "Remover desta camada" })
+          assert.same({}, lp.list(song))
+        end)
+
+        it("mover para camada cheia avisa e não move", function()
+          for i = 1, 4 do
+            organ_row = kcc.add_from_learn({ port_name = MASTER, msg_type = "cc", channel = 1, number = 30 + i })
+            lp.bind(song, 2, organ_row.id)
+          end
+          frame({ rclick = "param1_" .. row.id, popup = "param_menu", submenu = "Mover para outra camada", menu = "Orgão" })
+          local _, texts = frame()
+          assert.is_true(texts["A camada já tem 4 parâmetros"])
+          assert.equal("Reverb", lp.for_layer(song, 1, 1)[1].name)
+        end)
+
+        it("no Palco não há duplo clique nem menu", function()
+          local b = frame({ setup = function() view.ui().stage = true end })
+          assert.is_nil(b["param1_" .. row.id])
+        end)
       end)
 
       it("trocar de música cancela a espera", function()

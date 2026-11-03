@@ -56,6 +56,7 @@ local last_value = {}      -- [mapping] = último valor (borda de subida de CC/p
 local snap = {}
 local rename = nil         -- { slot, buf }: popup de renomear camada
 local name_edit = nil      -- { song, row_id, buf, open }: quadro do nome do parâmetro
+local param_menu = nil     -- { song, row_id, slot }: menu do botão direito no parâmetro
 
 function M.init(deps)
   ImGui, theme, anim, widgets = deps.ImGui, deps.theme, deps.anim, deps.widgets
@@ -654,6 +655,7 @@ end
 -- baixo, para sobrar espaço para os cards, e sem camadas nada aparece.
 local FADER_H, STAGE_FADER_H = 132, 96
 local PARAM_H, PARAM_GAP, ADD_H = 50, 6, 34
+local FULL_TEXT = "A camada já tem 4 parâmetros"
 
 -- "+ parâmetro": a camada espera um controle; linha do Mapeamento existente
 -- ou controle novo (vira linha) passam a ser parâmetro dela e abrem o quadro
@@ -667,7 +669,7 @@ local function start_pick(song, slot)
     if ok then
       name_edit = { song = song, row_id = row_id, buf = "", open = true }
     else
-      ui.param_error = { text = err == "full" and "A camada já tem 4 parâmetros" or "Não deu para ligar o parâmetro", at = now }
+      ui.param_error = { text = err == "full" and FULL_TEXT or "Não deu para ligar o parâmetro", at = now }
     end
     return kontakt_cc.mapping(row_id)
   end)
@@ -687,6 +689,45 @@ local function add_button(ctx, dl, x, y, w, song, slot)
     txt(ctx, dl, "small", x + (w - size(ctx, "small", s)) / 2, ty, fg, s)
     ty = ty + 14
   end
+end
+
+-- Duplo clique renomeia; botão direito abre o menu (RF-160, RF-161).
+local function param_hit(ctx, x, y, w, song, slot, p)
+  ImGui.SetCursorScreenPos(ctx, x, y)
+  ImGui.InvisibleButton(ctx, "param" .. slot .. "_" .. p.row.id, w, PARAM_H)
+  if ImGui.IsItemHovered(ctx) then
+    ImGui.SetTooltip(ctx, "Duplo clique para renomear; botão direito para mover ou remover")
+    if ImGui.IsMouseDoubleClicked(ctx, ImGui.MouseButton_Left) then
+      name_edit = { song = song, row_id = p.row.id, buf = p.name, open = true }
+    end
+  end
+  if ImGui.IsItemClicked(ctx, ImGui.MouseButton_Right) then
+    param_menu = { song = song, row_id = p.row.id, slot = slot, name = p.name }
+    ImGui.OpenPopup(ctx, "param_menu")
+  end
+end
+
+local function menu_popup(ctx, list)
+  if not param_menu then return end
+  if not ImGui.BeginPopup(ctx, "param_menu") then
+    param_menu = nil
+    return
+  end
+  local pm = param_menu
+  if ImGui.MenuItem(ctx, "Renomear") then
+    name_edit = { song = pm.song, row_id = pm.row_id, buf = pm.name, open = true }
+  end
+  if ImGui.BeginMenu(ctx, "Mover para outra camada") then
+    for j, l in ipairs(list) do
+      if j ~= pm.slot and ImGui.MenuItem(ctx, l.name) then
+        local ok, err = layer_params.move(pm.song, pm.row_id, j)
+        if not ok then ui.param_error = { text = err == "full" and FULL_TEXT or "Não deu para mover o parâmetro", at = now } end
+      end
+    end
+    ImGui.EndMenu(ctx)
+  end
+  if ImGui.MenuItem(ctx, "Remover desta camada") then layer_params.remove(pm.song, pm.row_id) end
+  ImGui.EndPopup(ctx)
 end
 
 -- Quadro do nome depois de ligar: Enter salva; vazio ou Esc fica com o nome
@@ -845,10 +886,12 @@ local function layer_strip(ctx, x, y, w, fh)
     local py = by + 26 + 12
     for _, p in ipairs(params[i]) do
       param_box(ctx, dl, lx + 6, py, lw - 12, p)
+      if editable then param_hit(ctx, lx + 6, py, lw - 12, song, i, p) end
       py = py + PARAM_H + PARAM_GAP
     end
     if editable and #params[i] < layer_params.MAX then add_button(ctx, dl, lx + 6, py, lw - 12, song, i) end
   end
+  menu_popup(ctx, list)
   name_popup(ctx)
   if rename and ImGui.BeginPopup(ctx, "rename_layer") then
     ImGui.Text(ctx, "Nome da camada nesta música")
