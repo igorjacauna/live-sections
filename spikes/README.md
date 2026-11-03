@@ -114,3 +114,16 @@ Base do "Exportar música" / "Montar setlist": confere se o chunk das tracks lev
 5. Feche a aba nova **sem salvar**.
 
 **Mande:** o console e as respostas 1–4 que ele pede.
+
+**Resultado (2026-11-03, REAPER 7.84/x64, Windows):**
+
+| O que | Resultado |
+|---|---|
+| Timbre e ajustes do Kontakt | voltam iguais; carregou normal, sem pedir amostras |
+| Rotas Kontakt → camadas | recebem e tocam |
+| GUIDs | o REAPER cria novos (nenhum repetido, nenhum igual ao original) |
+| Posição dos itens | exata em relação ao marcador (diferença 0 s); item no início exato sai como `-0.0000` |
+| Fase | "Igreja" começa no tempo 3 do compasso 97: sem o tempo e a fase, os áudios parecem deslocados na grade |
+| Tempo | precisa ser recriado antes/junto das tracks; `TimeMap_GetTimeSigAtTime` devolve `num, denom, bpm` (sem retorno inicial) |
+
+Conclusão: chunk filtrado sem GUIDs serve para o pacote. O import recria o tempo com a fase (`phase_beats`) e arredonda posições relativas mínimas para 0.

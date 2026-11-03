@@ -198,7 +198,7 @@ out(string.format("tempo total: leitura %.0f ms, filtro %.0f ms", t_get * 1000, 
 
 -- tempo, fórmula e fase no início da música (o import real recria o tempo antes das tracks)
 local start_bpm = reaper.TimeMap_GetDividedBpmAtTime(song_start)
-local _, start_num, start_denom = reaper.TimeMap_GetTimeSigAtTime(0, song_start)
+local start_num, start_denom = reaper.TimeMap_GetTimeSigAtTime(0, song_start)
 local beats_in_bar, measure = reaper.TimeMap2_timeToBeats(0, song_start)
 out(string.format("início: %.2f BPM %d/%d · compasso %d, tempo %.3f (0 = no compasso)",
   start_bpm, start_num, start_denom, measure + 1, beats_in_bar))
