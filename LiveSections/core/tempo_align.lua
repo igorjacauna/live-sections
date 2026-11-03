@@ -194,8 +194,10 @@ end
 -- Põe o compasso 1 da música em `pos` com `bpm`, trocando os marcadores que a
 -- música tinha e preservando tudo o que vem depois. Com `tempo_only`, só troca
 -- o tempo no início da música (sem compasso 1 marcado, a grade continua).
-local function place_downbeat(song, next_song, pos, bpm, tempo_only)
+-- `num`/`denom` trocam a fórmula (senão fica a que vale em `pos`).
+local function place_downbeat(song, next_song, pos, bpm, tempo_only, new_num, new_denom)
   local _, num, denom = tempo_at(pos)
+  num, denom = new_num or num, new_denom or denom
   local later = tempo_markers_between(limit(next_song), math.huge)
   if next_song and not (later[1] and math.abs(later[1].time - next_song.start_pos) < EPS) then
     -- guarda o tempo que valia no início da música seguinte
@@ -257,6 +259,37 @@ function M.set_bpm(song, next_song, bpm)
     place_downbeat(song, next_song, db and db.time or song.start_pos, bpm, not db)
   end)
   return true, bpm
+end
+
+-- Fórmula de compasso da música: a do compasso 1 marcado, senão a que vale no
+-- início dela.
+function M.song_signature(song, next_song)
+  local db = downbeat_of(song.start_pos, limit(next_song))
+  if db then return db.num, db.denom end
+  local _, num, denom = tempo_at(song.start_pos)
+  return num, denom
+end
+
+local DENOMS = { [1] = true, [2] = true, [4] = true, [8] = true, [16] = true, [32] = true }
+
+-- Troca a fórmula de compasso da música. Com compasso 1 marcado, ele fica no
+-- mesmo ponto e BPM; sem, o compasso 1 passa a ser a primeira linha de
+-- compasso da música (o REAPER só muda a fórmula numa linha de compasso).
+-- Retorna ok, ou false e o motivo.
+function M.set_signature(song, next_song, num, denom)
+  if not num or num < 1 or num > 32 or num % 1 ~= 0 or not DENOMS[denom] then return false, "bad_signature" end
+  local db = downbeat_of(song.start_pos, limit(next_song))
+  local pos, bpm
+  if db then
+    pos, bpm = db.time, db.bpm
+  else
+    local g = grid_before(song.start_pos)
+    pos = g.beat < 1e-6 and song.start_pos or song.start_pos + (g.bar - g.beat) * 60 / g.bpm
+    bpm = g.bpm
+    if pos >= math.min(song.end_pos, limit(next_song)) - EPS then return false, "out_of_range" end
+  end
+  undoable("fórmula de compasso", function() place_downbeat(song, next_song, pos, bpm, false, num, denom) end)
+  return true
 end
 
 -- Ajuste fino: BPM em `d_bpm` e posição do compasso 1 em `d_ms` milissegundos.

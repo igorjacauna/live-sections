@@ -848,11 +848,13 @@ end
 
 local METRONOME = 40364   -- Options: Toggle metronome
 local ROUNDS = { { "exact", "Exato" }, { "int", "Inteiro" }, { "half", "Meio BPM" } }
+local SIGNATURES = { { 2, 4 }, { 3, 4 }, { 4, 4 }, { 5, 4 }, { 6, 8 }, { 7, 8 }, { 12, 8 } }
 local TEMPO_ERRORS = {
   outside_song = "O cursor precisa estar dentro da música atual.",
   no_bpm = "Toque o tap pelo menos 4 vezes antes.",
   no_downbeat = "Marque o compasso 1 antes de ajustar a posição dele.",
   bad_bpm = "Digite um BPM entre 20 e 400.",
+  bad_signature = "Digite a fórmula como 7/8: de 1 a 32 tempos, sobre 1, 2, 4, 8, 16 ou 32.",
   out_of_range = "O ajuste sairia da música.",
 }
 
@@ -881,6 +883,12 @@ end
 local function tempo_report(ok, err, done)
   local text = ok and done or (TEMPO_ERRORS[err] or ERRORS[err] or ("Não foi possível: " .. tostring(err)))
   st.tempo_msg = { text = text, err = not ok, ["until"] = now() + STATUS_S }
+end
+
+-- "7/8" -> 7, 8
+local function parse_signature(text)
+  local a, b = tostring(text):match("^%s*(%d+)%s*/%s*(%d+)%s*$")
+  return tonumber(a), tonumber(b)
 end
 
 -- "95,5" ou "95.5" -> 95.5
@@ -983,6 +991,40 @@ local function tempo_panel(ctx, x, y, w, song)
     end
     cy = cy + 34
   end
+  -- fórmula de compasso da música: digitada (qualquer uma) ou nos atalhos
+  local num, denom = tempo.song_signature(song, nxt)
+  local function apply_signature(n, d)
+    local ok, err = tempo.set_signature(song, nxt, n, d)
+    tempo_report(ok, err, string.format("Fórmula da música: %s/%s.", tostring(n), tostring(d)))
+  end
+  kit.txt(ctx, dl, "label", ix, cy + 9, theme.C.muted, "FÓRMULA")
+  if not st.sig_editing then st.sig_buf = num .. "/" .. denom end
+  local body = theme.font(ctx, "body")
+  ImGui.SetCursorScreenPos(ctx, ix + 116, cy)
+  ImGui.SetNextItemWidth(ctx, 84)
+  local _, sbuf = ImGui.InputText(ctx, "##song_sig", st.sig_buf)
+  st.sig_buf = sbuf
+  st.sig_editing = ImGui.IsItemActive(ctx)
+  if ImGui.IsItemDeactivatedAfterEdit(ctx) then
+    st.sig_editing = false
+    local n, d = parse_signature(st.sig_buf)
+    if n ~= num or d ~= denom then apply_signature(n, d) end
+  end
+  theme.pop_font(ctx, body)
+  cy = cy + 34
+  local fx = ix + 116
+  for _, sig in ipairs(SIGNATURES) do
+    local label = sig[1] .. "/" .. sig[2]
+    local bw = kit.size(ctx, "small", label) + 18
+    if fx + bw > ix + iw then fx, cy = ix + 116, cy + 32 end
+    local current = sig[1] == num and sig[2] == denom
+    if kit.button(ctx, "sig_" .. sig[1] .. "_" .. sig[2], label, fx, cy, 28, { w = bw, style = "small", active = current })
+      and not current then
+      apply_signature(sig[1], sig[2])
+    end
+    fx = fx + bw + 4
+  end
+  cy = cy + 38
   local metro = reaper.GetToggleCommandState(METRONOME) == 1
   if kit.button(ctx, "metronome", metro and "Metrônomo ligado" or "Metrônomo", ix, cy, 28,
     { style = "small", active = metro, accent = metro and theme.C.loop or nil }) then
