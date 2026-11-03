@@ -104,3 +104,13 @@ Confere se, nos primeiros instantes depois do play, o REAPER informa uma posiç�
 3. Mova o cursor um compasso para dentro da música e rode de novo.
 
 **Mande:** o console das duas rodadas.
+
+## 10_pacote_de_musica.lua: levar uma música para outro projeto
+Base do "Exportar música" / "Montar setlist": confere se o chunk das tracks leva o timbre do Kontakt, se as rotas Kontakt → camadas voltam, se o REAPER cria GUIDs novos e se os áudios copiados funcionam.
+1. Abra um projeto com uma música configurada (Kontakt, camadas, áudios). **Feche o Live Sections.**
+2. Ponha o cursor dentro da música e **selecione a track do Kontakt e as camadas** (as tracks com itens da música entram sozinhas).
+3. Rode o script. Ele copia os áudios para `<pasta do REAPER>/Live Sections/spike10/audio`, abre uma **aba de projeto nova** e recria as tracks ali. O projeto original não muda.
+4. Na aba nova: arme o Kontakt e toque; confira as camadas, os áudios e se o Kontakt pediu amostras.
+5. Feche a aba nova **sem salvar**.
+
+**Mande:** o console e as respostas 1–4 que ele pede.
