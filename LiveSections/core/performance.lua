@@ -12,7 +12,6 @@ local M = {}
 
 local PROJ = 0
 local SONG_END_MARGIN = 0.25   -- s: parada a menos disso do fim conta como fim da música
-local PREROLL_S = 12           -- s: tocando, até isso antes da música atual ainda é ela (pre-roll)
 
 local state = {
   quantize = "bar",
@@ -272,14 +271,7 @@ function M.tick()
       undo_hand_off(action.entry)
     end
   end
-  -- Pre-roll: tocar do início de uma música faz o REAPER começar um pouco
-  -- antes, ainda na anterior. Entrar nela trocaria o trecho de parada para a
-  -- anterior, e o REAPER pararia justo onde a música atual começa.
-  local here = model.song_at(pos)
-  local cur = state.song
-  if not (here and cur and here.start_pos < cur.start_pos and pos >= cur.start_pos - PREROLL_S) then
-    enter_song(here)
-  end
+  enter_song(model.song_at(pos))
   return action
 end
 
