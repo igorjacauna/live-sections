@@ -1,4 +1,5 @@
-- Editar: zoom na faixa de seções (Ctrl/Cmd+roda ou botões −/+/Inteira), rolagem pela roda e mini-mapa da música; tocando, a faixa acompanha o cursor
-- Editar: o BPM da música pode ser digitado, e o ajuste ±0,01 funciona sem marcar o compasso 1; avisos aparecem no painel de tempo
-- Editar: Tocar daqui e Espaço tocam do cursor quando ele está dentro da seção selecionada; clicar de novo na seção põe o cursor no compasso clicado
-- Correção: rótulos longos (como o do botão Desfazer) são cortados com "…" em vez de sobrepor os botões vizinhos
+- Diagnóstico de engasgos: Configurações → Desempenho lista as pausas maiores que 150 ms, o que o Live Sections fazia antes e quanto foi dele; "Copiar relatório" para enviar
+- Editar: fórmula de compasso por música, digitada (qualquer uma, ex.: 7/8, 11/16) ou nos atalhos 2/4 a 12/8
+- Editar: Tocar daqui e Espaço tocam sempre do cursor; a seção onde ele está passa a ser a selecionada
+- Cifra: rolagem suave quando a seção não cabe e as linhas avançam (janela Cifra e celular)
+- Cifra: linhas como "( C ) C7M" e "Dm7(11) C/E F2 Riff" agora recebem o destaque de acordes

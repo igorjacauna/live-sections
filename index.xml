@@ -9,11 +9,12 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <link rel="website">https://live-sections.igor-jacauna-cloudflare.workers.dev</link>
         <link rel="website">https://github.com/igorjacauna/live-sections</link>
       </metadata>
-      <version name="0.5.1" author="Igor Jacaúna" time="2026-11-03T15:06:36Z">
-        <changelog><![CDATA[- Editar: zoom na faixa de seções (Ctrl/Cmd+roda ou botões −/+/Inteira), rolagem pela roda e mini-mapa da música; tocando, a faixa acompanha o cursor
-- Editar: o BPM da música pode ser digitado, e o ajuste ±0,01 funciona sem marcar o compasso 1; avisos aparecem no painel de tempo
-- Editar: Tocar daqui e Espaço tocam do cursor quando ele está dentro da seção selecionada; clicar de novo na seção põe o cursor no compasso clicado
-- Correção: rótulos longos (como o do botão Desfazer) são cortados com "…" em vez de sobrepor os botões vizinhos
+      <version name="0.5.2" author="Igor Jacaúna" time="2026-11-03T17:40:13Z">
+        <changelog><![CDATA[- Diagnóstico de engasgos: Configurações → Desempenho lista as pausas maiores que 150 ms, o que o Live Sections fazia antes e quanto foi dele; "Copiar relatório" para enviar
+- Editar: fórmula de compasso por música, digitada (qualquer uma, ex.: 7/8, 11/16) ou nos atalhos 2/4 a 12/8
+- Editar: Tocar daqui e Espaço tocam sempre do cursor; a seção onde ele está passa a ser a selecionada
+- Cifra: rolagem suave quando a seção não cabe e as linhas avançam (janela Cifra e celular)
+- Cifra: linhas como "( C ) C7M" e "Dm7(11) C/E F2 Riff" agora recebem o destaque de acordes
 ]]></changelog>
         <source file="actions/Live Sections - Camada 1 liga-desliga.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20liga-desliga.lua</source>
         <source file="actions/Live Sections - Camada 1 volume (CC).lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20volume%20(CC).lua</source>
@@ -134,11 +135,12 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
 
 Ative em Preferences > Control/OSC/web > Add > Web browser interface, escolha "livesections.html" como página padrão e abra o endereço mostrado no celular (mesma rede Wi-Fi).]]></description>
       </metadata>
-      <version name="0.5.1" author="Igor Jacaúna" time="2026-11-03T15:06:36Z">
-        <changelog><![CDATA[- Editar: zoom na faixa de seções (Ctrl/Cmd+roda ou botões −/+/Inteira), rolagem pela roda e mini-mapa da música; tocando, a faixa acompanha o cursor
-- Editar: o BPM da música pode ser digitado, e o ajuste ±0,01 funciona sem marcar o compasso 1; avisos aparecem no painel de tempo
-- Editar: Tocar daqui e Espaço tocam do cursor quando ele está dentro da seção selecionada; clicar de novo na seção põe o cursor no compasso clicado
-- Correção: rótulos longos (como o do botão Desfazer) são cortados com "…" em vez de sobrepor os botões vizinhos
+      <version name="0.5.2" author="Igor Jacaúna" time="2026-11-03T17:40:13Z">
+        <changelog><![CDATA[- Diagnóstico de engasgos: Configurações → Desempenho lista as pausas maiores que 150 ms, o que o Live Sections fazia antes e quanto foi dele; "Copiar relatório" para enviar
+- Editar: fórmula de compasso por música, digitada (qualquer uma, ex.: 7/8, 11/16) ou nos atalhos 2/4 a 12/8
+- Editar: Tocar daqui e Espaço tocam sempre do cursor; a seção onde ele está passa a ser a selecionada
+- Cifra: rolagem suave quando a seção não cabe e as linhas avançam (janela Cifra e celular)
+- Cifra: linhas como "( C ) C7M" e "Dm7(11) C/E F2 Riff" agora recebem o destaque de acordes
 ]]></changelog>
         <source file="livesections.html">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/www/livesections.html.txt</source>
       </version>
