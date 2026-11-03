@@ -12,12 +12,13 @@
 -- acender um LED por conta própria e ele ficaria preso.
 --
 -- Estados: "idle" (parado), "playing", "queued", "loop", "empty" (sem seção).
--- Mute e solo de camada e o Play (tocando) acendem com a velocity de
--- "playing": é o "aceso" do controlador.
+-- O liga/desliga da camada (aceso com a camada tocando, ou seja, sem mute)
+-- e o Play (tocando) acendem com a velocity de "playing": é o "aceso" do
+-- controlador.
 --
 -- M.configure(settings)                { led_velocity, feedback_out_port?, led_blink? }
 -- M.state_for(mapping, ctx) -> state?  ctx = { sections, playing, queued, looping,
---                                      transport, layer = function(slot) -> { mute, solo },
+--                                      transport, layer = function(slot) -> { mute },
 --                                      kontakt_on = function(id) -> bool? }
 --                                      nil: o controle não tem LED (knob do Mapeamento)
 -- M.set_state(mapping, state?)        state nil: não manda nada para o controle
@@ -75,7 +76,7 @@ local function same_section(a, b) return a ~= nil and b ~= nil and a.region_idx 
 --   ctx.queued    seção na fila
 --   ctx.looping   seção presa em loop
 --   ctx.transport true com o transporte tocando
---   ctx.layer     função: estado { mute, solo } da camada N, ou nil
+--   ctx.layer     função: estado { mute } da camada N, ou nil
 function M.state_for(mapping, ctx)
   if mapping.action == "trigger_slot" then
     local section = ctx.sections and ctx.sections[mapping.arg]
@@ -88,10 +89,10 @@ function M.state_for(mapping, ctx)
     return ctx.looping and "loop" or "idle"
   elseif mapping.action == "play" or mapping.action == "play_stop" then
     return ctx.transport and "playing" or "idle"
-  elseif mapping.action == "layer_mute" or mapping.action == "layer_solo" then
+  elseif mapping.action == "layer_mute" then
+    -- liga/desliga: aceso quando a camada toca, para o LED dizer o que soa
     local st = ctx.layer and ctx.layer(mapping.arg)
-    local on = st and (mapping.action == "layer_mute" and st.mute or mapping.action == "layer_solo" and st.solo)
-    return on and "playing" or "idle"
+    return (st and not st.mute) and "playing" or "idle"
   elseif mapping.action == "kontakt_cc" then
     -- só os botões liga/desliga acendem (RF-134); mandar algo a um knob
     -- mexeria no anel de LEDs dele

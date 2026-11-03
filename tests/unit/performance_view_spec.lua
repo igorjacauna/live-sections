@@ -235,19 +235,20 @@ describe("ui.performance_view", function()
       assert.same({ [24] = 127, [25] = 0 }, leds)
     end)
 
-    it("LEDs de mute e solo das camadas seguem o estado da track", function()
+    it("LED do liga/desliga da camada acende com a camada tocando", function()
       local k = r.add_track("Kontakt A")
       local piano = r.add_track("Piano")
       r.add_receive(k, piano, 0)
       layers.link(model.songs()[1], k)
       mappings.set({ action = "layer_mute", arg = 1, port_name = MASTER, msg_type = "note", channel = 1, number = 16 })
-      mappings.set({ action = "layer_solo", arg = 1, port_name = MASTER, msg_type = "note", channel = 1, number = 8 })
       view.update(0)
-      view.handle_event(ev(0x90, 16, 127))
-      view.update(0.1)
       local leds = {}
       for _, c in ipairs(r.calls_to("StuffMIDIMessage")) do leds[c[3]] = c[4] end
-      assert.same({ [16] = 127, [8] = 0 }, leds)
+      assert.same({ [16] = 127 }, leds)
+      view.handle_event(ev(0x90, 16, 127))
+      view.update(0.1)
+      for _, c in ipairs(r.calls_to("StuffMIDIMessage")) do leds[c[3]] = c[4] end
+      assert.same({ [16] = 0 }, leds)
       assert.equal(1, piano.info.B_MUTE)
     end)
 
@@ -429,13 +430,14 @@ describe("ui.performance_view", function()
       assert.is_true(colors[theme.C.ok] and colors[theme.C.queue] and colors[theme.C.danger])
     end)
 
-    it("modo palco: camadas com fader vertical mais baixo, mute e solo", function()
+    it("modo palco: camadas com fader vertical mais baixo e mute, sem solo", function()
       local k = r.add_track("Kontakt A")
       r.add_receive(k, r.add_track("Piano"), 0)
       layers.link(model.songs()[1], k)
       local calls = draw({ setup = function() view.ui().stage = true end })
       local b = ids(calls)
-      assert.is_true(b.fader1 and b.mute1 and b.solo1)
+      assert.is_true(b.fader1 and b.mute1)
+      assert.is_nil(b.solo1)
       local fader
       for _, c in ipairs(calls) do if c[1] == "InvisibleButton" and c[2] == "fader1" then fader = c end end
       assert.is_true(fader[4] > fader[3])          -- mais alto que largo

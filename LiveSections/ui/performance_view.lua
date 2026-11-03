@@ -89,7 +89,6 @@ function M.run(action, arg, value)
   elseif action == "panic" then feedback.reset(); return perf.panic()
   elseif action == "layer_volume" then return layers.set_layer_volume(arg, value or 0)
   elseif action == "layer_mute" then return layers.toggle_mute(arg)
-  elseif action == "layer_solo" then return layers.toggle_solo(arg)
   elseif action == "toggle_setlist" then ui.setlist_open = not ui.setlist_open; return ui.setlist_open
   elseif action == "tap_tempo" then return editor and editor.tap()
   end
@@ -715,10 +714,6 @@ local function layer_strip(ctx, x, y, w, fh)
       layers.toggle_mute(i)
     end
     widgets.mappable(ctx, { action = "layer_mute", arg = i }, "Mute " .. st.name)
-    if button(ctx, "solo" .. i, "S", lx + lw - 44, by, 26, { w = 32, active = st.solo, accent = theme.C.ok, style = "num" }) then
-      layers.toggle_solo(i)
-    end
-    widgets.mappable(ctx, { action = "layer_solo", arg = i }, "Solo " .. st.name)
   end
   if rename and ImGui.BeginPopup(ctx, "rename_layer") then
     ImGui.Text(ctx, "Nome da camada nesta música")

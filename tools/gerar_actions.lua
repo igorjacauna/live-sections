@@ -25,7 +25,6 @@ for _, q in ipairs(QUANTIZE) do list[#list + 1] = { "Quantize " .. q[2], "set_qu
 for i = 1, LAYERS do
   list[#list + 1] = { string.format("Camada %d volume (CC)", i), "layer_volume", i }
   list[#list + 1] = { string.format("Camada %d mute", i), "layer_mute", i }
-  list[#list + 1] = { string.format("Camada %d solo", i), "layer_solo", i }
 end
 
 local TEMPLATE = [[

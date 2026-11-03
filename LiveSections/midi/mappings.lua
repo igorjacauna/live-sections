@@ -42,8 +42,7 @@ M.ACTIONS = {
   cancel         = {},
   panic          = {},
   layer_volume   = { arg = "layer" },     -- camada N
-  layer_mute     = { arg = "layer" },
-  layer_solo     = { arg = "layer" },
+  layer_mute     = { arg = "layer" },    -- liga/desliga a camada N (mute invertido)
   toggle_setlist = {},                    -- setlist completa no modo palco (RF-074)
   tap_tempo      = {},                    -- toque do tap tempo no modo Editar (RF-097)
   kontakt_cc     = { arg = "row" },       -- linha da tela Mapeamento (id "k1"…)

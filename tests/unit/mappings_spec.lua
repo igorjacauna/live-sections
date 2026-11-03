@@ -108,7 +108,7 @@ describe("midi.mappings", function()
       for name in pairs(mappings.ACTIONS) do names[#names + 1] = name end
       table.sort(names)
       assert.same({
-        "cancel", "cycle_quantize", "goto_song", "kontakt_cc", "layer_mute", "layer_solo", "layer_volume", "next_section",
+        "cancel", "cycle_quantize", "goto_song", "kontakt_cc", "layer_mute", "layer_volume", "next_section",
         "next_song", "panic", "play", "play_stop", "prev_section", "prev_song", "set_quantize", "stop", "tap_tempo", "toggle_loop",
         "toggle_setlist", "trigger_slot",
       }, names)
@@ -178,6 +178,14 @@ describe("midi.mappings", function()
       local rows = mappings.kontakt_rows()
       assert.equal(1, #rows)
       assert.equal("k1", rows[1].id)
+    end)
+
+    it("descarta o solo de camada salvo por versões antigas", function()
+      write_config('{"mappings":[{"action":"layer_solo","arg":1,"port_name":"x","msg_type":"note","channel":1,"number":8},'
+        .. '{"action":"layer_mute","arg":1,"port_name":"x","msg_type":"note","channel":1,"number":9}]}')
+      assert.is_true(mappings.load())
+      assert.equal(1, #mappings.all())
+      assert.equal("layer_mute", mappings.all()[1].action)
     end)
 
     it("sem arquivo começa vazio", function()

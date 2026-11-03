@@ -66,6 +66,6 @@ describe("actions.remote", function()
       end
     end
     p:close()
-    assert.equal(77, n)
+    assert.equal(69, n)
   end)
 end)

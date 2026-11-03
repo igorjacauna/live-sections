@@ -15,7 +15,7 @@
 -- Música sem vínculo não roteia nada (RF-105).
 --
 -- Faders e botões de camada agem na camada N da música atual: volume nativo
--- da track filha (D_VOL, com a curva do fader do REAPER), mute e solo
+-- da track filha (D_VOL, com a curva do fader do REAPER) e mute
 -- (RF-056, RF-057, RF-060). Soft takeover (RF-058): depois de trocar de
 -- música, o fader físico só assume quando cruza o valor atual da camada; até
 -- lá, M.takeover(slot) diz para onde movê-lo (RF-059).
@@ -36,11 +36,11 @@
 -- M.tick(now)
 -- M.set_layer_volume(slot, value) -> "set"|"waiting"|"no_layer"   value 0–1 do fader
 -- M.takeover(slot) -> nil|"up"|"down"   direção para o fader alcançar a camada
--- M.toggle_mute(slot); M.toggle_solo(slot)
+-- M.toggle_mute(slot)   liga/desliga a camada (mute da track)
 -- M.rename_layer(slot, name) -> ok, final|err   renomeia a track da camada N
 --                        da música atual, num passo de undo ("empty_name",
 --                        "no_layer")
--- M.layer_state(slot) -> { name, pos (0–1), mute, solo, peak_l, peak_r }?
+-- M.layer_state(slot) -> { name, pos (0–1), mute, peak_l, peak_r }?
 --                       pico de saída da track (amplitude linear, 1 = 0 dB)
 -- M.set_volume_ui(slot, pos)   fader da tela; o físico precisa alcançar de novo
 -- M.release_takeover()   o fader físico precisa alcançar de novo (ex.: o
@@ -59,7 +59,6 @@ local KEY_PREFIX = "kontakt:"
 local MIDI_INPUT = 4096
 local SUSTAIN_CC = 64
 local TAKEOVER_TOL = 0.02   -- distância (0–1) em que o fader já conta como alcançado
-local SOLO_IN_PLACE = 2
 
 local settings = { keyboard_port = nil, bypass_tail_s = 5 }
 local cycle = nil       -- { state, by_guid?, layers = { [kontakt] = { track } }, rows = { [kontakt] = Layer[] } }
@@ -425,7 +424,6 @@ function M.layer_state(slot)
   return {
     name = layer.name, pos = fader_pos(tr),
     mute = reaper.GetMediaTrackInfo_Value(tr, "B_MUTE") ~= 0,
-    solo = reaper.GetMediaTrackInfo_Value(tr, "I_SOLO") ~= 0,
     peak_l = reaper.Track_GetPeakInfo(tr, 0), peak_r = reaper.Track_GetPeakInfo(tr, 1),
   }
 end
@@ -459,7 +457,6 @@ function M.rename_layer(slot, name)
 end
 
 function M.toggle_mute(slot) return toggle(slot, "B_MUTE", 1) end
-function M.toggle_solo(slot) return toggle(slot, "I_SOLO", SOLO_IN_PLACE) end
 
 -- Volta ao estado inicial (para testes e para recarregar o projeto).
 function M.reset()
