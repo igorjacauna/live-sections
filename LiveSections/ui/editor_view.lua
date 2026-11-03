@@ -7,7 +7,8 @@
 -- da verdade; a tela só redesenha o que o project_model relê.
 --
 -- Faixa (ferramenta Selecionar): clicar numa seção seleciona (parado, o
--- cursor vai para o início dela); duplo clique toca a partir dela; arrastar a
+-- cursor vai para o início dela; clicar de novo põe o cursor no compasso
+-- clicado); duplo clique toca a partir dela; arrastar a
 -- borda move as duas seções vizinhas juntas. O botão alterna Tocar daqui /
 -- Pausar / Continuar; Espaço toca da seção selecionada e para (para ouvir
 -- trechos rápido), como o Stop. Remover deixa
@@ -49,7 +50,7 @@ local WARN_REFRESH_S = 0.5
 
 local TOOLS = { { "select", "Selecionar" }, { "split", "Dividir" }, { "draw", "Desenhar" } }
 local TOOL_HINT = {
-  select = "Clique numa seção para editar; duplo clique toca a partir dela. Arraste a borda entre duas seções para mover as duas juntas. Clique na régua para mover o cursor; arraste nela para desenhar. Ctrl/Cmd+roda dá zoom; com zoom, a roda rola.",
+  select = "Clique numa seção para editar; clique de novo nela para pôr o cursor no compasso, e Tocar daqui (ou Espaço) toca dali. Duplo clique toca do início dela. Arraste a borda entre duas seções para mover as duas juntas. Clique na régua para mover o cursor; arraste nela para desenhar. Ctrl/Cmd+roda dá zoom; com zoom, a roda rola.",
   split = "Clique num compasso dentro de uma seção para dividir ali. Atalho: S divide no cursor.",
   draw = "Arraste sobre a faixa para criar uma seção, com snap no compasso e ímã nas bordas das seções e no início e fim da música. Se ela invadir outra, a vizinha é recortada.",
 }
@@ -151,10 +152,16 @@ local function wrapped(...) return kit.wrapped(...) end
 
 -- ------------------------------------------------------------------ operações
 
-local function play_from(section)
+-- Toca a partir da seção; com `at`, do ponto `at` dentro dela.
+local function play_from(section, at)
   st.selected = section.region_idx
-  perf.trigger_section(section)
-  say("Tocando a partir de " .. section.name .. ".")
+  perf.trigger_section(section, at)
+  if at then
+    local _, measure = reaper.TimeMap2_timeToBeats(PROJ, at)
+    say(string.format("Tocando de %s, compasso %d.", section.name, measure + 1))
+  else
+    say("Tocando a partir de " .. section.name .. ".")
+  end
 end
 
 local function split_at(song, t)
@@ -175,8 +182,9 @@ local function draw_section(song, a, b)
   end
 end
 
--- Tocar daqui / Pausar / Continuar: parado, toca a partir da seção (ou do
--- cursor, sem seção); tocando, pausa; pausado, continua de onde parou.
+-- Tocar daqui / Pausar / Continuar: parado, toca do cursor se ele está dentro
+-- da seção selecionada, senão do início dela (sem seção, do cursor); tocando,
+-- pausa; pausado, continua de onde parou.
 local function transport_state()
   local ps = reaper.GetPlayState()
   if ps & 2 == 2 then return "paused" end
@@ -190,7 +198,14 @@ local PLAY_ICON = { stopped = "play", playing = "stop", paused = "play" }
 local function toggle_play(section)
   local state = transport_state()
   if state == "stopped" then
-    if section then play_from(section) else perf.play_stop() end
+    local cur = reaper.GetCursorPosition()
+    if section and cur > section.start_pos + EPS and cur < section.end_pos - EPS then
+      play_from(section, cur)
+    elseif section then
+      play_from(section)
+    else
+      perf.play_stop()
+    end
   else
     reaper.OnPauseButton()
     say(state == "playing" and "Pausado." or "Continuando.")
@@ -227,7 +242,8 @@ local function shortcuts(ctx, song, snap)
   elseif not mod and song and ImGui.IsKeyPressed(ctx, ImGui.Key_S, false) then
     split_at(song, cursor_pos(snap))
   elseif not mod and ImGui.IsKeyPressed(ctx, ImGui.Key_Space, false) then
-    -- ouvir trechos rápido: toca da seção selecionada (ou do cursor) e para
+    -- ouvir trechos rápido: toca da seção selecionada (do cursor, se ele está
+    -- nela) e para
     if transport_state() == "stopped" then toggle_play(section_by_idx(song, st.selected)) else stop() end
   end
 end
@@ -622,6 +638,12 @@ local function strip(ctx, x, y, w, song, snap)
       local s = section_at(song, d.t)
       if s and ImGui.IsMouseDoubleClicked(ctx, ImGui.MouseButton_Left) then
         play_from(s)
+      elseif s and s.region_idx == st.selected then
+        -- clicar de novo na seção selecionada põe o cursor no compasso clicado
+        if not snap.playing then
+          local _, measure = reaper.TimeMap2_timeToBeats(PROJ, d.t)
+          reaper.SetEditCurPos(reaper.TimeMap2_beatsToTime(PROJ, 0, measure), true, false)
+        end
       elseif s then
         st.selected = s.region_idx
         if not snap.playing then reaper.SetEditCurPos(s.start_pos, true, false) end

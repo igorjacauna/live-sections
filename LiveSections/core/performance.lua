@@ -101,7 +101,7 @@ local function launch(target)
   if not transport.is_playing() then
     queue.cancel()
     stop_loop(song)
-    local start = target_start(target)
+    local start = target.at or target_start(target)
     if target.kind == "song" then
       transport.move_cursor(start)
     else
@@ -119,9 +119,10 @@ end
 
 -- ------------------------------------------------------------------ ações
 
--- Dispara a seção `section` da música atual.
-function M.trigger_section(section)
-  return launch({ kind = "section", ref = section })
+-- Dispara a seção `section` da música atual. Com o transporte parado, `at`
+-- (opcional, dentro da seção) começa dali em vez do início dela.
+function M.trigger_section(section, at)
+  return launch({ kind = "section", ref = section, at = at })
 end
 
 -- Dispara a N-ésima seção da música atual. Slot sem seção é ignorado.

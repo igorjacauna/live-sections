@@ -45,6 +45,13 @@ describe("performance", function()
       assert.is_nil(perf.queued())
     end)
 
+    it("disparar uma seção a partir de um ponto dela começa dali", function()
+      local song = require("core.project_model").songs()[1]
+      assert.equal("started", perf.trigger_section(song.sections[2], 11))
+      assert.same({ 11, true, false, n = 3 }, last("SetEditCurPos"))
+      assert.equal(1, #r.calls_to("OnPlayButton"))
+    end)
+
     it("slot sem seção é ignorado", function()
       assert.is_nil(perf.trigger_slot(9))
       assert.equal(0, #r.calls)
