@@ -94,6 +94,16 @@ end
 kontakt_cc.init({ mappings = mappings, jsfx = kontakt_jsfx, layers = layers })
 local layer_params = require("core.layer_params")
 layer_params.init({ layers = layers, kontakt_cc = kontakt_cc })
+-- biblioteca de músicas (exportar e montar setlist)
+local library = require("core.library")
+library.init({ mappings = mappings })
+local song_deps = {
+  layers = layers, layer_params = layer_params, chart = require("core.chart"),
+  song_notes = require("core.song_notes"), kontakt_cc = kontakt_cc,
+  tempo_align = require("core.tempo_align"), jsfx = kontakt_jsfx,
+}
+require("core.song_package").init(song_deps)
+require("core.song_import").init(song_deps)
 local wizard = require("ui.kontakt_wizard")
 wizard.init({ ImGui = ImGui, theme = theme, layers = layers, kit = view.kit })
 editor.init({

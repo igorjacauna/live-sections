@@ -232,9 +232,20 @@ function M.new()
   function api.GetTrackMediaItem(track, i) return (track.items or {})[i + 1] end
   -- track.chunk: texto devolvido por GetTrackStateChunk (o teste monta).
   function api.GetTrackStateChunk(track, _, _) return track.chunk ~= nil, track.chunk or "" end
+  -- AUXRECV <índice da origem> … <canais de origem (8º campo)>: vira receive
   function api.SetTrackStateChunk(track, chunk, _)
     log("SetTrackStateChunk", track, chunk)
     track.chunk = chunk
+    for line in chunk:gmatch("[^\n]+") do
+      local f = {}
+      for w in line:gsub("^%s+", ""):gmatch("%S+") do f[#f + 1] = w end
+      if f[1] == "NAME" then track.name = line:match("NAME%s+(.-)%s*$")
+      elseif f[1] == "AUXRECV" then
+        local src = r._tracks[tonumber(f[2]) + 1]
+        src.sends = src.sends or {}
+        src.sends[#src.sends + 1] = { dst = track, info = { I_SRCCHAN = tonumber(f[9]) or 0 } }
+      end
+    end
     touch()
     return true
   end
@@ -691,6 +702,8 @@ function M.new()
   function api.defer(fn) log("defer", fn) end
   function api.atexit(fn) log("atexit", fn) end
   function api.UpdateTimeline() log("UpdateTimeline") end
+  function api.UpdateArrange() log("UpdateArrange") end
+  function api.PreventUIRefresh(n) log("PreventUIRefresh", n) end
   function api.MarkProjectDirty() log("MarkProjectDirty") end
   function api.Undo_BeginBlock() log("Undo_BeginBlock") end
   function api.Undo_EndBlock(desc, flags)
