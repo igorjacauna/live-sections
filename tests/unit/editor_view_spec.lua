@@ -216,6 +216,21 @@ describe("ui.editor_view", function()
     end)
   end)
 
+  describe("grade", function()
+    after_each(function() require("core.editor_ops").set_grid("bar") end)
+
+    it("os botões trocam a grade e ela fica salva; dividir no tempo cai entre compassos", function()
+      assert.is_table(im.rects.grid_beat)
+      frame({ press = "grid_beat" })
+      assert.equal("beat", require("core.editor_ops").grid())
+      assert.equal("beat", reaper.GetExtState("LiveSections", "editor_grid"))
+      r._cursor = 9.4
+      frame({ key = im.Key_S })
+      assert.same({ 8, 9.5, "Verso" }, regions()[2])
+      assert.matches("compasso 5, tempo 4", view.state().status)
+    end)
+  end)
+
   describe("zoom da faixa", function()
     local function v() return view.state().view end
     local function strip_x(frac) local s = im.rects.strip; return s.x + frac * s.w end

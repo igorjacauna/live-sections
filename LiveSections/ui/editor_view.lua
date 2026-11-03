@@ -15,6 +15,8 @@
 -- o trecho sem seção. Dividir: clicar
 -- divide no compasso. Desenhar: arrastar cria uma seção. Na régua, clicar
 -- move o cursor e arrastar desenha. `S` divide no cursor; Ctrl/Cmd+Z desfaz.
+-- Grade (Compasso, Tempo, ½ tempo, Livre): onde dividir, desenhar e mover
+-- bordas pode cair; fica salva entre sessões.
 -- Zoom: Ctrl/Cmd+roda no ponto do mouse ou os botões −/+/Inteira; com zoom,
 -- a roda rola e o mini-mapa abaixo mostra e arrasta o trecho visível. Tocando,
 -- a faixa acompanha o cursor quando ele sai do trecho visível.
@@ -43,6 +45,8 @@ local NAV_H = 24           -- mini-mapa e botões de zoom abaixo da faixa
 local ZOOM_STEP = 1.5
 local MIN_VIEW_BARS = 2    -- zoom máximo: 2 compassos na faixa
 local SCROLL_STEP = 0.1    -- fração do trecho visível por passo da roda
+local GRIDS = { { "bar", "Compasso" }, { "beat", "Tempo" }, { "half", "½ tempo" }, { "free", "Livre" } }
+local GRID_KEY = "editor_grid"
 local EDGE_PX = 6          -- distância do mouse até a borda para arrastá-la
 local MAGNET_PX = 10       -- ímã: bordas de seção e início/fim da música
 local STATUS_S = 4
@@ -50,7 +54,7 @@ local WARN_REFRESH_S = 0.5
 
 local TOOLS = { { "select", "Selecionar" }, { "split", "Dividir" }, { "draw", "Desenhar" } }
 local TOOL_HINT = {
-  select = "Clique numa seção para editar; clique de novo nela para pôr o cursor no compasso. Tocar daqui (ou Espaço) toca do cursor. Duplo clique toca do início dela. Arraste a borda entre duas seções para mover as duas juntas. Clique na régua para mover o cursor; arraste nela para desenhar. Ctrl/Cmd+roda dá zoom; com zoom, a roda rola.",
+  select = "Clique numa seção para editar; clique de novo nela para pôr o cursor no compasso. Tocar daqui (ou Espaço) toca do cursor. Duplo clique toca do início dela. Arraste a borda entre duas seções para mover as duas juntas. Clique na régua para mover o cursor; arraste nela para desenhar. Ctrl/Cmd+roda dá zoom; com zoom, a roda rola. A grade, abaixo da faixa, diz onde as bordas caem: Compasso, Tempo, ½ tempo ou Livre.",
   split = "Clique num compasso dentro de uma seção para dividir ali. Atalho: S divide no cursor.",
   draw = "Arraste sobre a faixa para criar uma seção, com snap no compasso e ímã nas bordas das seções e no início e fim da música. Se ela invadir outra, a vizinha é recortada.",
 }
@@ -87,6 +91,7 @@ function M.init(deps)
   st.round, st.tap_bpm = "int", nil
   st.tool, st.selected, st.drag, st.menu_section = "select", nil, nil, nil
   st.view = nil
+  if not ops.set_grid(reaper.GetExtState("LiveSections", GRID_KEY)) then ops.set_grid("bar") end
   st.status, st.status_until, st.buf_for = nil, 0, nil
   st.warnings, st.warn_at, st.warn_count = {}, -math.huge, nil
 end
@@ -119,6 +124,26 @@ local function bar_at(t)
 end
 
 local function bars(a, b) return bar_at(b) - bar_at(a) end
+
+-- Posição para mensagens: "compasso 5" no compasso, "compasso 5, tempo 3"
+-- (ou "tempo 3½") entre compassos.
+local function pos_label(t)
+  local beat, measure = reaper.TimeMap2_timeToBeats(PROJ, t)
+  if math.abs(beat) < 1e-3 then return "compasso " .. (measure + 1) end
+  local whole = math.floor(beat + 1e-3)
+  local frac = beat - whole
+  local tail = frac < 1e-3 and "" or math.abs(frac - 0.5) < 1e-3 and "½" or string.format(",%02d", math.floor(frac * 100 + 0.5))
+  return string.format("compasso %d, tempo %d%s", measure + 1, whole + 1, tail)
+end
+
+-- Duração em compassos: "4 comp.", ou "2,5 comp." fora do compasso.
+local function len_label(a, b)
+  local _, _, cml, fa = reaper.TimeMap2_timeToBeats(PROJ, a)
+  local _, _, _, fb = reaper.TimeMap2_timeToBeats(PROJ, b)
+  local n = (fb - fa) / math.max(cml, 1)
+  if math.abs(n - math.floor(n + 0.5)) < 1e-3 then return string.format("%d comp.", math.floor(n + 0.5)) end
+  return (string.format("%.2f", n):gsub("0+$", ""):gsub("%.", ",")) .. " comp."
+end
 
 local function hex_to_native(hex)
   local v = tonumber(hex:gsub("^#", ""), 16)
@@ -167,7 +192,7 @@ end
 local function split_at(song, t)
   local at = ops.snap(t)
   local ok, err = ops.split(song, t)
-  report(ok, err, string.format("Dividida no compasso %d.", bar_at(at) + 1))
+  report(ok, err, "Dividida no " .. pos_label(at) .. ".")
 end
 
 local function draw_section(song, a, b)
@@ -425,6 +450,19 @@ local function strip_nav(ctx, x, y, w, song)
   local dl = ImGui.GetWindowDrawList(ctx)
   local v = view_of(song)
   local full = full_span(song)
+
+  -- grade, à esquerda
+  kit.txt(ctx, dl, "label", x, y + 5, theme.C.muted, "GRADE")
+  local gx = x + kit.size(ctx, "label", "GRADE") + 8
+  for _, g in ipairs(GRIDS) do
+    local bw = kit.size(ctx, "small", g[2]) + 18
+    if kit.button(ctx, "grid_" .. g[1], g[2], gx, y, NAV_H, { w = bw, style = "small", active = ops.grid() == g[1] }) then
+      ops.set_grid(g[1])
+      reaper.SetExtState("LiveSections", GRID_KEY, g[1], true)
+    end
+    gx = gx + bw + 4
+  end
+  local left = gx + 8
   local bx = x + w
   local function zbutton(id, label, fn)
     local bw = kit.size(ctx, "small", label) + 20
@@ -435,8 +473,9 @@ local function strip_nav(ctx, x, y, w, song)
   zbutton("zoom_all", "Inteira", function() v.t0, v.span = song.start_pos, full end)
   zbutton("zoom_in", "+", function() zoom(song, ZOOM_STEP) end)
   zbutton("zoom_out", "−", function() zoom(song, 1 / ZOOM_STEP) end)
-  local mw = bx - 4 - x
+  local mw = bx - 4 - left
   if mw < 40 then return end
+  x = left
 
   local function mx_of(t) return x + (t - song.start_pos) / full * mw end
   ImGui.DrawList_AddRectFilled(dl, x, y, x + mw, y + NAV_H, theme.C.bg, theme.R.r1)
@@ -490,6 +529,16 @@ local function strip(ctx, x, y, w, song, snap)
   local step = 1
   while step < 64 and w / n * step < 36 do step = step * 2 end
   ImGui.DrawList_AddLine(dl, x, y + RULER_H, x + w, y + RULER_H, theme.C.line)
+  -- com zoom, um traço curto por tempo (para posicionar entre compassos)
+  local _, _, cml = reaper.TimeMap2_timeToBeats(PROJ, v0)
+  if cml > 0 and w / n / cml >= 10 then
+    for m = vfirst, vlast do
+      for b = 1, cml - 1 do
+        local tx = to_x(reaper.TimeMap2_beatsToTime(PROJ, b, m))
+        ImGui.DrawList_AddLine(dl, tx, y + RULER_H - 3, tx, y + RULER_H, theme.C.line2)
+      end
+    end
+  end
   for m = vfirst, vlast do
     local tx = to_x(reaper.TimeMap2_beatsToTime(PROJ, 0, m))
     local major = (m - first) % step == 0
@@ -528,7 +577,7 @@ local function strip(ctx, x, y, w, song, snap)
     local lx = math.max(sx1, x) + 10
     ImGui.DrawList_PushClipRect(dl, math.max(sx1, x) + 8, top, math.min(sx2, x + w) - 8, bottom, true)
     kit.txt(ctx, dl, "button", lx, top + 8, theme.C.text, s.name)
-    kit.txt(ctx, dl, "small", lx, bottom - 22, theme.mix(theme.C.text, c, 0.3), bars(s.start_pos, s.end_pos) .. " comp.")
+    kit.txt(ctx, dl, "small", lx, bottom - 22, theme.mix(theme.C.text, c, 0.3), len_label(s.start_pos, s.end_pos))
     ImGui.DrawList_PopClipRect(dl)
     if st.tool == "select" and my >= lane_y and my <= lane_y + LANE_H then
       if math.abs(mx - sx2) <= EDGE_PX then hover_edge = { section = s, edge = "end" }
@@ -606,17 +655,16 @@ local function strip(ctx, x, y, w, song, snap)
     if d.kind == "edge" then
       local gx = to_x(p1)
       ImGui.DrawList_AddLine(dl, gx, y + RULER_H, gx, lane_y + LANE_H, theme.C.queue, 2)
-      kit.txt(ctx, dl, "num", gx + 6, y + RULER_H + 2, theme.C.queue, "comp. " .. (bar_at(p1) + 1))
+      kit.txt(ctx, dl, "num", gx + 6, y + RULER_H + 2, theme.C.queue, (pos_label(p1):gsub("compasso", "comp.")))
     elseif (d.kind == "draw" or d.kind == "ruler") and (b > a + EPS or d.kind == "draw") then
       if b <= a + EPS then
-        -- clique sem arrastar desenha o compasso onde caiu
-        local _, m = reaper.TimeMap2_timeToBeats(PROJ, d.t0)
-        a, b = reaper.TimeMap2_beatsToTime(PROJ, 0, m), reaper.TimeMap2_beatsToTime(PROJ, 0, m + 1)
+        -- clique sem arrastar desenha o passo da grade onde caiu
+        a, b = ops.step_at(d.t0)
       end
       local px1, px2 = to_x(a), to_x(b)
       ImGui.DrawList_AddRectFilled(dl, px1, lane_y + 4, px2, lane_y + LANE_H - 4, theme.rgba("#E8EDF5", 0.1), theme.R.r1 + 2)
       ImGui.DrawList_AddRect(dl, px1, lane_y + 4, px2, lane_y + LANE_H - 4, theme.C.text, theme.R.r1 + 2, 0, 2)
-      kit.txt(ctx, dl, "num", px1 + 8, lane_y + LANE_H / 2 - 8, theme.C.text, bars(a, b) .. " comp.")
+      kit.txt(ctx, dl, "num", px1 + 8, lane_y + LANE_H / 2 - 8, theme.C.text, len_label(a, b))
     end
   end
 

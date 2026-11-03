@@ -45,6 +45,51 @@ describe("editor_ops", function()
     r.calls = {}
   end)
 
+  describe("grade", function()
+    after_each(function() ops.set_grid("bar") end)
+
+    it("compasso (padrão), tempo, meio tempo e livre", function()
+      assert.equal("bar", ops.grid())
+      assert.equal(10, ops.snap(10.9))
+      ops.set_grid("beat")
+      assert.near(11, ops.snap(10.9), 1e-9)          -- tempo = 0,5 s
+      ops.set_grid("half")
+      assert.near(10.75, ops.snap(10.8), 1e-9)
+      ops.set_grid("free")
+      assert.equal(10.8, ops.snap(10.8))
+      assert.is_false(ops.set_grid("x"))
+      assert.equal("free", ops.grid())
+    end)
+
+    it("no tempo, dividir e mover a borda caem entre compassos", function()
+      ops.set_grid("beat")
+      assert.is_true(ops.split(song(1), 9.4))
+      assert.same({ 8, 9.5, "Verso" }, r.regions()[2])
+      assert.is_true(ops.resize(song(1), sec(1, "Intro"), "end", 7.3))
+      local rg = r.regions()
+      assert.near(7.5, rg[1][2], 1e-9)
+      assert.near(7.5, rg[2][1], 1e-9)               -- a vizinha encostada vai junto
+    end)
+
+    it("no tempo, a seção pode ter só um tempo; duração em compassos mantém o ponto do compasso", function()
+      ops.set_grid("beat")
+      ops.resize(song(1), sec(1, "Verso"), "start", 8.5)
+      assert.is_true(ops.resize(song(1), sec(1, "Verso"), "end", 8.6))
+      assert.near(9, sec(1, "Verso").end_pos, 1e-9)
+      assert.is_true(ops.set_length(song(1), sec(1, "Verso"), 2))
+      assert.near(12.5, sec(1, "Verso").end_pos, 1e-9)
+    end)
+
+    it("clique sem arrastar no Desenhar cria um passo da grade", function()
+      ops.set_grid("half")
+      assert.is_true(ops.draw(song(1), 25.1, 25.1))
+      local found
+      for _, x in ipairs(r.regions()) do if x[3] == "Seção" then found = x end end
+      assert.near(25, found[1], 1e-9)
+      assert.near(25.25, found[2], 1e-9)
+    end)
+  end)
+
   describe("split", function()
     it("divide no compasso mais próximo; a segunda parte herda cor e ganha nome numerado", function()
       assert.is_true(ops.split(song(1), 11.3))   -- compasso mais próximo: 12 s

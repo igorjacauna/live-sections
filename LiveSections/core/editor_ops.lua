@@ -1,9 +1,10 @@
 -- Operações de edição da estrutura: dividir, juntar, redimensionar, renomear,
 -- remover, criar e renomear música, sobre regiões e marcadores nativos do REAPER.
 --
--- Toda posição recebida é ajustada ao compasso mais próximo. Nenhuma operação
--- cria sobreposição nem seção com menos de um compasso, e cada uma é um único
--- passo de undo. Retornam ok, err. Os argumentos vêm do project_model; depois
+-- Toda posição recebida é ajustada à grade (M.set_grid): o compasso mais
+-- próximo (padrão), o tempo, o meio tempo ou livre. Nenhuma operação cria
+-- sobreposição nem seção com menos de um passo da grade (meio tempo no
+-- livre), e cada uma é um único passo de undo. Retornam ok, err. Os argumentos vêm do project_model; depois
 -- de uma operação, chame project_model.refresh para reler o projeto.
 
 local M = {}
@@ -23,11 +24,51 @@ end
 
 local function measure_start(measure) return reaper.TimeMap2_beatsToTime(PROJ, 0, measure) end
 
--- Posição do compasso mais próximo.
-function M.snap(pos) return measure_start(measure_of(pos)) end
+-- Grade: "bar" (compasso), "beat" (tempo), "half" (meio tempo) ou "free".
+M.GRIDS = { "bar", "beat", "half", "free" }
+local grid = "bar"
 
--- Posição `n` compassos depois (ou antes, n < 0) de um início de compasso.
-local function bars_from(pos, n) return measure_start(measure_of(pos) + n) end
+function M.set_grid(g)
+  for _, k in ipairs(M.GRIDS) do if k == g then grid = g; return true end end
+  return false
+end
+function M.grid() return grid end
+
+-- Divisões por tempo da grade fina (o livre usa meio tempo como passo mínimo).
+local function per_beat() return grid == "beat" and 1 or 2 end
+
+-- Posição da grade mais próxima.
+function M.snap(pos)
+  if grid == "bar" then return measure_start(measure_of(pos)) end
+  if grid == "free" then return pos end
+  local beat, measure = reaper.TimeMap2_timeToBeats(PROJ, pos)
+  local d = per_beat()
+  return reaper.TimeMap2_beatsToTime(PROJ, math.floor(beat * d + 0.5) / d, measure)
+end
+
+-- Posição `n` compassos depois (ou antes, n < 0), no mesmo ponto do compasso.
+local function bars_from(pos, n)
+  local beat, measure = reaper.TimeMap2_timeToBeats(PROJ, pos)
+  if math.abs(beat) < EPS then return measure_start(measure + n) end
+  return reaper.TimeMap2_beatsToTime(PROJ, beat, measure + n)
+end
+
+-- Posição `n` passos da grade depois (ou antes) de `pos`.
+local function steps_from(pos, n)
+  if grid == "bar" then return bars_from(pos, n) end
+  local beat, measure = reaper.TimeMap2_timeToBeats(PROJ, pos)
+  return reaper.TimeMap2_beatsToTime(PROJ, beat + n / per_beat(), measure)
+end
+
+-- Passo da grade que contém `pos`: início e fim (clique sem arrastar).
+function M.step_at(pos)
+  local beat, measure = reaper.TimeMap2_timeToBeats(PROJ, pos)
+  if grid == "bar" then return measure_start(measure), measure_start(measure + 1) end
+  local d = per_beat()
+  local a = reaper.TimeMap2_beatsToTime(PROJ, math.floor(beat * d + EPS) / d, measure)
+  return a, steps_from(a, 1)
+end
+local step_at = M.step_at
 
 -- ------------------------------------------------------------------ nomes
 
@@ -107,19 +148,20 @@ end
 
 -- Move a borda `edge` ("start" ou "end") da seção para `pos`. Se a seção
 -- vizinha encosta nessa borda, ela se move junto. A posição é limitada para
--- nenhuma das duas ficar com menos de um compasso nem invadir outra seção.
-function M.resize(song, section, edge, pos)
+-- nenhuma das duas ficar com menos de um passo da grade nem invadir outra
+-- seção. Com `exact`, `pos` vale como está (sem a grade).
+function M.resize(song, section, edge, pos, exact)
   local prev, nxt = neighbors(song, section)
-  local at = M.snap(pos)
+  local at = exact and pos or M.snap(pos)
   local min, max, linked
   if edge == "end" then
     linked = nxt and adjacent(section.end_pos, nxt.start_pos)
-    min = bars_from(section.start_pos, 1)
-    max = nxt and (linked and bars_from(nxt.end_pos, -1) or nxt.start_pos) or song.end_pos
+    min = steps_from(section.start_pos, 1)
+    max = nxt and (linked and steps_from(nxt.end_pos, -1) or nxt.start_pos) or song.end_pos
   elseif edge == "start" then
     linked = prev and adjacent(prev.end_pos, section.start_pos)
-    max = bars_from(section.end_pos, -1)
-    min = prev and (linked and bars_from(prev.start_pos, 1) or prev.end_pos) or song.start_pos
+    max = steps_from(section.end_pos, -1)
+    min = prev and (linked and steps_from(prev.start_pos, 1) or prev.end_pos) or song.start_pos
   else
     error("editor_ops.resize: borda desconhecida: " .. tostring(edge), 2)
   end
@@ -144,7 +186,7 @@ end
 function M.set_length(song, section, bars)
   bars = math.floor(bars + 0.5)
   if bars < 1 then return false, "too_short" end
-  return M.resize(song, section, "end", bars_from(section.start_pos, bars))
+  return M.resize(song, section, "end", bars_from(section.start_pos, bars), true)
 end
 
 -- Renomeia a seção. Nome repetido na música ganha numeração ("Verso 2").
@@ -174,9 +216,8 @@ end
 function M.draw(song, start_pos, end_pos, name)
   local a, b = M.snap(math.min(start_pos, end_pos)), M.snap(math.max(start_pos, end_pos))
   if b <= a + EPS then
-    -- clique sem arrastar: o compasso onde o clique caiu
-    local _, measure = reaper.TimeMap2_timeToBeats(PROJ, math.min(start_pos, end_pos))
-    a, b = measure_start(measure), measure_start(measure + 1)
+    -- clique sem arrastar: o passo da grade onde o clique caiu
+    a, b = M.step_at(math.min(start_pos, end_pos))
   end
   -- início e fim da música valem como estão, mesmo fora do compasso
   if math.min(start_pos, end_pos) <= song.start_pos + EPS then a = song.start_pos end
