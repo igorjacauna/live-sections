@@ -45,6 +45,11 @@ describe("layers", function()
       assert.is_nil(links[c.id])
     end)
 
+    it("song_key é a identidade da música usada no vínculo", function()
+      assert.equal(layers.links(songs)[b.id].key, "kontakt:" .. layers.song_key(b))
+      assert.equal("projeto", layers.song_key({ name = "Projeto" }))
+    end)
+
     it("o vínculo segue a música quando o marcador muda de posição", function()
       reaper.SetProjectMarker3(0, b.marker_idx, false, 44, 0, "SONG: B", 0)
       model.refresh(0)

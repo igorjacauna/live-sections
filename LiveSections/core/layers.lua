@@ -37,6 +37,8 @@
 -- M.set_layer_volume(slot, value) -> "set"|"waiting"|"no_layer"   value 0–1 do fader
 -- M.takeover(slot) -> nil|"up"|"down"   direção para o fader alcançar a camada
 -- M.toggle_mute(slot)   liga/desliga a camada (mute da track)
+-- M.song_key(song) -> guid?   GUID do marcador da música ("projeto" sem
+--                        marcador); nil se o marcador sumiu
 -- M.rename_layer(slot, name) -> ok, final|err   renomeia a track da camada N
 --                        da música atual, num passo de undo ("empty_name",
 --                        "no_layer")
@@ -96,6 +98,9 @@ local function link_key(song)
   local guid = marker_guid(song)
   return guid and KEY_PREFIX .. guid
 end
+
+-- Identidade da música no ProjExtState (a mesma do vínculo do Kontakt).
+M.song_key = marker_guid
 
 function M.begin_cycle() cycle = { state = reaper.GetProjectStateChangeCount(PROJ), layers = {}, rows = {} } end
 
