@@ -26,6 +26,11 @@ Site, demo e instalação: https://live-sections.igor-jacauna-cloudflare.workers
 - Modo Editar: faixa de estrutura com dividir, desenhar, arrastar bordas, ímã,
   chips de nome e um passo de undo por operação; avisos com correção
 - Tap tempo e alinhamento do compasso 1 para músicas gravadas sem grid
+- Biblioteca de músicas: Exportar (modo Editar) salva a música configurada
+  (seções, tempo, cifra, anotação, Kontakt com o timbre, camadas, parâmetros e
+  áudios) numa pasta; "+ Da biblioteca" monta o setlist num projeto novo, uma
+  música depois da outra. Em outro computador, leve a pasta da biblioteca; o
+  Kontakt e as bibliotecas dele precisam estar instalados lá
 - Cifra por música na janela de cifra e no celular/tablet (navegador, com QR
   Code): seção inteira com barra de progresso; anotação por música (tom, dica)
 - Modo palco com camadas e anotação, e 69 actions para o Action List ou o ReaLearn

@@ -378,6 +378,12 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
 .steps > li::before { content: counter(st); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--raise2); font: 700 13px var(--f-num); }
 .steps > li > div { display: grid; gap: 8px; }
 .outs { display: grid; gap: 6px; }
+.libi { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 4px 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--raise); }
+.libi small { grid-column: 2; color: var(--muted); font-size: 12px; }
+.libi.off { opacity: .55; }
+.liborder { display: grid; gap: 6px; margin: 0; padding-left: 22px; }
+.liborder li { display: flex; gap: 8px; align-items: center; }
+.libres { white-space: pre-line; margin: 0; }
 .out { display: grid; grid-template-columns: 22px 64px minmax(0, 1fr); gap: 10px; align-items: center; }
 .out input[type=text] { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line2); background: var(--bg); font-weight: 600; }
 .out input[type=checkbox] { accent-color: var(--text); width: 16px; height: 16px; }
@@ -486,6 +492,18 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
     { name: 'Sete Oitavos', bpm: 140, sig: [7, 8], bars: 40, bar1: 0, kontakt: null, layers: [],
       sections: [S('Intro', 0, 4), S('Verso', 4, 8), S('Refrão', 12, 8), S('Solo', 20, 8), S('Refrão 2', 28, 8), S('Outro', 36, 4)] },
   ];
+
+  // biblioteca de músicas da demo (Exportar e "+ Da biblioteca")
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  const library = [
+    { song: { name: 'Céu de Abril', bpm: 72, sig: [3, 4], bars: 48, bar1: 0, kontakt: { track: 'Kontakt 7 · Céu de Abril' },
+      layers: [L('Piano', .8, [P('Reverb', 'knob', 96)]), L('Cordas', .6)],
+      sections: [S('Intro', 0, 8), S('Verso', 8, 16), S('Refrão', 24, 16), S('Outro', 40, 8)] }, at: '01/11/2026', missing: [] },
+    { song: { name: 'Noite Clara', bpm: 110, sig: [4, 4], bars: 56, bar1: 0, kontakt: { track: 'Kontakt 7 · Noite Clara' },
+      layers: [L('Órgão', .7, [P('Rotary', 'toggle', 127)]), L('Pad', .5)],
+      sections: [S('Intro', 0, 8), S('Verso', 8, 16), S('Refrão', 24, 16), S('Ponte', 40, 8), S('Outro', 48, 8)] }, at: '28/10/2026', missing: ['VST3: ValhallaRoom'] },
+  ];
+  let libPick = [];
 
   // cifra de exemplo: por nome-base da seção, versos de acordes + letra (ou uma linha em grade)
   const LYR = {
@@ -874,7 +892,7 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
           <button class="mini nx" data-act="next" data-map="next" data-k="${T.song + 1}" ${next ? '' : 'disabled'}><span class="eyebrow nxl">Próxima</span><b>${next ? esc(next.name) : 'Fim do show'}</b></button>
           <button class="btn" data-act="setlist" data-map="setlist">${ic('list')} Setlist</button>
         </div>`
-      : `<aside class="setlist panel"><div class="ph"><span class="eyebrow">Setlist</span><span class="faint num">${n} músicas</span></div><ol>${songs.map((_, k) => songItem(k)).join('')}</ol></aside>`;
+      : `<aside class="setlist panel"><div class="ph"><span class="eyebrow">Setlist</span><button class="btn sm ghost" data-act="lib">${ic('plus')} Da biblioteca</button></div><ol>${songs.map((_, k) => songItem(k)).join('')}</ol></aside>`;
     const body = s.sections.length
       ? `<div class="cards">${s.sections.map(cardHTML).join('')}</div>`
       : `<div class="empty"><b>Esta música ainda não tem seções</b><span>Crie as seções no modo Editar: desenhe na régua ou divida a música em partes.</span><button class="btn" data-act="mode" data-arg="edit">Ir para Editar</button></div>`;
@@ -1010,6 +1028,8 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
       <section class="emain">
         <div class="etool panel">
           <div class="seg" role="tablist" aria-label="Música">${songs.map((x, k) => `<button data-act="esong" data-arg="${k}" aria-pressed="${k === T.song}">${k + 1}. ${esc(x.name)}</button>`).join('')}</div>
+          <button class="btn sm" data-act="export">Exportar</button>
+          <button class="btn sm" data-act="lib">${ic('plus')} Da biblioteca</button>
           <button class="btn sm" data-act="addsong">${ic('plus')} Música</button>
         </div>
         <div class="panel strippanel">
@@ -1479,6 +1499,63 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
     </div></div>`;
   }
 
+  // ------------------------------------------------------------------ biblioteca
+  const libSummary = (x) => `${ptNum(x.song.bpm)} BPM · ${x.song.sig[0]}/${x.song.sig[1]} · ${x.song.bars} comp. · ${x.song.sections.length} seções · ${x.at}`;
+
+  function openExport(confirm) {
+    const s = cur();
+    const tracks = ['Guia', 'Click', 'Bateria', s.kontakt ? s.kontakt.track : null, ...s.layers.map((l) => l.name)].filter(Boolean);
+    $('#modal').innerHTML = `<div class="overlay" data-act="closemodal"><div class="modal panel" role="dialog" aria-label="Exportar música" data-stop="1">
+      <div><span class="eyebrow">Exportar música · ${esc(s.name)}</span><h2>Salvar na biblioteca</h2></div>
+      <label class="field"><span class="note">Nome na biblioteca</span><input id="ex-name" type="text" value="${esc(s.name)}"></label>
+      <div><span class="note">Marcadas: as que têm itens na música, o Kontakt, as camadas e as pastas delas.</span>
+        <div class="outs">${tracks.map((t, i) => `<label class="libi"><input type="checkbox" checked><span>${i + 1}. ${esc(t)}</span></label>`).join('')}</div></div>
+      <span class="note">${s.sections.length + 3} itens · 184,2 MB de áudio a copiar</span>
+      ${confirm ? `<span class="note" style="color:var(--queue)">"${esc(s.name)}" já está na biblioteca. Exportar de novo substitui.</span>` : ''}
+      <div class="row" style="justify-content:flex-end"><button class="btn ghost" data-act="closemodal">Cancelar</button><button class="btn primary" data-act="exdo" data-arg="${confirm ? 1 : 0}">${confirm ? 'Substituir' : 'Exportar'}</button></div>
+    </div></div>`;
+  }
+
+  function doExport(force) {
+    const s = cur();
+    const name = ($('#ex-name').value || '').trim() || s.name;
+    const at = library.findIndex((x) => x.song.name === name);
+    if (at >= 0 && !force) { openExport(true); $('#ex-name').value = name; return; }
+    const entry = { song: Object.assign(clone(s), { name }), at: new Date().toLocaleDateString('pt-BR'), missing: [] };
+    if (at >= 0) library[at] = entry; else library.push(entry);
+    $('#modal').innerHTML = `<div class="overlay" data-act="closemodal"><div class="modal panel" role="dialog" aria-label="Exportar música" data-stop="1">
+      <div><span class="eyebrow">Exportar música</span><h2>Salva na biblioteca</h2></div>
+      <p class="libres">"${esc(name)}" salva em Live Sections/Músicas/${esc(name)}.
+3 arquivos de áudio copiados (184,2 MB).
+Para usar em outro computador, leve a pasta da biblioteca. Lá precisam estar instalados o Kontakt e as bibliotecas dele.</p>
+      <div class="row" style="justify-content:flex-end"><button class="btn primary" data-act="closemodal">Fechar</button></div>
+    </div></div>`;
+  }
+
+  function openLibrary(missing) {
+    const rows = library.map((x, i) => `<label class="libi"><input type="checkbox" data-act="libpick" data-arg="${i}" ${libPick.includes(i) ? 'checked' : ''}><b>${esc(x.song.name)}</b><small>${libSummary(x)}</small></label>`).join('');
+    const order = libPick.length ? `<div><span class="note">Ordem no setlist</span><ol class="liborder">${libPick.map((i, k) => `<li><button class="btn sm ghost" data-act="libup" data-arg="${k}" ${k ? '' : 'disabled'}>Subir</button>${esc(library[i].song.name)}</li>`).join('')}</ol></div>` : '';
+    const body = missing
+      ? `<div><span class="note" style="color:var(--queue)">Plugins que não estão instalados nesta máquina:</span><ul>${missing.map((m) => `<li>${esc(m)}</li>`).join('')}</ul><span class="note">Adicionando mesmo assim, eles abrem offline até serem instalados.</span></div>
+        <div class="row" style="justify-content:flex-end"><button class="btn ghost" data-act="libback">Cancelar</button><button class="btn primary" data-act="libforce">Adicionar mesmo assim</button></div>`
+      : `<div class="outs">${rows}</div>${order}
+        <div class="row" style="justify-content:flex-end"><button class="btn ghost" data-act="libfolder">Abrir pasta</button><button class="btn ghost" data-act="closemodal">Cancelar</button><button class="btn primary" data-act="libadd" ${libPick.length ? '' : 'disabled'}>${libPick.length > 1 ? `Adicionar ${libPick.length} músicas` : 'Adicionar'}</button></div>`;
+    $('#modal').innerHTML = `<div class="overlay" data-act="closemodal"><div class="modal panel" role="dialog" aria-label="Biblioteca de músicas" data-stop="1">
+      <div><span class="eyebrow">Biblioteca de músicas</span><h2>Montar o setlist</h2></div>${body}
+    </div></div>`;
+  }
+
+  function libAdd(force) {
+    const missing = [...new Set(libPick.flatMap((i) => library[i].missing))];
+    if (missing.length && !force) { openLibrary(missing); return; }
+    const n = libPick.length;
+    libPick.forEach((i) => songs.push(clone(library[i].song)));
+    libPick = [];
+    $('#modal').innerHTML = '';
+    renderView();
+    toast(`${n} ${n === 1 ? 'música adicionada' : 'músicas adicionadas'} no fim do projeto, cada uma com o seu tempo.`);
+  }
+
   // ------------------------------------------------------------------ ações
   function act(a, arg, e, el) {
     const s = cur();
@@ -1578,6 +1655,15 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
         renderView(); if (w) toast(`Corrigido: ${w.fix}. Um passo de undo.`); break;
       }
       case 'wizard': openWizard(); break;
+      case 'export': openExport(false); break;
+      case 'exdo': doExport(arg === '1'); break;
+      case 'lib': libPick = []; openLibrary(); break;
+      case 'libpick': { const i = +arg; libPick = libPick.includes(i) ? libPick.filter((x) => x !== i) : [...libPick, i]; openLibrary(); break; }
+      case 'libup': { const k = +arg; [libPick[k - 1], libPick[k]] = [libPick[k], libPick[k - 1]]; openLibrary(); break; }
+      case 'libadd': libAdd(false); break;
+      case 'libback': openLibrary(); break;
+      case 'libforce': libAdd(true); break;
+      case 'libfolder': toast('No REAPER, abre a pasta da biblioteca no Explorer ou no Finder.'); break;
       case 'closemodal': if (!e.target.closest('[data-stop]') || el.tagName === 'BUTTON') $('#modal').innerHTML = ''; break;
       case 'kzadd': {
         const box = $('#kz-outs'), i = box.children.length;
