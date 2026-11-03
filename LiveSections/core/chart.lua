@@ -72,17 +72,23 @@ local function is_chord(tok)
 end
 
 local function is_filler(tok)
-  return tok == "|" or tok == "||" or tok == "-" or tok == "%" or tok:match("^%(?x%d+%)?$") or tok:match("^%(%)$")
+  return tok == "|" or tok == "||" or tok == "-" or tok == "%" or tok:match("^%(?x%d+%)?$") or tok:match("^[()]+$")
 end
 
--- "chords", "grid", "lyrics" ou "blank"
+-- "chords", "grid", "lyrics" ou "blank". Acorde entre parênteses, "(C)" ou
+-- "( C )", conta como acorde. Uma linha de acordes pode ter anotações
+-- ("Riff", "Solo") se os acordes forem pelo menos o dobro delas; assim
+-- letra que começa com "Em" ou "A" continua letra.
 local function line_kind(line)
   if trim(line) == "" then return "blank" end
   local chords, other = 0, 0
   for tok in line:gmatch("[^%s|]+") do
-    if is_chord(tok) then chords = chords + 1 elseif not is_filler(tok) then other = other + 1 end
+    local bare = tok:gsub("^%(+", ""):gsub("%)+$", "")
+    if is_filler(tok) then -- nada
+    elseif is_chord(tok) or (bare ~= tok and is_chord(bare)) then chords = chords + 1
+    else other = other + 1 end
   end
-  if chords > 0 and other == 0 then
+  if chords > 0 and (other == 0 or (chords >= 2 and chords >= 2 * other)) then
     return line:find("|", 1, true) and "grid" or "chords"
   end
   return "lyrics"

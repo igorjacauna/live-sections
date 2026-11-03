@@ -53,6 +53,12 @@ describe("core.chart", function()
       assert.equal("pair", u[1].kind)
       assert.equal("lyrics", u[2].kind)
     end)
+
+    it("acorde entre parênteses e anotação com acordes de sobra continuam acordes", function()
+      local p = chart.parse("[X]\n   ( C ) C7M\nDigno\n Dm7(11)  C/E  F2 Riff\nSobre\nEm Deus\nA casa e a rua")
+      local u = p.blocks[1].units
+      assert.same({ "pair", "pair", "lyrics", "lyrics" }, { u[1].kind, u[2].kind, u[3].kind, u[4].kind })
+    end)
   end)
 
   describe("units_for", function()
