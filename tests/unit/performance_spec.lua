@@ -157,6 +157,26 @@ describe("performance", function()
       assert.equal("B", perf.current_song().name)
     end)
 
+    it("pre-roll: tocar do início de uma música começa antes, na anterior, sem trocar de música", function()
+      r.set_play(false); r._cursor = 40; perf.tick()
+      assert.equal("B", perf.current_song().name)
+      r.calls = {}
+      r.set_play(true, 38.5)                       -- o REAPER começa 1,5 s antes
+      perf.tick()
+      assert.equal("B", perf.current_song().name)
+      assert.equal(0, #r.calls_to("GetSet_LoopTimeRange2"))
+      r.set_play(true, 40.2)
+      perf.tick()
+      assert.equal("B", perf.current_song().name)
+    end)
+
+    it("tocando, voltar bem antes da música atual troca para a anterior", function()
+      r.set_play(false); r._cursor = 40; perf.tick()
+      r.set_play(true, 10)
+      perf.tick()
+      assert.equal("A", perf.current_song().name)
+    end)
+
     it("parar no meio da música não move o cursor", function()
       playing_at(10.0)
       r.set_play(false); perf.tick()
