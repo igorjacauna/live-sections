@@ -68,6 +68,27 @@ describe("ui.chart_view", function()
     assert.is_true(y_now > text_at("linha 22")[4])
   end)
 
+  it("entrar na seção seguinte continua a rolagem: o 'A seguir' vira o cabeçalho no mesmo lugar", function()
+    local r = stub.install()
+    local verso = {}
+    for i = 1, 8 do verso[#verso + 1] = { kind = "lyrics", text = "verso " .. i, current = i >= 7 or nil, past = i < 7 or nil } end
+    local function with(list, extra) local out = {} for _, x in ipairs(list) do out[#out + 1] = x end for _, x in ipairs(extra) do out[#out + 1] = x end return out end
+    r.set_now(10)
+    view.draw("ctx", { song = "A", section = "Verso", focus = 7.9,
+      rows = with(verso, { { kind = "next", text = "Refrão" }, { kind = "lyrics", text = "refrão 1" } }) })
+    for _ = 1, 3 do r.set_now(r._now + 2); view.draw("ctx", { song = "A", section = "Verso", focus = 7.9,
+      rows = with(verso, { { kind = "next", text = "Refrão" }, { kind = "lyrics", text = "refrão 1" } }) }) end
+    local before = text_at("refrão 1")[4]
+    calls = {}
+    -- no Refrão: as últimas 2 linhas do Verso, o cabeçalho e o Refrão
+    view.draw("ctx", { song = "A", section = "Refrão", prev = "Verso", focus = 3.05, rows = {
+      { kind = "lyrics", text = "verso 7", past = true }, { kind = "lyrics", text = "verso 8", past = true },
+      { kind = "header", text = "Refrão" }, { kind = "lyrics", text = "refrão 1", current = true } } })
+    assert.near(before, text_at("refrão 1")[4], 1)     -- nada pulou
+    assert.is_table(text_at("verso 8"))                 -- a seção anterior continua visível
+    assert.matches("REFR", texts())
+  end)
+
   it("linhas que já passaram ficam apagadas", function()
     view.draw("ctx", { song = "A", section = "Verso", focus = 1,
       rows = { { kind = "lyrics", text = "antes", past = true }, { kind = "lyrics", text = "agora", current = true } } })

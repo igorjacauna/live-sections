@@ -42,10 +42,14 @@ describe("core.stage", function()
 
   it("Verso: a seção inteira com o verso atual e o ponto de leitura; progresso de 0 a 1", function()
     local s = stage.build(snap(13), { max_lines = 2 })
-    assert.equal(4, #s.rows)
-    assert.is_true(s.rows[3].current)
-    assert.is_true(s.rows[1].past)
-    assert.near(2.5, s.focus, 1e-3)               -- metade do 2º verso
+    -- antes: o fim da Intro (já passada) e o cabeçalho "Verso"
+    assert.equal(6, #s.rows)
+    assert.same({ "grid", true }, { s.rows[1].kind, s.rows[1].past })
+    assert.same({ "header", "Verso" }, { s.rows[2].kind, s.rows[2].text })
+    assert.equal("Intro", s.prev)
+    assert.is_true(s.rows[5].current)
+    assert.is_true(s.rows[3].past)
+    assert.near(4.5, s.focus, 1e-3)               -- metade do 2º verso
     assert.equal(0.625, s.progress)               -- 2,5 de 4 compassos
     assert.equal(0, stage.build(snap(8)).progress)
   end)

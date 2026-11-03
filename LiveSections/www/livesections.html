@@ -44,6 +44,7 @@ main { flex: 1; overflow: hidden; padding-top: 14px; }
 .row.cur { background: var(--raise); box-shadow: inset 4px 0 0 var(--queue); }
 .rows { will-change: transform; }
 .row.nexthdr { font: 700 13px var(--ui); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 12px 0 6px; border: 0; padding-left: 18px; }
+.row.sechdr { color: var(--muted); }
 .grid { display: flex; gap: 6px; flex-wrap: wrap; white-space: normal; }
 .grid span { padding: 4px 12px; border-radius: 8px; background: var(--raise); font-weight: 700; }
 .grid span.on { background: var(--text); color: var(--ink); }
@@ -92,26 +93,41 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
   // Letra do maior tamanho em que a linha mais longa cabe, vezes o ajuste A−/A+.
   function fit(rows) {
     var longest = 8;
-    rows.forEach(function (r) { if (r.kind !== 'next' && r.kind !== 'grid') longest = Math.max(longest, r.text.length); });
+    rows.forEach(function (r) { if (r.kind !== 'next' && r.kind !== 'header' && r.kind !== 'grid') longest = Math.max(longest, r.text.length); });
     var w = document.getElementById('chart').clientWidth - 24;
     var px = Math.min(40, Math.max(14, w / (longest * 0.61)));
     document.documentElement.style.setProperty('--fs', (px * scale).toFixed(1) + 'px');
   }
 
   // Teleprompter: o ponto de leitura (s.focus, em linhas) fica fixo perto do
-  // meio e a cifra desliza até ele. Troca de seção pula direto.
-  var FOCUS_AT = 0.42, shownKey = null, shownSig = null;
+  // meio e a cifra desliza até ele. Ao entrar na seção seguinte, o "A seguir"
+  // da anterior vira o cabeçalho da nova no mesmo lugar e a rolagem continua;
+  // um salto para outra seção muda direto.
+  var FOCUS_AT = 0.42, shown = { key: null, sig: null, song: null, section: null };
   function rowsSig(rows) { return JSON.stringify(rows.map(function (r) { return [r.kind, r.text, r.cells || null]; })); }
   function showRows(main, rows, out, s) {
     var key = (s.song || '') + '\u0000' + (s.section || '');
     var sig = rowsSig(rows);
     var box = main.firstElementChild;
-    var jump = key !== shownKey || !box || !box.classList.contains('rows');
-    if (jump || sig !== shownSig) {
+    var hasBox = box && box.classList.contains('rows');
+    var changed = key !== shown.key;
+    var anchor = null;   // topo, na tela, do "A seguir" da seção anterior
+    if (changed && hasBox && s.prev && s.prev === shown.section && s.song === shown.song) {
+      var nx = box.querySelector('.nexthdr:not(.sechdr)');
+      if (nx) anchor = nx.getBoundingClientRect().top;
+    }
+    if (changed || !hasBox || sig !== shown.sig) {
       box = el('div', 'rows');
       box.replaceChildren.apply(box, out);
       main.replaceChildren(box);
-      shownSig = sig;
+      var hdr = anchor != null && box.querySelector('.sechdr');
+      if (hdr) {
+        box.style.transition = 'none';
+        box.style.transform = 'translateY(' + (anchor - hdr.getBoundingClientRect().top).toFixed(1) + 'px)';
+        void box.offsetHeight;
+      } else if (changed || !hasBox) {
+        anchor = null;
+      }
     } else {
       // mesmas linhas: só troca o destaque (atual, já passou, compasso da grade)
       for (var i = 0; i < out.length; i++) {
@@ -119,18 +135,19 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
         if (rows[i].kind === 'grid') box.children[i].replaceChildren.apply(box.children[i], Array.prototype.slice.call(out[i].childNodes));
       }
     }
+    var jump = (changed || !hasBox) && anchor == null;
     var f = s.focus || 0, k = Math.min(Math.floor(f), box.children.length - 1);
     var row = box.children[Math.max(0, k)];
     var y = row ? row.offsetTop - box.children[0].offsetTop + (f - Math.floor(f)) * row.offsetHeight : 0;
     var shift = main.clientHeight * FOCUS_AT - y;
     box.style.transition = jump ? 'none' : 'transform .6s linear';
     box.style.transform = 'translateY(' + shift.toFixed(1) + 'px)';
-    shownKey = key;
+    shown = { key: key, sig: sig, song: s.song, section: s.section };
   }
 
   function render(s) {
     if (!s.open) {
-      shownKey = null;
+      shown.key = null;
       $('section').textContent = 'Live Sections fechado';
       $('song').textContent = 'Live Sections';
       $('bar').textContent = ''; $('next').textContent = ''; $('prog').className = 'prog off'; $('play').textContent = ''; $('note').textContent = '';
@@ -154,7 +171,7 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
     if (!rows.length) {
       var msg = el('div', 'empty', s.has_chart ? 'Sem cifra para esta seção.' : 'Esta música não tem cifra.');
       msg.appendChild(el('small', null, 'No REAPER: modo Editar → Cifra, com cabeçalhos [Intro], [Verso], [Refrão]… iguais aos nomes das seções.'));
-      shownKey = null;
+      shown.key = null;
       main.replaceChildren(msg);
       return;
     }
@@ -162,6 +179,7 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
     var out = [];
     rows.forEach(function (r) {
       if (r.kind === 'next') { out.push(el('div', 'row nexthdr', 'A seguir · ' + r.text)); return; }
+      if (r.kind === 'header') { out.push(el('div', 'row nexthdr sechdr', r.text)); return; }
       var d = el('div', 'row ' + r.kind + (r.current ? ' cur' : '') + (r.past ? ' past' : ''));
       if (r.kind === 'grid') {
         d.classList.add('grid');

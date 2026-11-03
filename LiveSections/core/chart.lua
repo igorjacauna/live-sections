@@ -21,8 +21,9 @@
 -- M.song_value(song, prefix) / M.set_song_value(song, prefix, text)
 -- M.for_song(song) -> parse do texto da música (em cache)
 -- M.units_for(parsed, section) -> versos da seção, ou nil
--- M.view(units, bar, bars, max_lines, next_name, next_units) -> rows, focus
---   rows: { kind = "chords"|"lyrics"|"grid"|"next", text, current?, past?, cells?, cell? }
+-- M.view(units, bar, bars, max_lines, next_name, next_units, prev) -> rows, focus
+--   prev = { name = nome da seção atual, units = versos da anterior }?
+--   rows: { kind = "chords"|"lyrics"|"grid"|"next"|"header", text, current?, past?, cells?, cell? }
 --   a seção inteira (teleprompter); current = linhas do verso atual, past =
 --   as que já passaram; cell = compasso exato numa grade atual. focus: ponto
 --   de leitura em linhas desde o topo (fracionário), para centralizar.
@@ -201,9 +202,11 @@ end
 -- Linhas para exibir: a seção inteira, como num teleprompter. O verso atual
 -- sai do compasso (`bar`, 0 = primeiro, fracionário) pela divisão do tempo
 -- entre os versos; `focus` anda dentro dele conforme o compasso avança, e a
--- tela mantém esse ponto no meio. Depois da seção, "A seguir" com até
--- `max_lines` linhas da próxima. Linhas em grade acendem o compasso atual.
-function M.view(units, bar, bars, max_lines, next_name, next_units)
+-- tela mantém esse ponto no meio. Antes da seção, o fim da anterior (até
+-- `max_lines` linhas, já passadas) e um cabeçalho com o nome da atual; depois,
+-- "A seguir" com até `max_lines` linhas da próxima. Assim a passagem de uma
+-- seção para a seguinte é contínua. Linhas em grade acendem o compasso atual.
+function M.view(units, bar, bars, max_lines, next_name, next_units, prev)
   units = units or {}
   max_lines = math.max(max_lines or 6, 2)
   bar = bar or 0
@@ -222,6 +225,16 @@ function M.view(units, bar, bars, max_lines, next_name, next_units)
       end
       rows[#rows + 1] = row
     end
+  end
+  if prev and prev.units and #prev.units > 0 then
+    local tail = {}
+    for k = #prev.units, 1, -1 do
+      local u = prev.units[k]
+      if #tail + #u.lines > max_lines and #tail > 0 then break end
+      table.insert(tail, 1, u)
+    end
+    for _, u in ipairs(tail) do add_unit(u, false, true, 0) end
+    rows[#rows + 1] = { kind = "header", text = prev.name or "" }
   end
   for i, u in ipairs(units) do
     if i == cur then

@@ -19,8 +19,14 @@ local FOCUS_AT = 0.42      -- altura do ponto de leitura na área da cifra
 local FOLLOW = 6           -- quão rápido a tela alcança o ponto de leitura (1/s)
 
 -- Teleprompter: o ponto de leitura (state.focus, em linhas) fica fixo perto
--- do meio e a cifra rola contínua até ele. Troca de seção pula direto.
-local shown = nil          -- { key, focus, at }
+-- do meio e a cifra rola contínua até ele. Ao entrar na seção seguinte, o
+-- "A seguir" da anterior vira o cabeçalho da nova no mesmo lugar e a rolagem
+-- continua; um salto para outra seção muda direto.
+local shown = nil          -- { key, song, section, rows, focus, at }
+
+local function index_of(rows, kind)
+  for i, r in ipairs(rows or {}) do if r.kind == kind then return i - 1 end end
+end
 
 function M.init(deps) ImGui, theme, kit = deps.ImGui, deps.theme, deps.kit end
 
@@ -30,7 +36,7 @@ local function rgba(hex) return theme.rgba(hex or theme.DEFAULT_SECTION_COLOR) e
 local function pick_sizes(ctx, rows, w)
   local widest = 0
   for _, row in ipairs(rows) do
-    if row.kind ~= "next" then
+    if row.kind ~= "next" and row.kind ~= "header" then
       local tw = kit.size(ctx, "chord_lg", row.text)
       if tw > widest then widest = tw end
     end
@@ -112,14 +118,20 @@ function M.draw(ctx, state)
       local now = reaper.time_precise()
       local target = state.focus or 0
       local key = tostring(state.song) .. "\0" .. tostring(state.section)
+      if shown and shown.key ~= key and shown.song == state.song and state.prev == shown.section then
+        -- seção seguinte: o "A seguir" de antes é o cabeçalho de agora
+        local old_i, new_i = index_of(shown.rows, "next"), index_of(rows, "header")
+        if old_i and new_i then shown.focus, shown.key = shown.focus + new_i - old_i, key end
+      end
       if not shown or shown.key ~= key or target < shown.focus - 3 then
         shown = { key = key, focus = target, at = now }
       else
         local k = 1 - math.exp(-FOLLOW * math.max(0, now - shown.at))
         shown.focus, shown.at = shown.focus + (target - shown.focus) * k, now
       end
+      shown.song, shown.section, shown.rows = state.song, state.section, rows
 
-      local function row_h(r) return r.kind == "next" and NEXT_H or line_h end
+      local function row_h(r) return (r.kind == "next" or r.kind == "header") and NEXT_H or line_h end
       -- y (desde o topo da cifra) do ponto `f`, em linhas
       local function y_of(f)
         local yy, i = 0, 1
@@ -148,6 +160,8 @@ function M.draw(ctx, state)
         if cy + rh > top then
           if row.kind == "next" then
             kit.txt(ctx, dl, "label", x + 16, cy + 12, theme.C.faint, "A SEGUIR · " .. row.text:upper())
+          elseif row.kind == "header" then
+            kit.txt(ctx, dl, "label", x + 16, cy + 12, theme.C.muted, row.text:upper())
           elseif row.kind == "grid" then
             grid_row(ctx, dl, x + 16, cy, w - 16, row, lyric, chord, line_h)
           elseif row.kind == "chords" then
