@@ -36,6 +36,8 @@ function M.new()
     _app_version = "7.84/macOS-arm64",
     _tempo = { { measure = 0, bpm = 120, num = 4, denom = 4 } },
     _resource_path = "/tmp/reaper-stub",
+    _project_path = "/proj",
+    _files = {},
     _project_length = 0,       -- valor devolvido por GetProjectLength
     _repeat = 0,
     _loop = { 0, 0 },          -- loop points { início, fim }
@@ -97,9 +99,14 @@ function M.new()
   end
 
   -- Item de mídia; beat_mode: -1 (do projeto), 0 (tempo), 1 ou 2 (batidas).
-  function r.add_item(pos, len, beat_mode)
+  -- `track`: a track do item (para CountTrackMediaItems).
+  function r.add_item(pos, len, beat_mode, track)
     local it = { info = { D_POSITION = pos, D_LENGTH = len, C_BEATATTACHMODE = beat_mode or -1 } }
     r._items[#r._items + 1] = it
+    if track then
+      track.items = track.items or {}
+      track.items[#track.items + 1] = it
+    end
     touch()
     return it
   end
@@ -215,6 +222,21 @@ function M.new()
       if d > 0 then stack[#stack + 1] = t
       else for _ = 1, -d do stack[#stack] = nil end end
     end
+  end
+  function api.GetTrackDepth(track)
+    local d, p = 0, api.GetParentTrack(track)
+    while p do d, p = d + 1, api.GetParentTrack(p) end
+    return d
+  end
+  function api.CountTrackMediaItems(track) return #(track.items or {}) end
+  function api.GetTrackMediaItem(track, i) return (track.items or {})[i + 1] end
+  -- track.chunk: texto devolvido por GetTrackStateChunk (o teste monta).
+  function api.GetTrackStateChunk(track, _, _) return track.chunk ~= nil, track.chunk or "" end
+  function api.SetTrackStateChunk(track, chunk, _)
+    log("SetTrackStateChunk", track, chunk)
+    track.chunk = chunk
+    touch()
+    return true
   end
   function api.InsertTrackAtIndex(idx, _)
     log("InsertTrackAtIndex", idx)
@@ -625,6 +647,9 @@ function M.new()
   end
   function api.get_ini_file() return rawget(r, "_ini_path") or (r._resource_path .. "/reaper.ini") end
   function api.GetResourcePath() return r._resource_path end
+  function api.GetProjectPath() return r._project_path end
+  -- r._files: [caminho] = true para os arquivos que "existem"
+  function api.file_exists(path) return r._files[path] == true end
   function api.RecursiveCreateDirectory(path, _)
     log("RecursiveCreateDirectory", path)
     os.execute("mkdir -p '" .. path .. "' 2>/dev/null")
