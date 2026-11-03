@@ -43,7 +43,7 @@ end
 -- 4/4 a 120 BPM: compasso = 2 s. Música A (0–40): Intro 0–8, Verso 8–16,
 -- Refrão 16–24 e trecho sem seção 24–40. Música B (40–80) sem seções.
 describe("ui.editor_view", function()
-  local r, im, view, model, perf, layers, theme, widgets, wiz
+  local r, im, view, model, perf, layers, theme, widgets, wiz, lib_view
 
   local function frame(opts)
     im.opts = opts or {}
@@ -83,7 +83,7 @@ describe("ui.editor_view", function()
     r = stub.install()
     for _, m in ipairs({ "core.project_model", "core.quantize", "core.queue", "core.transport", "core.performance",
       "core.layers", "core.editor_ops", "core.validator", "core.tempo_align", "ui.widgets", "ui.theme", "ui.anim",
-      "ui.performance_view", "ui.editor_view", "ui.kontakt_wizard" }) do
+      "ui.performance_view", "ui.editor_view", "ui.kontakt_wizard", "ui.library_view" }) do
       package.loaded[m] = nil
     end
     r.set_project_length(80)
@@ -104,10 +104,14 @@ describe("ui.editor_view", function()
     pv.init({ ImGui = im, theme = theme, widgets = widgets })
     wiz = require("ui.kontakt_wizard")
     wiz.init({ ImGui = im, theme = theme, layers = layers, kit = pv.kit })
+    lib_view = require("ui.library_view")
+    lib_view.init({ ImGui = im, theme = theme, kit = pv.kit, library = {},
+      song_package = { detect_tracks = function() return {} end } })
     view.init({
       ImGui = im, theme = theme, widgets = widgets, perf = perf, layers = layers, model = model,
       editor_ops = require("core.editor_ops"), validator = require("core.validator"),
       tempo_align = require("core.tempo_align"), kontakt_wizard = wiz, kit = pv.kit,
+      library_view = lib_view,
     })
     frame()
   end)
@@ -469,6 +473,16 @@ describe("ui.editor_view", function()
       local opened = false
       for _, c in ipairs(im.calls) do if c[1] == "OpenPopup" and c[3] == "Assistente de Kontakt" then opened = true end end
       assert.is_true(opened)
+    end)
+  end)
+
+  describe("Exportar", function()
+    it("o botão da barra de músicas abre o quadro para a música atual", function()
+      frame({ press = "export_song" })
+      local opened = false
+      for _, c in ipairs(im.calls) do if c[1] == "OpenPopup" and c[3] == "Exportar música" then opened = true end end
+      assert.is_true(opened)
+      assert.equal("A", lib_view.export_state().song.name)
     end)
   end)
 

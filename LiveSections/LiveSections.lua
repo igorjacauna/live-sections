@@ -104,12 +104,14 @@ local song_deps = {
 }
 require("core.song_package").init(song_deps)
 require("core.song_import").init(song_deps)
+local library_view = require("ui.library_view")
 local wizard = require("ui.kontakt_wizard")
 wizard.init({ ImGui = ImGui, theme = theme, layers = layers, kit = view.kit })
 editor.init({
   ImGui = ImGui, theme = theme, widgets = widgets, perf = perf, layers = layers, model = model,
   editor_ops = require("core.editor_ops"), validator = require("core.validator"),
   tempo_align = require("core.tempo_align"), kontakt_wizard = wizard, kit = view.kit, kontakt_cc = kontakt_cc,
+  library_view = library_view,
 })
 view.init({
   ImGui = ImGui, theme = theme, anim = anim, widgets = widgets,
@@ -118,6 +120,9 @@ view.init({
   kontakt_cc = kontakt_cc, mapping = mapping_view, layer_params = layer_params,
 })
 chart_view.init({ ImGui = ImGui, theme = theme, kit = view.kit })
+library_view.init({
+  ImGui = ImGui, theme = theme, kit = view.kit, library = library, song_package = require("core.song_package"),
+})
 mapping_view.init({
   ImGui = ImGui, theme = theme, kit = view.kit, kontakt_cc = kontakt_cc, learn = learn, feedback = feedback,
   ui = view.ui(), label = settings_view.label, jsfx = kontakt_jsfx, layers = layers, model = model,

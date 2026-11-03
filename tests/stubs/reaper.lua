@@ -228,6 +228,10 @@ function M.new()
     while p do d, p = d + 1, api.GetParentTrack(p) end
     return d
   end
+  -- item.file: arquivo da fonte do take ativo (sem ele, o item não tem take)
+  function api.GetActiveTake(item) return item.file and { item = item } or nil end
+  function api.GetMediaItemTake_Source(take) return { file = take.item.file } end
+  function api.GetMediaSourceFileName(src, _) return src.file or "" end
   function api.CountTrackMediaItems(track) return #(track.items or {}) end
   function api.GetTrackMediaItem(track, i) return (track.items or {})[i + 1] end
   -- track.chunk: texto devolvido por GetTrackStateChunk (o teste monta).

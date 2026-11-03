@@ -22,7 +22,8 @@
 -- a faixa acompanha o cursor quando ele sai do trecho visível.
 --
 -- M.init(deps)          ImGui, theme, widgets, perf, layers, model, editor_ops,
---                       validator, tempo_align, kontakt_wizard e
+--                       validator, tempo_align, kontakt_wizard,
+--                       library_view (botão Exportar) e
 --                       kit = { txt, size, button } da performance_view
 -- M.tap()               um toque do tap tempo (ação mapeável tap_tempo)
 -- M.draw(ctx, x, y, w, h, snap) -> altura usada
@@ -33,7 +34,7 @@ local notes = require("core.song_notes")
 
 local M = {}
 
-local ImGui, theme, widgets, perf, layers, model, ops, validator, kit, tempo, wizard, kontakt_cc
+local ImGui, theme, widgets, perf, layers, model, ops, validator, kit, tempo, wizard, kontakt_cc, library_view
 
 local PROJ = 0
 local EPS = 1e-6
@@ -87,7 +88,7 @@ function M.init(deps)
   perf, layers, model = deps.perf, deps.layers, deps.model
   ops, validator, kit = deps.editor_ops, deps.validator, deps.kit
   tempo, wizard = deps.tempo_align, deps.kontakt_wizard
-  kontakt_cc = deps.kontakt_cc
+  kontakt_cc, library_view = deps.kontakt_cc, deps.library_view
   st.round, st.tap_bpm = "int", nil
   st.tool, st.selected, st.drag, st.menu_section = "select", nil, nil, nil
   st.view = nil
@@ -282,10 +283,11 @@ local function song_bar(ctx, x, y, w, snap)
   local ren_w = kit.size(ctx, "button", "Renomear") + 24
   local chart_w = kit.size(ctx, "button", "Cifra") + 24
   local note_w = kit.size(ctx, "button", "Anotação") + 24
+  local export_w = library_view and kit.size(ctx, "button", "Exportar") + 24 or 0
   for i, song in ipairs(model.songs()) do
     local label = i .. ". " .. song.name
     local bw = kit.size(ctx, "button", label) + 24
-    if cx + bw > x + w - plus_w - ren_w - chart_w - note_w - 34 then break end
+    if cx + bw > x + w - plus_w - ren_w - chart_w - note_w - export_w - 40 then break end
     local current = snap.song and snap.song.id == song.id
     if kit.button(ctx, "esong" .. i, label, cx, y + 8, 32, { active = current, w = bw }) then
       perf.goto_song(i)
@@ -307,6 +309,10 @@ local function song_bar(ctx, x, y, w, snap)
   if snap.song and kit.button(ctx, "song_note", "Anotação", x + w - plus_w - ren_w - chart_w - note_w - 26, y + 8, 32, { w = note_w }) then
     st.note_song, st.note_buf = snap.song, notes.get(snap.song)
     ImGui.OpenPopup(ctx, "song_note")
+  end
+  if library_view and snap.song and kit.button(ctx, "export_song", "Exportar",
+      x + w - plus_w - ren_w - chart_w - note_w - export_w - 32, y + 8, 32, { w = export_w }) then
+    library_view.open_export(snap.song)
   end
   if ImGui.BeginPopup(ctx, "song_note") then
     ImGui.Text(ctx, "Anotação de " .. (st.note_song and st.note_song.name or ""))
@@ -1229,6 +1235,10 @@ function M.draw(ctx, x, y, w, h, snap)
     if msg then say(msg); st.warn_count = nil end
   end
   chart_modal(ctx)
+  if library_view then
+    local msg = library_view.draw(ctx)
+    if msg then say(msg) end
+  end
   local bottom = math.max(cy, side_bottom)
 
   ImGui.SetCursorScreenPos(ctx, x, y)
