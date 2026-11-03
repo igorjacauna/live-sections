@@ -1,2 +1,4 @@
-- Faders de camada: o REAPER não trava mais ao mexer rápido; o fader acompanha na hora em vez de andar segundos depois
-- Configurações: novo cartão Desempenho, com ciclos por segundo, tempo do ciclo e mensagens MIDI por segundo
+- Camadas: parâmetros fixos na coluna, até 4 por camada e por música (ex.: "Reverb 87", "Rotary ON"), também no Palco; o aviso temporário não aparece mais para eles
+- Camadas: "+ parâmetro" e mexa o controle para ligar; duplo clique renomeia; botão direito move ou remove
+- Camadas: botão LIGADO no lugar de M e S; o LED do controle acende com a camada tocando
+- O solo saiu: mapeamentos de solo são descartados e as actions "Camada N mute" viraram "Camada N liga-desliga" (refaça atalhos ligados às antigas)
