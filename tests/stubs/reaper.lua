@@ -648,8 +648,34 @@ function M.new()
   function api.get_ini_file() return rawget(r, "_ini_path") or (r._resource_path .. "/reaper.ini") end
   function api.GetResourcePath() return r._resource_path end
   function api.GetProjectPath() return r._project_path end
-  -- r._files: [caminho] = true para os arquivos que "existem"
-  function api.file_exists(path) return r._files[path] == true end
+  -- r._files: [caminho] = true/false força o resultado; senão vale o disco
+  function api.file_exists(path)
+    if r._files[path] ~= nil then return r._files[path] end
+    local f = io.open(path, "rb")
+    if f then f:close() end
+    return f ~= nil
+  end
+  -- pastas de verdade no disco (os testes da biblioteca usam um diretório temporário)
+  function api.EnumerateSubdirectories(path, i)
+    local p = io.popen("find '" .. path .. "' -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort")
+    local names = {}
+    for line in p:lines() do names[#names + 1] = line:match("([^/]+)$") end
+    p:close()
+    return names[i + 1]
+  end
+  function api.EnumerateFiles(path, i)
+    local p = io.popen("find '" .. path .. "' -mindepth 1 -maxdepth 1 -type f 2>/dev/null | sort")
+    local names = {}
+    for line in p:lines() do names[#names + 1] = line:match("([^/]+)$") end
+    p:close()
+    return names[i + 1]
+  end
+  -- r._installed_fx = { { name, ident } }
+  function api.EnumInstalledFX(i)
+    local fx = (rawget(r, "_installed_fx") or {})[i + 1]
+    if not fx then return false, "", "" end
+    return true, fx[1], fx[2]
+  end
   function api.RecursiveCreateDirectory(path, _)
     log("RecursiveCreateDirectory", path)
     os.execute("mkdir -p '" .. path .. "' 2>/dev/null")
