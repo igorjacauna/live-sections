@@ -21,6 +21,8 @@
 -- M.sent_count(track) -> n?
 -- M.value(track, cc) -> -1..127?
 
+local diag = require("core.diag")
+
 local M = {}
 
 local DIR = "LiveSections"
@@ -139,6 +141,7 @@ function M.set_cc(track, cc, value)
   local fx = M.find(track)
   if fx < 0 then return false end
   reaper.TrackFX_SetParam(track, fx, cc, value)
+  diag.note("FX param")
   return true
 end
 
@@ -147,6 +150,7 @@ function M.resend(track)
   if fx < 0 then return false end
   local n = reaper.TrackFX_GetParam(track, fx, RESEND)
   reaper.TrackFX_SetParam(track, fx, RESEND, (math.floor(n + 0.5) + 1) % 1000000)
+  diag.note("FX reenvio")
   return true
 end
 

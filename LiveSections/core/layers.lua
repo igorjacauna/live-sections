@@ -53,6 +53,8 @@
 --                        mensagem de um fader varria todas as tracks e sends
 --                        e travava a thread principal do REAPER.
 
+local diag = require("core.diag")
+
 local M = {}
 
 local PROJ = 0
@@ -315,6 +317,7 @@ function M.keyboard_port() return settings.keyboard_port end
 local function set(track, key, value)
   if reaper.GetMediaTrackInfo_Value(track, key) ~= value then
     reaper.SetMediaTrackInfo_Value(track, key, value)
+    diag.note("track " .. key)
   end
 end
 

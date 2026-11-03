@@ -182,6 +182,7 @@ local function loop()
   remote.heartbeat(now)
   -- comandos das actions da lista do REAPER (actions/*.lua)
   for _, c in ipairs(remote.poll()) do view.run(c.action, c.arg, c.value) end
+  diag.part("actions", now)
   view.update(now)
   widgets.frame(ctx, now)
   theme.push(ctx)
@@ -201,7 +202,9 @@ local function loop()
     -- um erro no desenho não pode deixar a janela sem End(): mostra o erro e
     -- segue rodando (o áudio nunca depende do script)
     local depth = theme.font_depth()
+    local t_draw = reaper.time_precise()
     local ok, err = xpcall(view.draw, debug.traceback, ctx)
+    diag.part("tela " .. tostring(ui.mode), t_draw)
     if not ok then
       theme.recover_fonts(ctx, depth)
       if err ~= last_error then
@@ -220,7 +223,9 @@ local function loop()
     ImGui.End(ctx)
   end
   -- janela "Cifra": separada, pode ir para outro monitor
+  local t_chart = reaper.time_precise()
   if ui.chart_open and not chart_view.draw(ctx, view.stage_state()) then ui.chart_open = false end
+  diag.part("janela Cifra", t_chart)
   theme.pop_font(ctx, t)
   theme.pop(ctx)
   diag.cycle(now, reaper.time_precise())

@@ -380,6 +380,8 @@ local function mappings_card(ctx, x, y, w)
   return cy - y + 16
 end
 
+local copied_at = nil
+
 -- Ciclos por segundo e tempo de cada ciclo (core/diag): se o REAPER engasga
 -- com o Live Sections aberto, estes números dizem onde.
 local function perf_card(ctx, x, y, w)
@@ -395,6 +397,33 @@ local function perf_card(ctx, x, y, w)
   cy = cy + 26
   cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.faint,
     "Normal: uns 30 ciclos/s e ciclo de poucos ms. Se ficar vermelho ao mexer num fader, mande estes números.")
+  cy = cy + 10
+
+  -- engasgos: pausas do REAPER inteiro, com o que o script fazia antes
+  local diag = require("core.diag")
+  local list = diag.hitches()
+  kit.txt(ctx, dl, "label", ix, cy, theme.C.muted, string.format("ENGASGOS (%d)", #list))
+  cy = cy + 20
+  if #list == 0 then
+    cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.faint, "Nenhuma pausa maior que 150 ms desde que o script abriu.")
+  else
+    for i = #list, math.max(1, #list - 4), -1 do
+      cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.text, diag.line(list[i])) + 4
+    end
+  end
+  cy = cy + 8
+  local clicked, bw = kit.button(ctx, "diag_copy", "Copiar relatório", ix, cy, 30, { style = "small" })
+  if clicked then
+    ImGui.SetClipboardText(ctx, diag.report())
+    copied_at = reaper.time_precise()
+  end
+  if kit.button(ctx, "diag_clear", "Limpar", ix + bw + 6, cy, 30, { style = "small" }) then diag.reset() end
+  if copied_at and reaper.time_precise() - copied_at < 3 then
+    kit.txt(ctx, dl, "small", ix + bw + 6 + kit.size(ctx, "small", "Limpar") + 36, cy + 7, theme.C.ok, "Copiado.")
+  end
+  cy = cy + 40
+  cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.faint,
+    "\"script\" é quanto o Live Sections demorou no ciclo antes da pausa; o resto foi o REAPER (áudio, plugins, salvamento automático). \"mexeu\" diz o que o script mudou no REAPER logo antes.")
   return cy - y + 16
 end
 

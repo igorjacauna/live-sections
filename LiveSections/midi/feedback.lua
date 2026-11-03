@@ -31,6 +31,8 @@
 -- M.velocities() -> { [state] = velocity }
 -- M.missing_outputs() -> { nome }      portas sem saída MIDI no último flush
 
+local diag = require("core.diag")
+
 local M = {}
 
 local BLINK_PERIOD_S = 0.5
@@ -160,6 +162,7 @@ function M.flush(now)
       if out then
         local m = w.mapping
         reaper.StuffMIDIMessage(16 + out, STATUS[m.msg_type] + m.channel - 1, m.number, v)
+        diag.note("LED")
         sent[k] = v
       end
     end

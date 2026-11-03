@@ -64,6 +64,11 @@ function M.init(deps)
   mappings, learn, input, model = deps.mappings, deps.learn, deps.input, deps.model
   editor, settings_view, stage = deps.editor, deps.settings, deps.stage
   kontakt_cc, mapping_view, layer_params = deps.kontakt_cc, deps.mapping, deps.layer_params
+  diag.set_info(function()
+    local s = snap or {}
+    return string.format("%s · %s em %.1f s%s", ui.mode, s.playing and "tocando" or "parado", s.pos or 0,
+      s.song and (" · " .. s.song.name) or "")
+  end)
   ui.mode, ui.stage, ui.setlist_open = "performance", false, false
   last_song_id, last_port_check, disconnected, last_value = nil, -math.huge, {}, {}
   last_high = {}
@@ -254,9 +259,12 @@ end
 
 function M.update(t)
   now = t
+  local t0 = reaper.time_precise()
   layers.begin_cycle()
   local events = input.poll()
   diag.events(#events)
+  diag.part("MIDI in", t0)
+  t0 = reaper.time_precise()
   local keys, last = {}, {}
   for i, e in ipairs(events) do
     keys[i] = coalesce_key(e)
@@ -265,8 +273,14 @@ function M.update(t)
   for i, e in ipairs(events) do
     if not keys[i] or last[keys[i]] == i then M.handle_event(e) end
   end
+  diag.part("eventos", t0)
+  t0 = reaper.time_precise()
   perf.tick()
+  diag.part("motor", t0)
+  t0 = reaper.time_precise()
   snap = build_snapshot()
+  diag.part("estado", t0)
+  t0 = reaper.time_precise()
 
   local id = snap.song and snap.song.id
   if id ~= last_song_id then
@@ -275,9 +289,12 @@ function M.update(t)
     layers.activate(snap.song, model.songs(), now)
     -- depois do activate: o Kontakt já saiu do bypass e o JSFX processa
     if kontakt_cc then kontakt_cc.on_song(snap.song) end
+    diag.note("troca de música")
   end
   layers.tick(now)
   if kontakt_cc then kontakt_cc.tick(now) end
+  diag.part("camadas", t0)
+  t0 = reaper.time_precise()
 
   if now - last_port_check >= PORT_CHECK_S then
     last_port_check = now
@@ -289,13 +306,18 @@ function M.update(t)
     end
   end
   snap.disconnected = disconnected
+  diag.part("portas", t0)
+  t0 = reaper.time_precise()
   update_leds()
   snap.no_led_output = feedback.missing_outputs()
+  diag.part("LEDs", t0)
+  t0 = reaper.time_precise()
 
   -- estado de palco: janela de cifra e página do celular/tablet
   if stage then
     stage_state = stage.build(snap, { max_lines = mappings.settings().chart_lines })
     stage.publish(stage_state, now)
+    diag.part("cifra", t0)
   end
 end
 
