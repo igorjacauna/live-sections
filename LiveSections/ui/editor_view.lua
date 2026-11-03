@@ -284,10 +284,11 @@ local function song_bar(ctx, x, y, w, snap)
   local chart_w = kit.size(ctx, "button", "Cifra") + 24
   local note_w = kit.size(ctx, "button", "Anotação") + 24
   local export_w = library_view and kit.size(ctx, "button", "Exportar") + 24 or 0
+  local lib_w = library_view and kit.size(ctx, "button", "Da biblioteca") + 46 or 0
   for i, song in ipairs(model.songs()) do
     local label = i .. ". " .. song.name
     local bw = kit.size(ctx, "button", label) + 24
-    if cx + bw > x + w - plus_w - ren_w - chart_w - note_w - export_w - 40 then break end
+    if cx + bw > x + w - plus_w - lib_w - ren_w - chart_w - note_w - export_w - 46 then break end
     local current = snap.song and snap.song.id == song.id
     if kit.button(ctx, "esong" .. i, label, cx, y + 8, 32, { active = current, w = bw }) then
       perf.goto_song(i)
@@ -298,20 +299,28 @@ local function song_bar(ctx, x, y, w, snap)
   if kit.button(ctx, "add_song", "Música", x + w - plus_w - 8, y + 8, 32, { icon = "plus", w = plus_w }) then
     ImGui.OpenPopup(ctx, "new_song")
   end
-  if snap.song and kit.button(ctx, "rename_song", "Renomear", x + w - plus_w - ren_w - 14, y + 8, 32, { w = ren_w }) then
+  local rx = x + w - plus_w - 8                 -- os botões seguintes ficam à esquerda daqui
+  if library_view then
+    rx = rx - lib_w - 6
+    if kit.button(ctx, "from_library", "Da biblioteca", rx, y + 8, 32, { icon = "plus", w = lib_w }) then
+      library_view.open_list()
+    end
+  end
+  rx = rx - 6
+  if snap.song and kit.button(ctx, "rename_song", "Renomear", rx - ren_w, y + 8, 32, { w = ren_w }) then
     st.song_name = snap.song.name
     ImGui.OpenPopup(ctx, "rename_song")
   end
-  if snap.song and kit.button(ctx, "song_chart", "Cifra", x + w - plus_w - ren_w - chart_w - 20, y + 8, 32, { w = chart_w }) then
+  if snap.song and kit.button(ctx, "song_chart", "Cifra", rx - ren_w - chart_w - 6, y + 8, 32, { w = chart_w }) then
     st.chart_song, st.chart_buf = snap.song, chart.get_text(snap.song)
     st.chart_open = true
   end
-  if snap.song and kit.button(ctx, "song_note", "Anotação", x + w - plus_w - ren_w - chart_w - note_w - 26, y + 8, 32, { w = note_w }) then
+  if snap.song and kit.button(ctx, "song_note", "Anotação", rx - ren_w - chart_w - note_w - 12, y + 8, 32, { w = note_w }) then
     st.note_song, st.note_buf = snap.song, notes.get(snap.song)
     ImGui.OpenPopup(ctx, "song_note")
   end
   if library_view and snap.song and kit.button(ctx, "export_song", "Exportar",
-      x + w - plus_w - ren_w - chart_w - note_w - export_w - 32, y + 8, 32, { w = export_w }) then
+      rx - ren_w - chart_w - note_w - export_w - 18, y + 8, 32, { w = export_w }) then
     library_view.open_export(snap.song)
   end
   if ImGui.BeginPopup(ctx, "song_note") then

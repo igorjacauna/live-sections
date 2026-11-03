@@ -1,4 +1,5 @@
--- Biblioteca de músicas na tela: o quadro Exportar (modo Editar).
+-- Biblioteca de músicas na tela: o quadro Exportar (modo Editar) e a lista
+-- para montar o setlist ("+ Da biblioteca", na Performance e no Editar).
 --
 -- Exportar (RF-177–RF-180, RF-189, RF-190): lista todas as tracks do
 -- projeto, com as detectadas como da música já marcadas; o nome (padrão = o
@@ -7,30 +8,47 @@
 -- mostra onde salvou, quantos áudios copiou, os que faltaram e o aviso para
 -- usar em outro computador.
 --
--- M.init({ ImGui, theme, kit, library, song_package })
+-- Lista (RF-193–RF-195, RF-201, RF-202, RF-207, RF-210): músicas da
+-- biblioteca com BPM, fórmula, compassos, seções e data; as que não abrem
+-- aparecem sem poder ser escolhidas. A seleção é múltipla e a ordem é a dos
+-- cliques, ajustável. Antes de adicionar, os plugins que faltam nesta
+-- máquina são listados; dá para adicionar mesmo assim ou cancelar. Pasta
+-- escolhida que sumiu: aviso com o caminho e o botão Padrão.
+--
+-- M.init({ ImGui, theme, kit, library, song_package, song_import })
 -- M.open_export(song)
 -- M.export_state() -> { song, name, tracks = { { track, label, on } },
 --                       items, bytes, confirm, result? }
 -- M.toggle(i); M.set_name(nome)
 -- M.export() -> "done"|"confirm"|"error", mensagem
+-- M.open_list(); M.list_state() -> { dir, dir_ok, items, picked = { pasta },
+--                                     missing?, result? }
+-- M.pick(pasta)                 marca/desmarca (só as que abrem)
+-- M.move(i, d)                  sobe (-1) ou desce (+1) a escolhida i
+-- M.use_default_dir()
+-- M.add() -> "missing"|"done"|"none", texto   confere plugins e adiciona
+-- M.add_anyway() -> "done", texto              adiciona com plugins faltando
 -- M.draw(ctx) -> mensagem?      desenha o quadro aberto
 
 local M = {}
 
-local ImGui, theme, kit, library, song_package
+local ImGui, theme, kit, library, song_package, song_import
 
 local PROJ = 0
 local EPS = 1e-6
 local EXPORT = "Exportar música"
+local LIST = "Biblioteca de músicas"
 local OTHER_PC = "Para usar em outro computador, leve a pasta da biblioteca. Lá precisam estar instalados o Kontakt e as bibliotecas dele."
 
 local ex = nil          -- quadro Exportar aberto
 local want_open = false
+local li = nil          -- lista da biblioteca aberta
+local want_list = false
 
 function M.init(deps)
   ImGui, theme, kit = deps.ImGui, deps.theme, deps.kit
-  library, song_package = deps.library, deps.song_package
-  ex, want_open = nil, false
+  library, song_package, song_import = deps.library, deps.song_package, deps.song_import
+  ex, want_open, li, want_list = nil, false, nil, false
 end
 
 -- ------------------------------------------------------------------ exportar
@@ -137,6 +155,114 @@ function M.export()
   return "done", lines[1]
 end
 
+-- ------------------------------------------------------------------ lista
+
+local function load_list()
+  local dir, ok = library.dir()
+  li.dir, li.dir_ok = dir, ok
+  li.items = ok and library.list() or {}
+  local alive = {}
+  for _, it in ipairs(li.items) do if it.ok then alive[it.folder] = true end end
+  local picked = {}
+  for _, f in ipairs(li.picked or {}) do if alive[f] then picked[#picked + 1] = f end end
+  li.picked, li.missing, li.result = picked, nil, nil
+end
+
+function M.open_list()
+  li = { picked = {} }
+  load_list()
+  want_list = true
+end
+
+function M.list_state() return li end
+
+local function index_of(folder)
+  for i, f in ipairs(li.picked) do if f == folder then return i end end
+end
+
+function M.pick(folder)
+  local i = index_of(folder)
+  if i then table.remove(li.picked, i); return end
+  for _, it in ipairs(li.items) do
+    if it.folder == folder and it.ok then li.picked[#li.picked + 1] = folder end
+  end
+end
+
+function M.move(i, d)
+  local j = i + d
+  if not li.picked[i] or not li.picked[j] then return end
+  li.picked[i], li.picked[j] = li.picked[j], li.picked[i]
+end
+
+function M.use_default_dir()
+  library.set_dir(nil)
+  load_list()
+end
+
+-- Resumo de uma música da lista: "129 BPM · 4/4 · 85 comp. · 6 seções · data".
+function M.summary(it)
+  if not it.ok then return "não dá para abrir" end
+  local parts = {}
+  if it.bpm then parts[#parts + 1] = string.format("%g BPM", math.floor(it.bpm * 100 + 0.5) / 100) end
+  if it.signature then parts[#parts + 1] = it.signature end
+  if it.bars then parts[#parts + 1] = it.bars .. " comp." end
+  parts[#parts + 1] = it.sections .. (it.sections == 1 and " seção" or " seções")
+  if it.exported_at then parts[#parts + 1] = it.exported_at end
+  return table.concat(parts, " · ")
+end
+
+local function joined(list) return table.concat(list, ", ") end
+
+local function add_all(pkgs)
+  local learn, differs, offline = {}, {}, {}
+  local seen = {}
+  for _, pkg in ipairs(pkgs) do
+    local _, report = song_import.add(pkg)
+    for _, n in ipairs(report.learn) do
+      if not seen[n] then seen[n] = true; learn[#learn + 1] = n end
+    end
+    for _, n in ipairs(report.cc_differs) do differs[#differs + 1] = n end
+    for _, f in ipairs(report.offline) do offline[#offline + 1] = pkg.name .. ": " .. f end
+  end
+  local lines = { string.format("%d %s no fim do projeto.", #pkgs,
+    #pkgs == 1 and "música adicionada" or "músicas adicionadas") }
+  if #learn > 0 then
+    lines[#lines + 1] = "Linhas novas no Mapeamento, sem controle físico (faça o Learn): " .. joined(learn)
+  end
+  if #differs > 0 then
+    lines[#lines + 1] = "Já existiam com outro CC (ficou o desta máquina): " .. joined(differs)
+  end
+  if #offline > 0 then
+    lines[#lines + 1] = "Áudios que não estão na biblioteca (itens offline):"
+    for _, f in ipairs(offline) do lines[#lines + 1] = "  " .. f end
+  end
+  li.result = table.concat(lines, "\n")
+  li.pending, li.missing = nil, nil
+  return "done", lines[1]
+end
+
+function M.add()
+  if #li.picked == 0 then return "none", "Escolha ao menos uma música." end
+  local pkgs, missing, seen = {}, {}, {}
+  for _, folder in ipairs(li.picked) do
+    local pkg = library.read(folder)
+    if pkg then
+      pkgs[#pkgs + 1] = pkg
+      for _, name in ipairs(library.missing_plugins(pkg)) do
+        if not seen[name] then seen[name] = true; missing[#missing + 1] = name end
+      end
+    end
+  end
+  li.pending = pkgs
+  if #missing > 0 then
+    li.missing = missing
+    return "missing", joined(missing)
+  end
+  return add_all(pkgs)
+end
+
+function M.add_anyway() return add_all(li.pending or {}) end
+
 -- ------------------------------------------------------------------ desenho
 
 local function draw_export(ctx)
@@ -191,8 +317,83 @@ local function draw_export(ctx)
   return msg
 end
 
+local function draw_list(ctx)
+  if want_list then ImGui.OpenPopup(ctx, LIST); want_list = false end
+  if not li then return nil end
+  ImGui.SetNextWindowSize(ctx, 620, 0, ImGui.Cond_Appearing)
+  if not ImGui.BeginPopupModal(ctx, LIST, true) then return nil end
+  local msg
+
+  if li.result then
+    ImGui.TextColored(ctx, theme.C.text, li.result)
+    ImGui.Separator(ctx)
+    if ImGui.Button(ctx, "Fechar") then li = nil; ImGui.CloseCurrentPopup(ctx) end
+    ImGui.EndPopup(ctx)
+    return nil
+  end
+
+  if li.missing then
+    ImGui.TextColored(ctx, theme.C.queue, "Plugins que não estão instalados nesta máquina:")
+    for _, name in ipairs(li.missing) do ImGui.Text(ctx, "  " .. name) end
+    ImGui.TextColored(ctx, theme.C.faint, "Adicionando mesmo assim, eles abrem offline até serem instalados.")
+    ImGui.Separator(ctx)
+    if ImGui.Button(ctx, "Cancelar") then li.missing, li.pending = nil, nil end
+    ImGui.SameLine(ctx)
+    if ImGui.Button(ctx, "Adicionar mesmo assim") then msg = select(2, M.add_anyway()) end
+    ImGui.EndPopup(ctx)
+    return msg
+  end
+
+  ImGui.TextColored(ctx, theme.C.faint, li.dir)
+  if not li.dir_ok then
+    ImGui.TextColored(ctx, theme.C.danger, "A pasta da biblioteca não foi encontrada: " .. li.dir)
+    if ImGui.Button(ctx, "Padrão") then M.use_default_dir() end
+  elseif #li.items == 0 then
+    ImGui.TextColored(ctx, theme.C.muted, "Nenhuma música ainda. No modo Editar, use Exportar em uma música configurada.")
+  else
+    if ImGui.BeginChild(ctx, "##lib_items", 0, math.min(300, 28 * #li.items + 8)) then
+      for i, it in ipairs(li.items) do
+        if it.ok then
+          if ImGui.Checkbox(ctx, it.name .. "##lib_i" .. i, index_of(it.folder) ~= nil) then M.pick(it.folder) end
+          ImGui.SameLine(ctx)
+          ImGui.TextColored(ctx, theme.C.faint, M.summary(it))
+        else
+          ImGui.TextColored(ctx, theme.C.faint, it.name .. " — " .. M.summary(it))
+        end
+      end
+      ImGui.EndChild(ctx)
+    end
+  end
+
+  if #li.picked > 0 then
+    ImGui.Spacing(ctx)
+    ImGui.Text(ctx, "Ordem no setlist")
+    for i, folder in ipairs(li.picked) do
+      if ImGui.Button(ctx, "Subir##lib_up" .. i) then M.move(i, -1) end
+      ImGui.SameLine(ctx)
+      if ImGui.Button(ctx, "Descer##lib_dn" .. i) then M.move(i, 1) end
+      ImGui.SameLine(ctx)
+      ImGui.Text(ctx, i .. ". " .. folder)
+    end
+  end
+
+  ImGui.Separator(ctx)
+  if ImGui.Button(ctx, "Abrir pasta") and li.dir_ok then library.open_folder(li.dir) end
+  ImGui.SameLine(ctx)
+  if ImGui.Button(ctx, "Cancelar") then li = nil; ImGui.CloseCurrentPopup(ctx); ImGui.EndPopup(ctx); return nil end
+  ImGui.SameLine(ctx)
+  if ImGui.Button(ctx, #li.picked > 1 and ("Adicionar " .. #li.picked .. " músicas") or "Adicionar") then
+    local res, text = M.add()
+    if res == "done" then msg = text end
+  end
+  ImGui.EndPopup(ctx)
+  return msg
+end
+
 function M.draw(ctx)
-  return draw_export(ctx)
+  local a = draw_export(ctx)
+  local b = draw_list(ctx)
+  return a or b
 end
 
 return M

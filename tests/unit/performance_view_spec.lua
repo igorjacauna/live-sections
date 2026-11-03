@@ -39,11 +39,14 @@ describe("ui.performance_view", function()
   local r, view, perf, layers, mappings, learn, input, feedback, widgets, theme, anim, model, dir
   local MASTER, KEYS = "SMC-Mixer-Master", "Keys"
 
+  local lib_opened, lib_view
+
   local function load(im)
     widgets.init(im, theme, anim, learn, mappings)
     view.init({
       ImGui = im, theme = theme, anim = anim, widgets = widgets, perf = perf, layers = layers,
       feedback = feedback, mappings = mappings, learn = learn, input = input, model = model,
+      library_view = lib_view,
     })
   end
 
@@ -373,6 +376,24 @@ describe("ui.performance_view", function()
       view.update(3)
       view.handle_event(ev(0x90, 5, 127))
       assert.equal("panic", view.ui().learn_conflict.mapping.action)
+    end)
+
+    describe("+ Da biblioteca", function()
+      before_each(function()
+        lib_opened = 0
+        lib_view = { open_list = function() lib_opened = lib_opened + 1 end, draw = function() end }
+      end)
+      after_each(function() lib_view = nil end)
+
+      it("na setlist abre a lista da biblioteca", function()
+        assert.is_true(ids(draw()).from_library)
+        draw({ press = "from_library" })
+        assert.equal(1, lib_opened)
+      end)
+
+      it("não aparece no Palco, nem com a setlist aberta", function()
+        assert.is_nil(ids(draw({ setup = function() view.ui().stage = true; view.ui().setlist_open = true end })).from_library)
+      end)
     end)
 
     it("modo palco: faixa compacta e setlist expansível", function()

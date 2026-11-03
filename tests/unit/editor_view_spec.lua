@@ -484,6 +484,12 @@ describe("ui.editor_view", function()
       assert.is_true(opened)
       assert.equal("A", lib_view.export_state().song.name)
     end)
+
+    it("a barra de músicas também tem + Da biblioteca", function()
+      assert.is_table(im.rects.from_library)
+      assert.is_true(im.rects.from_library.x + im.rects.from_library.w <= im.rects.add_song.x)
+      assert.is_true(im.rects.export_song.x + im.rects.export_song.w <= im.rects.from_library.x)
+    end)
   end)
 
   describe("avisos", function()

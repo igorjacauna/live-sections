@@ -107,4 +107,91 @@ describe("ui.library_view", function()
     assert.equal("error", res)
     assert.truthy(text:find("/lib/Igreja/musica.json", 1, true))
   end)
+
+  describe("lista da biblioteca", function()
+    local items, pkgs, missing, added, dir_ok, set_dir_to, opened
+    local list_lib = {
+      dir = function() return "/lib", dir_ok end,
+      list = function() return items end,
+      read = function(f) return pkgs[f] end,
+      missing_plugins = function(p) return missing[p.name] or {} end,
+      set_dir = function(p) set_dir_to = p or "padrão"; dir_ok = true end,
+      open_folder = function(p) opened = p end,
+    }
+    local fake_import = {
+      add = function(p)
+        added[#added + 1] = p.name
+        return true, p.report or { learn = {}, cc_differs = {}, offline = {} }
+      end,
+    }
+
+    before_each(function()
+      dir_ok, set_dir_to, opened, added, missing = true, nil, nil, {}, {}
+      items = {
+        { name = "Amazing", folder = "Amazing", ok = true, bpm = 72, signature = "3/4", bars = 64, sections = 5, exported_at = "2026-11-01 20:00" },
+        { name = "Futura", folder = "Futura", ok = false, err = "unknown_format" },
+        { name = "Igreja", folder = "Igreja", ok = true, bpm = 129.5, signature = "4/4", bars = 85, sections = 1 },
+      }
+      pkgs = {
+        Amazing = { name = "Amazing", report = { learn = { "Reverb" }, cc_differs = {}, offline = { "audio/Click.wav" } } },
+        Igreja = { name = "Igreja", report = { learn = { "Reverb", "Rotary" }, cc_differs = { "Wah" }, offline = {} } },
+      }
+      lv.init({ library = list_lib, song_package = fake_pkg, song_import = fake_import })
+      lv.open_list()
+    end)
+
+    it("resumo de cada música; a que não abre não pode ser escolhida", function()
+      assert.equal("72 BPM · 3/4 · 64 comp. · 5 seções · 2026-11-01 20:00", lv.summary(items[1]))
+      assert.equal("129.5 BPM · 4/4 · 85 comp. · 1 seção", lv.summary(items[3]))
+      assert.equal("não dá para abrir", lv.summary(items[2]))
+      lv.pick("Futura")
+      assert.same({}, lv.list_state().picked)
+    end)
+
+    it("seleção múltipla na ordem dos cliques, ajustável", function()
+      lv.pick("Igreja")
+      lv.pick("Amazing")
+      assert.same({ "Igreja", "Amazing" }, lv.list_state().picked)
+      lv.move(2, -1)
+      assert.same({ "Amazing", "Igreja" }, lv.list_state().picked)
+      lv.pick("Amazing")
+      assert.same({ "Igreja" }, lv.list_state().picked)
+    end)
+
+    it("adiciona na ordem e junta Learn, CC diferente e offline", function()
+      lv.pick("Igreja")
+      lv.pick("Amazing")
+      local res, text = lv.add()
+      assert.equal("done", res)
+      assert.equal("2 músicas adicionadas no fim do projeto.", text)
+      assert.same({ "Igreja", "Amazing" }, added)
+      local result = lv.list_state().result
+      assert.truthy(result:find("faça o Learn): Reverb, Rotary", 1, true))
+      assert.truthy(result:find("ficou o desta máquina): Wah", 1, true))
+      assert.truthy(result:find("Amazing: audio/Click.wav", 1, true))
+    end)
+
+    it("plugins faltando: lista antes e só adiciona se confirmar", function()
+      missing.Igreja = { "VST3: ValhallaRoom" }
+      lv.pick("Igreja")
+      assert.same({ "missing", "VST3: ValhallaRoom" }, { lv.add() })
+      assert.same({}, added)
+      assert.equal("done", (lv.add_anyway()))
+      assert.same({ "Igreja" }, added)
+    end)
+
+    it("sem escolha não adiciona nada", function()
+      assert.equal("none", (lv.add()))
+      assert.same({}, added)
+    end)
+
+    it("pasta escolhida ausente: lista vazia e Padrão volta à pasta padrão", function()
+      dir_ok = false
+      lv.open_list()
+      assert.same({ false, {} }, { lv.list_state().dir_ok, lv.list_state().items })
+      lv.use_default_dir()
+      assert.equal("padrão", set_dir_to)
+      assert.equal(3, #lv.list_state().items)
+    end)
+  end)
 end)

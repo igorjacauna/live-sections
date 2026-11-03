@@ -17,7 +17,7 @@ local diag = require("core.diag")
 
 local ImGui, theme, anim, widgets
 local perf, layers, feedback, mappings, learn, input, model, editor, settings_view, stage
-local kontakt_cc, mapping_view, layer_params
+local kontakt_cc, mapping_view, layer_params, library_view
 
 local VERSION = require("version")
 
@@ -64,6 +64,7 @@ function M.init(deps)
   mappings, learn, input, model = deps.mappings, deps.learn, deps.input, deps.model
   editor, settings_view, stage = deps.editor, deps.settings, deps.stage
   kontakt_cc, mapping_view, layer_params = deps.kontakt_cc, deps.mapping, deps.layer_params
+  library_view = deps.library_view
   diag.set_info(function()
     local s = snap or {}
     return string.format("%s · %s em %.1f s%s", ui.mode, s.playing and "tocando" or "parado", s.pos or 0,
@@ -551,6 +552,13 @@ local function setlist(ctx, x, y, w, h)
   local s = snap
   ImGui.DrawList_AddRectFilled(dl, x, y, x + w, y + h, theme.C.panel, theme.R.r2)
   txt(ctx, dl, "label", x + 16, y + 14, theme.C.muted, "SETLIST")
+  -- montar o setlist pela biblioteca (fora do Palco)
+  if library_view and not ui.stage then
+    local bw = size(ctx, "button", "Da biblioteca") + 46
+    if button(ctx, "from_library", "Da biblioteca", x + w - bw - 8, y + 6, 28, { icon = "plus", w = bw }) then
+      library_view.open_list()
+    end
+  end
   local cy = y + 40
   for i, song in ipairs(model.songs()) do
     if cy + 58 > y + h then break end
@@ -1088,6 +1096,7 @@ function M.draw(ctx)
     setlist(ctx, x, y, SETLIST_W, math.max(200, h))
     cx, cw = x + SETLIST_W + GAP + 4, w - SETLIST_W - GAP - 4
   end
+  if library_view then library_view.draw(ctx) end
 
   local cy = y
   if ui.stage then

@@ -117,11 +117,12 @@ view.init({
   ImGui = ImGui, theme = theme, anim = anim, widgets = widgets,
   perf = perf, layers = layers, feedback = feedback, mappings = mappings,
   learn = learn, input = input, model = model, editor = editor, settings = settings_view, stage = stage,
-  kontakt_cc = kontakt_cc, mapping = mapping_view, layer_params = layer_params,
+  kontakt_cc = kontakt_cc, mapping = mapping_view, layer_params = layer_params, library_view = library_view,
 })
 chart_view.init({ ImGui = ImGui, theme = theme, kit = view.kit })
 library_view.init({
   ImGui = ImGui, theme = theme, kit = view.kit, library = library, song_package = require("core.song_package"),
+  song_import = require("core.song_import"),
 })
 mapping_view.init({
   ImGui = ImGui, theme = theme, kit = view.kit, kontakt_cc = kontakt_cc, learn = learn, feedback = feedback,
