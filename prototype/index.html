@@ -160,8 +160,7 @@ input, select { user-select: text; }
 /* camadas */
 .layers { padding: 14px; display: grid; gap: 12px; }
 .faders { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
-.layer { flex: 0 0 96px; display: grid; justify-items: center; gap: 8px; padding: 10px 8px; border-radius: 12px; background: var(--raise); border: 1px solid var(--line); transition: opacity .2s; }
-.layer.dim { opacity: .45; }
+.layer { flex: 0 0 132px; display: grid; align-content: start; justify-items: center; gap: 8px; padding: 10px 8px; border-radius: 12px; background: var(--raise); border: 1px solid var(--line); transition: opacity .2s; }
 .layer .lname { font-weight: 800; font-size: 12.5px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ftrack { --v: .7; --hw: .7; position: relative; width: 40px; height: 132px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); cursor: ns-resize; touch-action: none; }
 .ffill { position: absolute; left: 6px; right: 6px; bottom: 6px; height: calc(var(--v) * (100% - 26px) + 7px); border-radius: 6px; background: linear-gradient(to top, color-mix(in oklab, var(--text) 30%, var(--raise2)), color-mix(in oklab, var(--text) 70%, var(--raise2))); }
@@ -172,9 +171,29 @@ input, select { user-select: text; }
 .ftrack.tko .fghost { display: block; }
 .fval { font-size: 11.5px; color: var(--muted); }
 .tko-hint { font-size: 11px; font-weight: 800; color: var(--queue); text-align: center; line-height: 1.2; }
-.ms { display: flex; gap: 4px; }
-.ms button { width: 32px; height: 26px; border-radius: 7px; border: 1px solid var(--line2); background: var(--panel); font: 700 12px var(--f-num); color: var(--muted); }
-.ms button[aria-pressed="true"] { background: var(--text); color: var(--ink); border-color: var(--text); }
+.ligado { width: 100%; height: 28px; border-radius: 8px; border: 1px solid var(--line2); background: var(--panel); font: 800 11px var(--f-ui); letter-spacing: .08em; color: var(--muted); }
+.ligado[aria-pressed="true"] { background: var(--ok); border-color: var(--ok); color: var(--ink); }
+.params { display: grid; gap: 6px; width: 100%; }
+.param { padding: 6px 8px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); display: grid; gap: 3px; cursor: ns-resize; user-select: none; transition: border-color .2s, box-shadow .2s; }
+.param.toggle { cursor: pointer; grid-template-columns: 1fr auto; align-items: center; }
+.param.flash { border-color: var(--queue); box-shadow: 0 0 0 1px var(--queue); }
+.param .pn { font-size: 11px; font-weight: 700; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.param .pv { font: 800 20px var(--f-num); line-height: 1; }
+.param .pbar { height: 4px; border-radius: 2px; background: var(--raise2); overflow: hidden; }
+.param .pbar i { display: block; height: 100%; background: var(--queue); }
+.param .pill { padding: 2px 8px; border-radius: 99px; font: 800 11px var(--f-num); background: var(--raise2); color: var(--faint); }
+.param .pill.on { background: var(--queue); color: var(--ink); }
+.padd { min-height: 34px; border-radius: 8px; border: 1px dashed var(--line2); background: transparent; color: var(--muted); font-size: 11.5px; font-weight: 700; line-height: 1.2; }
+.padd.wait { border-color: var(--learn, #E28CFF); color: var(--learn, #E28CFF); }
+/* cifra (teleprompter) */
+.tpwin { width: min(760px, 100%); height: min(78vh, 640px); padding: 16px; display: grid; grid-template-rows: auto 1fr; gap: 10px; animation: rise .3s cubic-bezier(.2, .8, .2, 1) both; }
+.tpview { position: relative; overflow: hidden; border-radius: 12px; background: var(--bg); }
+.tprows { position: absolute; left: 0; right: 0; top: 0; transition: transform .35s linear; will-change: transform; }
+.tpr { font-family: var(--f-num); font-size: clamp(16px, 3.2vw, 26px); line-height: 1.3; white-space: pre; padding: 0 16px; }
+.tpr.ch { font-weight: 800; color: var(--queue); }
+.tpr.hdr { font: 800 12px var(--f-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding-top: 14px; padding-bottom: 6px; }
+.tpr.past { opacity: .32; }
+.tpr.cur { background: var(--raise); box-shadow: inset 4px 0 0 var(--queue); }
 .nolayers { padding: 12px 14px; border-radius: var(--r2); border: 1px dashed var(--line2); color: var(--muted); font-size: 13px; }
 
 /* ações */
@@ -208,7 +227,18 @@ input, select { user-select: text; }
 .strippanel { padding: 16px; display: grid; gap: 10px; min-width: 0; }
 .strippanel h2 { margin: 2px 0 0; font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
 .hint { margin: 0; color: var(--muted); font-size: 13px; }
-.strip-scroll { overflow-x: auto; padding-bottom: 4px; }
+.strip-scroll { overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.strip-scroll::-webkit-scrollbar { display: none; }
+.tk.bt { height: 3px; background: var(--line); }
+.snav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.minimap { position: relative; flex: 1 1 160px; height: 24px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line2); overflow: hidden; cursor: pointer; touch-action: none; }
+.minimap i { position: absolute; top: 5px; bottom: 5px; border-radius: 3px; background: color-mix(in oklab, var(--c) 55%, var(--panel)); }
+.minimap .vp { position: absolute; top: 0; bottom: 0; border: 2px solid var(--text); border-radius: 6px; background: rgba(232, 237, 245, .1); }
+.minimap.full .vp { display: none; }
+.undo-l { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.numin { width: 84px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line2); background: var(--bg); color: var(--text); font: 700 14px var(--f-num); }
+.tmsg { margin: 0; font-size: 12.5px; color: var(--text); }
+.tmsg.err { color: var(--danger, #FF6B6B); }
 .strip { position: relative; min-width: 680px; padding-top: 4px; }
 .ruler { position: relative; height: 26px; border-bottom: 1px solid var(--line); cursor: text; }
 .tk { position: absolute; bottom: 0; width: 1px; height: 5px; background: var(--line2); }
@@ -439,20 +469,37 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
   const baseName = (n) => n.replace(/\s+\d+$/, '');
   const chipColor = (n) => (CHIPS.find((c) => c.name === baseName(n)) || { color: DEFAULT_COLOR }).color;
   const S = (name, start, len) => ({ name, start, len, color: chipColor(name) });
-  const L = (name, vol) => ({ name, vol, mute: false, solo: false });
+  // camada: volume, ligado (mute invertido) e até 4 parâmetros (knob 0–127 ou liga/desliga)
+  const L = (name, vol, params = []) => ({ name, vol, mute: false, params });
+  const P = (name, kind, v) => ({ name, kind, v });
 
   let songs = [
     { name: 'Rua Augusta', bpm: 96, sig: [4, 4], bars: 56, bar1: 0,
       kontakt: { track: 'Kontakt 7 · Rua Augusta' },
-      layers: [L('Piano', .78), L('Pad', .55), L('Cordas', .62), L('Synth', .4)],
+      layers: [L('Piano', .78, [P('Reverb', 'knob', 87), P('Brilho', 'knob', 52)]), L('Pad', .55, [P('Filtro', 'knob', 64)]),
+        L('Cordas', .62, [P('Legato', 'toggle', 127)]), L('Synth', .4)],
       sections: [S('Intro', 0, 4), S('Verso', 4, 8), S('Pré', 12, 4), S('Refrão', 16, 8), S('Verso 2', 24, 8), S('Refrão 2', 32, 8), S('Ponte', 40, 4), S('Refrão 3', 44, 8), S('Outro', 52, 4)] },
     { name: 'Maré Alta', bpm: 128, sig: [4, 4], bars: 64, bar1: 0,
       kontakt: { track: 'Kontakt 7 · Maré Alta' },
-      layers: [L('Rhodes', .7), L('Baixo synth', .82), L('Pluck', .5)],
+      layers: [L('Rhodes', .7, [P('Tremolo', 'toggle', 0), P('Drive', 'knob', 40)]), L('Baixo synth', .82), L('Pluck', .5, [P('Delay', 'knob', 70)])],
       sections: [S('Intro', 0, 8), S('Verso', 8, 16), S('Refrão', 24, 8), S('Drop', 36, 8), S('Ponte', 44, 8), S('Refrão 2', 52, 8), S('Outro', 60, 4)] },
     { name: 'Sete Oitavos', bpm: 140, sig: [7, 8], bars: 40, bar1: 0, kontakt: null, layers: [],
       sections: [S('Intro', 0, 4), S('Verso', 4, 8), S('Refrão', 12, 8), S('Solo', 20, 8), S('Refrão 2', 28, 8), S('Outro', 36, 4)] },
   ];
+
+  // cifra de exemplo: por nome-base da seção, versos de acordes + letra (ou uma linha em grade)
+  const LYR = {
+    Intro: [['| G  | D  | Em | C  |']],
+    Verso: [['G              D', 'Desço a rua sem pressa'], ['Em             C', 'o céu ainda acordando'],
+      ['G              D', 'cada esquina tem um nome'], ['Em        C       D', 'que eu guardei cantando']],
+    'Pré': [['C          D', 'E o vento vira'], ['Em         D', 'me chama pra perto']],
+    'Refrão': [['G     D/F#', 'Ô, Rua Augusta'], ['Em        C', 'me leva de novo'], ['G     D/F#', 'que a noite é curta'], ['C     D        G', 'e o peito é de fogo']],
+    Ponte: [['Am        C', 'Quando a luz apaga'], ['D            D7', 'eu ainda sei voltar']],
+    Drop: [['| Em | C  | G  | D  |'], ['| Em | C  | G  | D  |']],
+    Solo: [['| Am | F  | C  | G  |'], ['| Am | F  | E  | E  |']],
+    Outro: [['| G  | D  | C  | G  |']],
+  };
+  const lyrOf = (x) => LYR[baseName(x.name)] || [['C        G', `(${x.name})`], ['Am       F', 'la la la']];
 
   const QUANT = [
     { id: 'now', label: 'Imediato' }, { id: 'beat', label: 'Batida' },
@@ -502,6 +549,12 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
   let metro = false;
   let drag = null;
   let suppressClick = false;
+  let pick = null;          // camada esperando "mexa o controle" do + parâmetro
+  let chartOpen = false;
+  let grid = 'bar';         // grade do editor: bar | beat | half | free
+  let zoom = 1;             // zoom da faixa (1 = música inteira)
+  let stripScroll = 0;      // fração rolada da faixa, para sobreviver ao re-render
+  let tmsg = null;          // { text, err, until } aviso do painel de tempo
 
   const cur = () => songs[T.song];
   const bpb = (s) => s.sig[0];
@@ -511,6 +564,19 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
     return s.sections.findIndex((x) => bar >= x.start - 1e-9 && bar < x.start + x.len - 1e-9);
   };
   const qInfo = () => QUANT.find((q) => q.id === quant);
+
+  // grade do editor: passo em compassos; o Livre usa meio tempo como menor seção
+  const GRIDS = [['bar', 'Compasso'], ['beat', 'Tempo'], ['half', '½ tempo'], ['free', 'Livre']];
+  const SIGS = ['2/4', '3/4', '4/4', '5/4', '6/8', '7/8', '12/8'];
+  const gstep = (s) => (grid === 'bar' ? 1 : grid === 'beat' ? 1 / bpb(s) : 1 / (2 * bpb(s)));
+  const snapB = (s, bar) => (grid === 'free' ? bar : Math.round(bar / gstep(s)) * gstep(s));
+  const floorB = (s, bar) => (grid === 'free' ? bar : Math.floor(bar / gstep(s) + 1e-9) * gstep(s));
+  const r3 = (v) => Math.round(v * 1000) / 1000;
+  const fmtNum = (v) => String(Math.round(v * 100) / 100).replace('.', ',');
+  const fmtLen = (n) => `${String(r3(n)).replace('.', ',')} comp.`;
+  // "5" no compasso; "5.3" (compasso.tempo) entre compassos
+  const posShort = (s, bar) => { const w = Math.floor(bar + 1e-6), t = r3((bar - w) * bpb(s)); return t < 1e-3 ? `${w + 1}` : `${w + 1}.${String(r3(t + 1)).replace('.', ',')}`; };
+  const posLabel = (s, bar) => { const w = Math.floor(bar + 1e-6), t = r3((bar - w) * bpb(s)); return t < 1e-3 ? `compasso ${w + 1}` : `compasso ${w + 1}, tempo ${String(r3(t + 1)).replace('.', ',')}`; };
 
   // ------------------------------------------------------------------ transporte
   function computeJump() {
@@ -647,7 +713,7 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
       slot: `Disparar seção · slot ${a}`, q: `Quantize: ${q ? q.label : a}`, qcycle: 'Quantize: percorrer valores',
       loop: 'Ligar/desligar loop', cancel: 'Cancelar fila', prev: 'Música anterior', next: 'Próxima música',
       prevsec: 'Seção anterior', nextsec: 'Próxima seção', play: 'Play/Stop', panic: 'Panic',
-      song: `Ir para a música ${a}`, vol: `Volume da camada ${a}`, mute: `Mute da camada ${a}`, solo: `Solo da camada ${a}`,
+      song: `Ir para a música ${a}`, vol: `Volume da camada ${a}`, mute: `Liga/desliga a camada ${a}`,
       setlist: 'Expandir setlist',
     })[k] || id;
   }
@@ -709,23 +775,29 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
     </button>`;
   }
 
+  function paramHTML(i, j, p) {
+    const val = p.kind === 'knob'
+      ? `<b class="pv num">${p.v}</b><span class="pbar"><i style="width:${(p.v / 127 * 100).toFixed(1)}%"></i></span>`
+      : `<span class="pill${p.v >= 64 ? ' on' : ''}">${p.v >= 64 ? 'ON' : 'OFF'}</span>`;
+    return `<div class="param ${p.kind}" data-p="${i}:${j}" title="${p.kind === 'knob' ? 'Role a roda do mouse' : 'Clique'} para simular o controle. Duplo clique renomeia.">
+      <span class="pn">${esc(p.name)}</span>${val}</div>`;
+  }
+
   function layersHTML(s) {
     if (!s.kontakt) return `<div class="nolayers">Esta música não tem Kontakt vinculado, então não há camadas. Vincule um no modo Editar.</div>`;
-    const anySolo = s.layers.some((l) => l.solo);
     return `<section class="layers panel">
       <div class="ph"><span class="eyebrow">Camadas</span><span class="faint">${esc(s.kontakt.track)} · ${s.layers.length} saídas · teclado: ${esc(settings.kbd)}</span></div>
       <div class="faders">${s.layers.map((l, i) => `
-        <div class="layer${l.mute ? ' muted' : ''}${anySolo && !l.solo ? ' dim' : ''}" data-l="${i}">
+        <div class="layer${l.mute ? ' muted' : ''}" data-l="${i}">
           <div class="lname" title="${esc(l.name)}">${esc(l.name)}</div>
           <div class="ftrack${takeover[i] ? ' tko' : ''}" data-fader="${i}" data-map="vol:${i + 1}" style="--v:${l.vol};--hw:${hw[i] ?? 0}">
             <span class="ffill"></span><span class="fcap"></span><span class="fghost" title="Posição atual do fader físico"></span>
           </div>
           <div class="fval num">${fmtDb(l.vol)}</div>
           <div class="tko-hint" ${takeover[i] ? '' : 'hidden'}>${(hw[i] ?? 0) < l.vol ? '↑ Suba o fader' : '↓ Desça o fader'}</div>
-          <div class="ms">
-            <button data-act="mute" data-arg="${i}" data-map="mute:${i + 1}" aria-pressed="${l.mute}" title="Mute">M</button>
-            <button data-act="solo" data-arg="${i}" data-map="solo:${i + 1}" aria-pressed="${l.solo}" title="Solo">S</button>
-          </div>
+          <button class="ligado" data-act="mute" data-arg="${i}" data-map="mute:${i + 1}" aria-pressed="${!l.mute}" title="Liga/desliga a camada (o LED do controle acende com ela tocando)">LIGADO</button>
+          <div class="params">${l.params.map((p, j) => paramHTML(i, j, p)).join('')}
+            ${!stage && l.params.length < 4 ? `<button class="padd${pick === i ? ' wait' : ''}" data-act="padd" data-arg="${i}">${pick === i ? 'Mexa o<br>controle…' : '+ parâmetro'}</button>` : ''}</div>
         </div>`).join('')}
       </div></section>`;
   }
@@ -735,6 +807,7 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
       <button class="btn big play" data-act="play" data-map="play"><span class="pli">${ic('play')}</span><span class="plt">Play</span></button>
       <button class="btn big loop" data-act="loop" data-map="loop" aria-pressed="false">${ic('loop')}<span class="lpt">Loop</span></button>
       <button class="btn big" data-act="cancel" data-map="cancel">${ic('x')} Cancelar fila</button>
+      <button class="btn big" data-act="chart" aria-pressed="${chartOpen}">Cifra</button>
       <span class="sp"></span>
       <div class="grp">
         <button class="btn" data-act="prevsec" data-map="prevsec" title="Seção anterior">${ic('left')} Seção</button>
@@ -744,6 +817,51 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
       </div>
       <button class="btn big danger" data-act="panic" data-map="panic">Panic</button>
     </div>`;
+  }
+
+  // Cifra da música inteira, como a janela Cifra: cabeçalho por seção e versos.
+  function chartUnits(s) {
+    const rows = [], units = [];
+    s.sections.forEach((x, si) => {
+      rows.push({ kind: 'hdr', text: x.name });
+      const lines = lyrOf(x);
+      lines.forEach((u, k) => {
+        units.push({ si, k, n: lines.length, row: rows.length, len: u.length });
+        u.forEach((t, j) => rows.push({ kind: t.startsWith('|') || (u.length > 1 && j === 0) ? 'ch' : 'ly', text: t, unit: units.length - 1 }));
+      });
+    });
+    return { rows, units };
+  }
+
+  function chartHTML(s) {
+    const { rows } = chartUnits(s);
+    return `<div class="overlay" data-act="closechart"><div class="tpwin panel" data-stop="1">
+      <div class="ph"><span class="eyebrow">Cifra · ${esc(s.name)} · o verso atual fica no meio</span><button class="btn sm ghost" data-act="closechart">${ic('x')} Fechar</button></div>
+      <div class="tpview" id="tpview"><div class="tprows" id="tprows">${rows.map((r, i) => `<div class="tpr ${r.kind}" data-r="${i}" data-u="${r.unit ?? ''}">${esc(r.text)}</div>`).join('')}</div></div>
+    </div></div>`;
+  }
+
+  function updateChart() {
+    const box = $('#tprows'), view = $('#tpview');
+    if (!box || !view) return;
+    const s = cur(), b = bpb(s), ci = secAt(s, T.pos);
+    const { units } = chartUnits(s);
+    let curU = -1, focus = 0;
+    if (ci >= 0) {
+      const x = s.sections[ci], prog = clamp((T.pos / b - x.start) / x.len, 0, .9999);
+      const mine = units.filter((u) => u.si === ci);
+      const k = Math.floor(prog * mine.length), frac = prog * mine.length - k;
+      const u = mine[k];
+      curU = units.indexOf(u);
+      const el = box.children[u.row];
+      focus = el.offsetTop + frac * el.offsetHeight * u.len;
+    }
+    [...box.children].forEach((el) => {
+      const ui = el.dataset.u === '' ? null : +el.dataset.u;
+      el.classList.toggle('cur', ui === curU);
+      el.classList.toggle('past', ui != null && curU >= 0 && ui < curU);
+    });
+    box.style.transform = `translateY(${(view.clientHeight * .42 - focus).toFixed(1)}px)`;
   }
 
   function perfHTML() {
@@ -772,14 +890,15 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
         ${actionsHTML()}
       </section>
     </div>
+    ${chartOpen ? chartHTML(s) : ''}
     ${setlistOpen ? `<div class="overlay" data-act="closeset"><div class="sheet panel" data-stop="1"><div class="ph"><span class="eyebrow">Setlist completa</span><button class="btn sm ghost" data-act="closeset">${ic('x')} Fechar</button></div><ol class="setlist-full">${songs.map((_, k) => songItem(k)).join('')}</ol></div></div>` : ''}`;
   }
 
   // ------------------------------------------------------------------ render: editar
   const TOOL_HINT = {
-    select: 'Clique numa seção para tocar a partir dela e editar. Arraste a borda entre duas seções para mover as duas juntas. Clique na régua para mover o cursor.',
+    select: 'Clique numa seção para editar (o cursor vai para o início dela); clique de novo para pôr o cursor no ponto clicado; duplo clique toca a partir dela. Arraste a borda entre duas seções para mover as duas juntas. Ctrl/Cmd+roda dá zoom; a grade abaixo diz onde as bordas caem.',
     split: 'Clique num compasso dentro de uma seção para dividir ali. Atalho: S divide no cursor.',
-    draw: 'Arraste sobre a faixa para criar uma seção, com snap no compasso. Se ela invadir outra, a vizinha é recortada.',
+    draw: 'Arraste sobre a faixa para criar uma seção, com snap na grade. Se ela invadir outra, a vizinha é recortada.',
   };
 
   function gapsOf(s) {
@@ -792,13 +911,18 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
   function stripHTML(s) {
     const pct = (b) => (b / s.bars * 100).toFixed(4) + '%';
     let ticks = '';
-    const step = s.bars > 48 ? 4 : 2;
-    for (let b = 0; b <= s.bars; b++) ticks += `<span class="tk${b % step === 0 ? ' maj' : ''}" style="left:${pct(b)}">${b % step === 0 && b < s.bars ? `<b>${b + 1}</b>` : ''}</span>`;
+    const visible = s.bars / zoom;
+    const step = visible > 48 ? 4 : visible > 12 ? 2 : 1;
+    for (let b = 0; b <= s.bars; b++) {
+      ticks += `<span class="tk${b % step === 0 ? ' maj' : ''}" style="left:${pct(b)}">${b % step === 0 && b < s.bars ? `<b>${b + 1}</b>` : ''}</span>`;
+      // com zoom, um traço por tempo
+      if (visible <= 24 && b < s.bars) for (let k = 1; k < bpb(s); k++) ticks += `<span class="tk bt" style="left:${pct(b + k / bpb(s))}"></span>`;
+    }
     const gaps = gapsOf(s).map(([a, b]) => `<div class="gap" style="left:${pct(a)};width:${pct(b - a)}">${b - a >= 3 ? 'sem seção' : ''}</div>`).join('');
     const secs = s.sections.map((x, i) => `<div class="sec${selSec === i ? ' sel' : ''}" data-act="selsec" data-arg="${i}" data-si="${i}" style="--c:${x.color};left:${pct(x.start)};width:${pct(x.len)}">
-        <span class="sname">${esc(x.name)}</span><span class="slen num">${x.len} comp.</span>
+        <span class="sname">${esc(x.name)}</span><span class="slen num">${fmtLen(x.len)}</span>
         <span class="h L" data-edge="L" data-si="${i}"></span><span class="h R" data-edge="R" data-si="${i}"></span></div>`).join('');
-    return `<div class="strip tool-${tool}" id="strip">
+    return `<div class="strip tool-${tool}" id="strip" style="width:${zoom * 100}%">
       <div class="ruler" data-act="ruler">${ticks}</div>
       <div class="lane" id="lane">${gaps}${secs}</div>
       <div class="playhead" id="ph"></div>
@@ -813,7 +937,7 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
       <div class="chips" aria-hidden="true" style="opacity:.5">${CHIPS.map((c) => `<span class="chip" style="--c:${c.color}">${c.name}</span>`).join('')}</div></div>`;
     const nx = s.sections[selSec + 1];
     return `<div class="panel insp">
-      <div class="ph"><span class="eyebrow">Seção selecionada</span><span class="faint num">comp. ${x.start + 1}–${x.start + x.len}</span></div>
+      <div class="ph"><span class="eyebrow">Seção selecionada</span><span class="faint num">comp. ${posShort(s, x.start)}–${posShort(s, x.start + x.len)}</span></div>
       <label class="field"><span>Nome</span><input id="secname" value="${esc(x.name)}" autocomplete="off"></label>
       <div class="chips">${CHIPS.map((c) => `<button class="chip" style="--c:${c.color}" data-act="chip" data-arg="${c.name}">${c.name}</button>`).join('')}</div>
       <div class="row">
@@ -843,13 +967,16 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
         </div>
       </div>
       <div class="fine">
-        <div class="fr"><span class="lbl">BPM da música</span><b>${ptNum(s.bpm)}</b><button class="btn sm" data-act="bpm" data-arg="-0.01">−0,01</button><button class="btn sm" data-act="bpm" data-arg="0.01">+0,01</button></div>
+        <div class="fr"><span class="lbl">BPM da música</span><input id="bpmin" class="numin" value="${fmtNum(s.bpm)}" inputmode="decimal" aria-label="BPM da música"><button class="btn sm" data-act="bpm" data-arg="-0.01">−0,01</button><button class="btn sm" data-act="bpm" data-arg="0.01">+0,01</button></div>
+        <div class="fr"><span class="lbl">Fórmula</span><input id="sigin" class="numin" value="${s.sig[0]}/${s.sig[1]}" aria-label="Fórmula de compasso">
+          <div class="seg" role="group" aria-label="Atalhos de fórmula">${SIGS.map((g) => `<button data-act="sig" data-arg="${g}" aria-pressed="${g === s.sig.join('/')}">${g}</button>`).join('')}</div></div>
         <div class="fr"><span class="lbl">Compasso 1</span><b>${s.bar1} ms</b><button class="btn sm" data-act="bar1" data-arg="-1">−1 ms</button><button class="btn sm" data-act="bar1" data-arg="1">+1 ms</button></div>
         <div class="fr">
           <button class="btn sm" data-act="markbar1">${ic('cursor')} Marcar compasso 1 no cursor</button>
           <button class="btn sm ghost" data-act="metro" aria-pressed="${metro}">Metrônomo <span class="mdot" id="mdot"></span></button>
         </div>
       </div>
+      ${tmsg && performance.now() < tmsg.until ? `<p class="tmsg${tmsg.err ? ' err' : ''}">${esc(tmsg.text)}</p>` : ''}
       <p class="note">O áudio não é esticado: o grid é que passa a seguir o áudio. O ajuste desta música não muda o tempo das outras.</p>
     </div>`;
   }
@@ -892,11 +1019,19 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
               <div class="seg" role="group" aria-label="Ferramenta">
                 ${[['select', 'Selecionar'], ['split', 'Dividir'], ['draw', 'Desenhar']].map(([id, l]) => `<button data-act="tool" data-arg="${id}" aria-pressed="${tool === id}">${l}</button>`).join('')}
               </div>
-              <button class="btn sm ghost" data-act="undo" ${lastU ? '' : 'disabled'} title="⌘Z">${ic('undo')} ${lastU ? 'Desfazer: ' + esc(lastU.label) : 'Desfazer'}</button>
+              <button class="btn sm ghost" data-act="undo" ${lastU ? '' : 'disabled'} title="⌘Z">${ic('undo')} <span class="undo-l">${lastU ? 'Desfazer: ' + esc(lastU.label) : 'Desfazer'}</span></button>
             </div>
           </div>
           <p class="hint">${TOOL_HINT[tool]}</p>
-          <div class="strip-scroll">${stripHTML(s)}</div>
+          <div class="strip-scroll" id="sscroll">${stripHTML(s)}</div>
+          <div class="snav">
+            <span class="lbl">Grade</span>
+            <div class="seg" role="group" aria-label="Grade">${GRIDS.map(([id, l]) => `<button data-act="grid" data-arg="${id}" aria-pressed="${grid === id}">${l}</button>`).join('')}</div>
+            <div class="minimap${zoom > 1 ? '' : ' full'}" id="minimap" title="Arraste para levar a faixa até outro trecho">${s.sections.map((x) => `<i style="--c:${x.color};left:${x.start / s.bars * 100}%;width:${x.len / s.bars * 100}%"></i>`).join('')}<span class="vp" id="vp"></span></div>
+            <button class="btn sm" data-act="zoom" data-arg="out" title="Menos zoom">−</button>
+            <button class="btn sm" data-act="zoom" data-arg="in" title="Mais zoom (ou Ctrl/Cmd+roda sobre a faixa)">+</button>
+            <button class="btn sm" data-act="zoom" data-arg="all">Inteira</button>
+          </div>
           ${s.sections.length ? '' : `<div class="empty"><b>Esta música ainda não tem seções</b><span>Desenhe na faixa acima ou crie uma seção com a música inteira e divida depois.</span><button class="btn" data-act="addsec">${ic('plus')} Seção</button></div>`}
         </div>
         <div class="egrid">${inspectorHTML(s)}${tempoHTML(s)}</div>
@@ -961,12 +1096,72 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
   }
 
   // ------------------------------------------------------------------ render geral
+  // ------------------------------------------------------------------ zoom da faixa
+  function setZoom(z, frac, px) {
+    const sc = $('#sscroll');
+    const max = Math.max(1, cur().bars / 2);         // até 2 compassos na tela
+    const nz = clamp(z, 1, max);
+    if (sc) {
+      px = px ?? sc.clientWidth / 2;
+      frac = frac ?? (sc.scrollLeft + px) / sc.scrollWidth;
+      stripScroll = clamp(frac - px / (sc.clientWidth * nz), 0, 1);
+    }
+    zoom = nz;
+    renderView();
+  }
+
+  function setupStrip() {
+    const sc = $('#sscroll');
+    if (!sc) return;
+    sc.scrollLeft = stripScroll * sc.scrollWidth;
+    const sync = () => {
+      stripScroll = sc.scrollLeft / sc.scrollWidth;
+      const vp = $('#vp');
+      if (vp) { vp.style.left = (stripScroll * 100) + '%'; vp.style.width = (sc.clientWidth / sc.scrollWidth * 100) + '%'; }
+    };
+    sc.addEventListener('scroll', sync);
+    sync();
+    sc.addEventListener('wheel', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const r = sc.getBoundingClientRect(), px = e.clientX - r.left;
+        setZoom(zoom * (e.deltaY < 0 ? 1.5 : 1 / 1.5), (sc.scrollLeft + px) / sc.scrollWidth, px);
+      } else if (zoom > 1) {
+        e.preventDefault();
+        sc.scrollLeft += e.deltaY || e.deltaX;
+      }
+    }, { passive: false });
+  }
+
+  function miniMove(e) {
+    const mm = $('#minimap'), sc = $('#sscroll');
+    if (!mm || !sc) return;
+    const r = mm.getBoundingClientRect();
+    sc.scrollLeft = clamp((e.clientX - r.left) / r.width, 0, 1) * sc.scrollWidth - sc.clientWidth / 2;
+  }
+
+  // ------------------------------------------------------------------ tempo e fórmula
+  function say(text, err) { tmsg = { text, err, until: performance.now() + 4000 }; renderView(); }
+
+  function applySig(text) {
+    const m = String(text).match(/^\s*(\d+)\s*\/\s*(\d+)\s*$/);
+    const n = m && +m[1], d = m && +m[2];
+    if (!m || n < 1 || n > 32 || ![1, 2, 4, 8, 16, 32].includes(d)) { say('Digite a fórmula como 7/8: de 1 a 32 tempos, sobre 1, 2, 4, 8, 16 ou 32.', true); return; }
+    const s = cur();
+    if (s.sig[0] === n && s.sig[1] === d) { renderView(); return; }
+    snapshot('Fórmula de compasso');
+    const bar = T.pos / bpb(s);
+    s.sig = [n, d];
+    T.pos = bar * bpb(s);
+    say(`Fórmula da música: ${n}/${d}.`);
+  }
+
   function renderView() {
     renderTop();
     const v = $('#view');
     v.innerHTML = mode === 'perf' ? perfHTML() : mode === 'edit' ? editHTML() : settingsHTML();
     enterAnim = false;
-    if (mode === 'edit') updateTap();
+    if (mode === 'edit') { updateTap(); setupStrip(); }
     applyLearn();
     updateLive();
   }
@@ -1030,11 +1225,18 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
       }
       const lp = $('.btn.loop');
       if (lp) { lp.setAttribute('aria-pressed', T.loop); setText($('.lpt', lp), T.loop ? 'Loop ligado' : 'Loop'); }
+      updateChart();
     }
 
     if (mode === 'edit') {
       const ph = $('#ph');
       if (ph) ph.style.left = (clamp(T.pos / b / s.bars, 0, 1) * 100).toFixed(3) + '%';
+      // tocando com zoom, a faixa acompanha o cursor que sai da tela
+      const sc = $('#sscroll');
+      if (sc && zoom > 1 && T.playing && !drag) {
+        const x = clamp(T.pos / b / s.bars, 0, 1) * sc.scrollWidth;
+        if (x < sc.scrollLeft || x > sc.scrollLeft + sc.clientWidth) sc.scrollLeft = x - sc.clientWidth * .1;
+      }
       const md = $('#mdot');
       if (md) md.classList.toggle('on', metro && T.playing && (T.pos % 1) < .18);
     }
@@ -1164,13 +1366,13 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
 
   function splitAt(si, bar) {
     const s = cur(), x = s.sections[si];
-    if (!x || bar <= x.start || bar >= x.start + x.len) { toast('Escolha um compasso dentro da seção, depois do início dela.'); return; }
+    if (!x || bar <= x.start + 1e-9 || bar >= x.start + x.len - 1e-9) { toast('Escolha um ponto dentro da seção, depois do início dela.'); return; }
     snapshot('Dividir');
     const right = { name: uniqueName(s, baseName(x.name)), color: x.color, start: bar, len: x.start + x.len - bar };
     x.len = bar - x.start;
     s.sections.splice(si + 1, 0, right);
     selSec = si + 1;
-    renderView(); toast(`Dividida no compasso ${bar + 1}. Um passo de undo.`);
+    renderView(); toast(`Dividida no ${posLabel(s, bar)}. Um passo de undo.`);
   }
 
   function drawSection(a, b) {
@@ -1196,7 +1398,7 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
     for (const x of out) if (x.name === '__split__') { const orig = out.find((y) => y !== x && y.color === x.color && y.start + y.len === a); x.name = uniqueName(s, baseName(orig ? orig.name : 'Seção'), x); }
     nw.name = uniqueName(s, 'Seção', nw);
     selSec = out.indexOf(nw);
-    renderView(); toast(`Seção criada nos compassos ${a + 1}–${b}. Vizinhas recortadas. Um passo de undo.`);
+    renderView(); toast(`Seção criada de ${posShort(s, a)} a ${posShort(s, b)} (${fmtLen(b - a)}). Vizinhas recortadas. Um passo de undo.`);
   }
 
   function setLen(si, n) {
@@ -1216,7 +1418,13 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
 
   function editAction(c) {
     const s = cur(), x = s.sections[selSec];
-    if (c === 'playfrom' && x) { T.pos = x.start * bpb(s); T.playing = true; queue = null; T.loop = false; toast(`Tocando a partir de ${x.name}.`); }
+    if (c === 'playfrom') {
+      // toca do cursor; a seção onde ele está passa a ser a selecionada
+      const si = secAt(s, T.pos), y = s.sections[si];
+      if (y) selSec = si;
+      T.playing = true; queue = null; T.loop = false; renderView();
+      toast(y ? `Tocando de ${y.name}, ${posLabel(s, T.pos / bpb(s))}.` : 'Tocando do cursor.');
+    }
     if (c === 'join' && x) {
       const nx = s.sections[selSec + 1];
       if (!nx) return;
@@ -1229,8 +1437,8 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
 
   function splitCursor() {
     const s = cur();
-    const bar = Math.round(T.pos / bpb(s));
-    const si = s.sections.findIndex((x) => bar > x.start && bar < x.start + x.len);
+    const bar = snapB(s, T.pos / bpb(s));
+    const si = s.sections.findIndex((x) => bar > x.start + 1e-9 && bar < x.start + x.len - 1e-9);
     if (si < 0) { toast('O cursor precisa estar dentro de uma seção, fora do início dela.'); return; }
     splitAt(si, bar);
   }
@@ -1298,9 +1506,23 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
       case 'nextsec': stepSection(1); break;
       case 'panic': toast('Panic: All Notes Off e sustain solto em todos os canais.'); break;
       case 'mute': s.layers[+arg].mute = !s.layers[+arg].mute; renderView(); break;
-      case 'solo': s.layers[+arg].solo = !s.layers[+arg].solo; renderView(); break;
+      case 'padd': {
+        const i = +arg;
+        if (pick === i) { pick = null; renderView(); break; }
+        pick = i; renderView();
+        setTimeout(() => {
+          if (pick !== i || !cur().layers[i]) return;
+          const l = cur().layers[i], n = 5 + Object.keys(maps).length % 3;
+          l.params.push(P(`Knob ${n}`, 'knob', 64));
+          pick = null; renderView();
+          toast(`Knob ${n} do controlador ligado a ${l.name}. Duplo clique no nome renomeia; role a roda sobre ele para simular o knob.`);
+        }, 1400);
+        break;
+      }
+      case 'chart': chartOpen = !chartOpen; renderView(); break;
+      case 'closechart': if (!e.target.closest('[data-stop]') || el.tagName === 'BUTTON') { chartOpen = false; renderView(); } break;
       // editar
-      case 'esong': T.song = +arg; T.playing = false; queue = null; T.loop = false; T.pos = 0; enterSong(); break;
+      case 'esong': zoom = 1; stripScroll = 0; T.song = +arg; T.playing = false; queue = null; T.loop = false; T.pos = 0; enterSong(); break;
       case 'addsong': {
         snapshot('Nova música');
         const n = songs.filter((x) => x.name.startsWith('Nova música')).length;
@@ -1312,16 +1534,21 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
       case 'addsec': snapshot('Nova seção'); s.sections = [{ name: 'Seção', color: DEFAULT_COLOR, start: 0, len: s.bars }]; selSec = 0; renderView(); break;
       case 'tool': tool = arg; renderView(); break;
       case 'undo': undo(); break;
-      case 'ruler': if (tool === 'select') { T.pos = Math.round(barAt(e)) * bpb(s); queue = null; } break;
+      case 'ruler': if (tool === 'select') { T.pos = snapB(s, barAt(e)) * bpb(s); queue = null; } break;
       case 'selsec': {
         if (suppressClick || e.target.closest('.h')) break;
-        if (tool === 'split') { splitAt(+arg, Math.round(barAt(e))); break; }
+        if (tool === 'split') { splitAt(+arg, snapB(s, barAt(e))); break; }
         if (tool !== 'select') break;
-        selSec = +arg; const x = s.sections[selSec];
-        T.pos = x.start * bpb(s); T.playing = true; queue = null; T.loop = false;
+        const x = s.sections[+arg];
+        if (selSec === +arg) { if (!T.playing) T.pos = floorB(s, barAt(e)) * bpb(s); break; }
+        selSec = +arg;
+        if (!T.playing) T.pos = x.start * bpb(s);
         renderView();
         break;
       }
+      case 'grid': grid = arg; renderView(); toast(`Grade: ${GRIDS.find((g) => g[0] === arg)[1]}. Dividir, desenhar e mover bordas caem nela.`); break;
+      case 'zoom': setZoom(arg === 'in' ? zoom * 1.5 : arg === 'out' ? zoom / 1.5 : 1); break;
+      case 'sig': applySig(arg); break;
       case 'chip': {
         const x = s.sections[selSec]; if (!x) break;
         snapshot('Renomear'); x.name = uniqueName(s, arg, x); x.color = chipColor(arg); renderView(); break;
@@ -1336,7 +1563,7 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
       }
       case 'round': tap.round = arg; $$('[data-act="round"]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.arg === arg)); updateTap(); break;
       case 'applybpm': { const v = tapBpm(); if (v == null) break; snapshot('Mudar BPM'); s.bpm = v; tap.times = []; renderView(); toast(`${s.name} agora em ${ptNum(v)} BPM. As outras músicas não mudam.`); break; }
-      case 'bpm': s.bpm = Math.round((s.bpm + +arg) * 100) / 100; renderView(); break;
+      case 'bpm': s.bpm = Math.round((s.bpm + +arg) * 100) / 100; say(`BPM da música: ${fmtNum(s.bpm)}.`); break;
       case 'bar1': s.bar1 = Math.max(0, s.bar1 + +arg); renderView(); break;
       case 'markbar1': {
         snapshot('Marcar compasso 1');
@@ -1385,6 +1612,47 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
     if (a && !a.disabled) act(a.dataset.act, a.dataset.arg, e, a);
   });
 
+  // parâmetros: simulam o controle físico (roda = knob, clique = liga/desliga)
+  function paramAt(el) {
+    const [i, j] = el.dataset.p.split(':').map(Number);
+    return { i, j, p: cur().layers[i].params[j], el };
+  }
+  function paramChanged(x) {
+    x.el.outerHTML = paramHTML(x.i, x.j, x.p);
+    const nel = $(`[data-p="${x.i}:${x.j}"]`);
+    if (nel) { nel.classList.add('flash'); setTimeout(() => nel.classList.remove('flash'), 350); }
+  }
+  document.addEventListener('wheel', (e) => {
+    const el = e.target.closest('.param.knob');
+    if (!el) return;
+    e.preventDefault();
+    const x = paramAt(el);
+    x.p.v = clamp(x.p.v + (e.deltaY < 0 ? 3 : -3), 0, 127);
+    paramChanged(x);
+  }, { passive: false });
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('.param.toggle');
+    if (!el || globalLearn) return;
+    const x = paramAt(el);
+    x.p.v = x.p.v >= 64 ? 0 : 127;
+    paramChanged(x);
+  });
+  document.addEventListener('dblclick', (e) => {
+    const el = e.target.closest('.param');
+    if (el) {
+      const x = paramAt(el);
+      const name = prompt(`Nome do parâmetro nesta música (vazio usa o do Mapeamento):`, x.p.name);
+      if (name != null) { x.p.name = name.trim() || 'Knob'; paramChanged(x); }
+      return;
+    }
+    const sec = mode === 'edit' && tool === 'select' && e.target.closest('.sec');
+    if (sec) {
+      const s = cur(), x = s.sections[+sec.dataset.si];
+      selSec = +sec.dataset.si; T.pos = x.start * bpb(s); T.playing = true; queue = null; T.loop = false;
+      renderView(); toast(`Tocando a partir de ${x.name}.`);
+    }
+  });
+
   document.addEventListener('contextmenu', (e) => {
     const m = e.target.closest('[data-map]');
     if (m) { e.preventDefault(); showMidiMenu(m.dataset.map, e.clientX, e.clientY); return; }
@@ -1428,22 +1696,26 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
       drag = { kind: 'ghost', i: +f.dataset.fader, track: f };
       moveHw(drag.i, faderValue(e, f)); e.preventDefault(); return;
     }
+    if (mode === 'edit' && zoom > 1 && e.target.closest('#minimap')) {
+      drag = { kind: 'mini' }; miniMove(e); e.preventDefault(); return;
+    }
     if (mode !== 'edit' || !e.target.closest('#strip')) return;
-    const s = cur();
+    const s = cur(), st = gstep(s);
     const h = e.target.closest('.h');
     if (h && tool === 'select') {
       const si = +h.dataset.si, x = s.sections[si], edge = h.dataset.edge;
       const pv = s.sections[si - 1], nx = s.sections[si + 1];
       let linked, min, max;
-      if (edge === 'R') { linked = nx && nx.start === x.start + x.len; min = x.start + 1; max = nx ? (linked ? nx.start + nx.len - 1 : nx.start) : s.bars; }
-      else { linked = pv && pv.start + pv.len === x.start; max = x.start + x.len - 1; min = pv ? (linked ? pv.start + 1 : pv.start + pv.len) : 0; }
+      const same = (a, b) => Math.abs(a - b) < 1e-9;
+      if (edge === 'R') { linked = nx && same(nx.start, x.start + x.len); min = x.start + st; max = nx ? (linked ? nx.start + nx.len - st : nx.start) : s.bars; }
+      else { linked = pv && same(pv.start + pv.len, x.start); max = x.start + x.len - st; min = pv ? (linked ? pv.start + st : pv.start + pv.len) : 0; }
       snapshot('Mover borda');
       drag = { kind: 'edge', si, edge, linked, min, max, moved: false };
       h.classList.add('drag'); e.preventDefault(); return;
     }
     if (tool === 'draw' && e.target.closest('#lane')) {
-      const b = Math.floor(barAt(e));
-      drag = { kind: 'draw', a0: b, a: b, b: b + 1 };
+      const b = floorB(s, barAt(e));
+      drag = { kind: 'draw', a0: b, a: b, b: b + st, st };
       showDrawPrev(); e.preventDefault();
     }
   });
@@ -1453,7 +1725,7 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
     p.hidden = false;
     p.style.left = (drag.a / s.bars * 100) + '%';
     p.style.width = ((drag.b - drag.a) / s.bars * 100) + '%';
-    p.textContent = `${drag.b - drag.a} comp.`;
+    p.textContent = fmtLen(drag.b - drag.a);
   }
 
   document.addEventListener('pointermove', (e) => {
@@ -1462,37 +1734,40 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
         const gd = $('#guide'), sec = e.target.closest('.sec');
         if (!gd) return;
         if (!sec) { gd.hidden = true; return; }
-        const s = cur(), bar = Math.round(barAt(e)), x = s.sections[+sec.dataset.si];
-        const ok = bar > x.start && bar < x.start + x.len;
+        const s = cur(), bar = snapB(s, barAt(e)), x = s.sections[+sec.dataset.si];
+        const ok = bar > x.start + 1e-9 && bar < x.start + x.len - 1e-9;
         gd.hidden = !ok;
-        if (ok) { gd.style.left = (bar / s.bars * 100) + '%'; setText($('span', gd), `comp. ${bar + 1}`); }
+        if (ok) { gd.style.left = (bar / s.bars * 100) + '%'; setText($('span', gd), `comp. ${posShort(s, bar)}`); }
       }
       return;
     }
     const s = cur();
-    if (drag.kind === 'ghost') {
+    if (drag.kind === 'mini') {
+      miniMove(e);
+    } else if (drag.kind === 'ghost') {
       moveHw(drag.i, faderValue(e, drag.track));
     } else if (drag.kind === 'edge') {
-      const x = s.sections[drag.si], bar = clamp(Math.round(barAt(e)), drag.min, drag.max);
+      const x = s.sections[drag.si], bar = clamp(snapB(s, barAt(e)), drag.min, drag.max);
       if (drag.edge === 'R') {
-        if (bar === x.start + x.len) return;
+        if (Math.abs(bar - (x.start + x.len)) < 1e-9) return;
         const nx = s.sections[drag.si + 1];
         if (drag.linked) { nx.len = nx.start + nx.len - bar; nx.start = bar; }
         x.len = bar - x.start;
       } else {
-        if (bar === x.start) return;
+        if (Math.abs(bar - x.start) < 1e-9) return;
         const pv = s.sections[drag.si - 1];
         if (drag.linked) pv.len = bar - pv.start;
         x.len = x.start + x.len - bar; x.start = bar;
       }
       drag.moved = true;
       const pct = (b) => (b / s.bars * 100) + '%';
-      const paint = (si) => { const el = $(`.sec[data-si="${si}"]`), y = s.sections[si]; if (!el || !y) return; el.style.left = pct(y.start); el.style.width = pct(y.len); setText($('.slen', el), `${y.len} comp.`); };
+      const paint = (si) => { const el = $(`.sec[data-si="${si}"]`), y = s.sections[si]; if (!el || !y) return; el.style.left = pct(y.start); el.style.width = pct(y.len); setText($('.slen', el), fmtLen(y.len)); };
       paint(drag.si); paint(drag.si - 1); paint(drag.si + 1);
     } else if (drag.kind === 'draw') {
-      const b = barAt(e);
-      if (b >= drag.a0 + 1) { drag.a = drag.a0; drag.b = clamp(Math.ceil(b), drag.a0 + 1, s.bars); }
-      else { drag.b = drag.a0 + 1; drag.a = clamp(Math.floor(b), 0, drag.a0); }
+      const b = barAt(e), st = drag.st;
+      const up = (v) => (grid === 'free' ? v : Math.ceil(v / st - 1e-9) * st);
+      if (b >= drag.a0 + st) { drag.a = drag.a0; drag.b = clamp(up(b), drag.a0 + st, s.bars); }
+      else { drag.b = drag.a0 + st; drag.a = clamp(floorB(s, b), 0, drag.a0); }
       showDrawPrev();
     }
   });
@@ -1501,6 +1776,7 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
     if (!drag) return;
     const d = drag; drag = null;
     setTimeout(() => { suppressClick = false; }, 0);
+    if (d.kind === 'mini') return;
     if (d.kind === 'edge') {
       if (d.moved) { suppressClick = true; renderView(); } else undoStack.pop();
     } else if (d.kind === 'draw') {
@@ -1516,6 +1792,8 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
       if (!ctx.hidden) { hideCtx(); return; }
       if ($('#modal').innerHTML) { $('#modal').innerHTML = ''; return; }
       if (setlistOpen) { setlistOpen = false; renderView(); return; }
+      if (chartOpen) { chartOpen = false; renderView(); return; }
+      if (pick != null) { pick = null; renderView(); return; }
       if (globalLearn) { globalLearn = false; renderView(); toast('Learn global desligado.'); return; }
       cancelQueue(); return;
     }
@@ -1537,6 +1815,12 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
       if (x && v && v !== x.name) { snapshot('Renomear'); x.name = uniqueName(s, v, x); if (CHIPS.some((c) => c.name === baseName(x.name))) x.color = chipColor(x.name); renderView(); if (x.name !== v) toast(`Nome repetido: ficou "${x.name}".`); }
     }
     if (t.id === 'seclen') setLen(selSec, +t.value || 1);
+    if (t.id === 'bpmin') {
+      const v = parseFloat(t.value.replace(/\s/g, '').replace(',', '.'));
+      if (!(v >= 20 && v <= 400)) say('Digite um BPM entre 20 e 400.', true);
+      else if (Math.abs(v - s.bpm) > 0.004) { snapshot('BPM da música'); s.bpm = Math.round(v * 100) / 100; say(`BPM da música: ${fmtNum(s.bpm)}.`); }
+    }
+    if (t.id === 'sigin') applySig(t.value);
     if (t.name === 'ctlmode') { settings.ctlMode = t.value; renderView(); }
     if (t.id === 'st-kbd') settings.kbd = t.value;
   });
