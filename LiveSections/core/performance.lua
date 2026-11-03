@@ -12,6 +12,7 @@ local M = {}
 
 local PROJ = 0
 local SONG_END_MARGIN = 0.25   -- s: parada a menos disso do fim conta como fim da música
+local START_SLACK_S = 0.5      -- s: logo depois do play, posição até isso antes do início vale o início
 
 local state = {
   quantize = "bar",
@@ -20,6 +21,7 @@ local state = {
   song = nil,              -- música atual (onde a reprodução está)
   was_playing = false,
   last_pos = 0,
+  play_from = nil,         -- onde o play começou, até a reprodução passar dali
 }
 
 -- ------------------------------------------------------------------ estado
@@ -62,8 +64,23 @@ end
 
 -- ------------------------------------------------------------------ apoio
 
-local function where()
+-- Posição de reprodução. Nos primeiros instantes depois do play, o REAPER
+-- pode informar uma posição um pouco antes de onde o play começou. Com o
+-- cursor no início exato de uma música, isso caía na anterior: o motor
+-- trocava de música, marcava o fim dela como trecho de parada, o REAPER
+-- parava ali e o motor voltava para a música atual, em ciclo.
+local function play_pos()
   local pos = transport.position()
+  local from = state.play_from
+  if from and transport.is_playing() then
+    if pos >= from then state.play_from = nil
+    elseif pos >= from - START_SLACK_S then return from end
+  end
+  return pos
+end
+
+local function where()
+  local pos = play_pos()
   local song, section = model.song_at(pos)
   return pos, song or state.song, section
 end
@@ -237,7 +254,9 @@ end
 function M.tick()
   model.refresh(PROJ)
   local playing = transport.is_playing()
-  local pos = transport.position()
+  if playing and not state.was_playing then state.play_from = transport.cursor() end
+  if not playing then state.play_from = nil end
+  local pos = play_pos()
 
   -- Fim da música: o motor parou no fim dela; o cursor vai para a próxima.
   if state.was_playing and not playing and state.song and state.last_pos >= state.song.end_pos - SONG_END_MARGIN then

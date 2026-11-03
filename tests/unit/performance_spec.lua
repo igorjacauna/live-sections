@@ -157,6 +157,21 @@ describe("performance", function()
       assert.equal("B", perf.current_song().name)
     end)
 
+    it("play no início exato de uma música: posição um pouco antes não troca de música", function()
+      r.set_play(false); r._cursor = 40; perf.tick()
+      assert.equal("B", perf.current_song().name)
+      r.calls = {}
+      r.set_play(true, 39.98)                       -- o REAPER informa 20 ms antes do cursor
+      perf.tick()
+      assert.equal("B", perf.current_song().name)
+      assert.equal(0, #r.calls_to("GetSet_LoopTimeRange2"))
+      r.set_play(true, 40.1)
+      perf.tick()
+      r.set_play(true, 39.9)                        -- depois de passar do início, vale a posição real
+      perf.tick()
+      assert.equal("A", perf.current_song().name)
+    end)
+
     it("parar no meio da música não move o cursor", function()
       playing_at(10.0)
       r.set_play(false); perf.tick()

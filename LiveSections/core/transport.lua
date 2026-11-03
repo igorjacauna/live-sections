@@ -109,6 +109,9 @@ function M.position()
   return reaper.GetCursorPosition()
 end
 
+-- Cursor de edição (onde o play começa), mesmo tocando.
+function M.cursor() return reaper.GetCursorPosition() end
+
 function M.play() reaper.OnPlayButton() end
 function M.stop() reaper.OnStopButton() end
 -- Solta notas presas em todos os plugins e saídas MIDI (inclusive o Kontakt).
