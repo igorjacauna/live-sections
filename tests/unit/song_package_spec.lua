@@ -31,7 +31,7 @@ describe("song_package", function()
 
   before_each(function()
     r = stub.install()
-    for _, m in ipairs({ "core.project_model", "core.layers", "core.chart", "core.song_notes", "core.song_package" }) do
+    for _, m in ipairs({ "core.project_model", "core.layers", "core.chart", "core.song_notes", "core.tempo_align", "core.song_package" }) do
       package.loaded[m] = nil
     end
     model = require("core.project_model")
@@ -66,6 +66,7 @@ describe("song_package", function()
     sp.init({
       layers = layers, layer_params = fake_lp, chart = require("core.chart"),
       song_notes = require("core.song_notes"), kontakt_cc = fake_kcc,
+      tempo_align = require("core.tempo_align"),
     })
   end)
 
@@ -214,6 +215,15 @@ describe("song_package", function()
       }, pkg.regions)
       assert.equal("[Intro]\nG D", pkg.chart)
       assert.equal("Tom G", pkg.note)
+    end)
+
+    it("tempo, fórmula e fase da música", function()
+      r._tempo_markers = { { time = 41, bpm = 129, num = 4, denom = 4 } }
+      local pkg = sp.build(b, sp.detect_tracks(b))
+      assert.equal(129, pkg.bpm)
+      assert.equal("4/4", pkg.signature)
+      assert.same({ { t = 0, bpm = 120, num = 4, denom = 4 }, { t = 1, bpm = 129, num = 4, denom = 4 } }, pkg.tempo)
+      assert.near(0, pkg.phase_beats, 1e-9)          -- 40 s a 120 BPM: 80 semínimas
     end)
 
     it("regiões da música B ficam relativas ao início dela", function()

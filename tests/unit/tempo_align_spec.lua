@@ -301,4 +301,49 @@ describe("tempo_align", function()
       assert.equal(0, #r.calls_to("Undo_BeginBlock"))
     end)
   end)
+
+  describe("tempo da música para a biblioteca", function()
+    -- 120 BPM 4/4: 2 semínimas por segundo
+    local song_c = { start_pos = 5, end_pos = 50 }
+    local song_d = { start_pos = 50, end_pos = 90 }
+
+    it("sem marcadores: tempo do projeto em t = 0 e a fase no compasso", function()
+      local list, phase = ta.song_tempo(song_c, song_d)
+      assert.same({ { t = 0, bpm = 120, num = 4, denom = 4 } }, list)
+      assert.near(2, phase, 1e-9)                 -- 10 semínimas: tempo 3 do compasso
+    end)
+
+    it("marcadores da música relativos ao início; os da seguinte ficam fora", function()
+      r._tempo_markers = {
+        { time = 2, bpm = 100, num = 0, denom = 0 },
+        { time = 21, bpm = 95, num = 3, denom = 4 },
+        { time = 30, bpm = 90, num = 0, denom = 0, linear = true },
+        { time = 50, bpm = 130, num = 4, denom = 4 },
+      }
+      local list = ta.song_tempo(song_c, song_d)
+      assert.same({
+        { t = 0, bpm = 100, num = 4, denom = 4 },
+        { t = 16, bpm = 95, num = 3, denom = 4 },
+        { t = 25, bpm = 90, num = 0, denom = 0, linear = true },
+      }, list)
+    end)
+
+    it("compasso 1 marcado no início: fase 0", function()
+      r._tempo_markers = { { time = 5, bpm = 96, num = 6, denom = 8 } }
+      local list, phase = ta.song_tempo(song_c, song_d)
+      assert.same({ { t = 0, bpm = 96, num = 6, denom = 8 } }, list)
+      assert.equal(0, phase)
+    end)
+
+    it("recria o primeiro na linha de compasso e os demais a partir do início", function()
+      r._tempo_markers = { { time = 10, bpm = 120, num = 4, denom = 4 } }
+      ta.place_song_tempo(200, 201, {
+        { t = 0, bpm = 100, num = 4, denom = 4 },
+        { t = 16, bpm = 95, num = 3, denom = 4 },
+        { t = 25, bpm = 90, num = 0, denom = 0, linear = true },
+      })
+      assert_markers({ { 10, 120, 4, 4 }, { 200, 100, 4, 4 }, { 217, 95, 3, 4 }, { 226, 90, 0, 0 } })
+      assert.is_true(r._tempo_markers[4].linear)
+    end)
+  end)
 end)

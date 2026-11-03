@@ -18,6 +18,10 @@
 -- M.update(id, { name?, cc?, kind?, speed? }) -> ok, err
 -- M.SPEEDS                           { 1, 2, 4, 8 }
 -- M.remove(id); M.save() -> ok, err
+-- M.ensure_row({ id, name, cc, kind }) -> "exists"|"created"|"cc_differs"
+--                                    linha vinda da biblioteca: criada sem
+--                                    controle físico; com o mesmo id e outro
+--                                    CC, fica a desta máquina (RF-202, RF-209)
 -- M.suggest_cc() -> n?               menor CC livre fora dos reservados (RF-113)
 -- M.RESERVED                         { [cc] = true }
 -- M.warnings() -> { [id] = { Warning } }   Warning = { kind = "duplicate"|"reserved"|
@@ -178,6 +182,14 @@ function M.update(id, fields)
     row.kind = fields.kind
   end
   return M.save()
+end
+
+function M.ensure_row(row)
+  local mine = M.get(row.id)
+  if mine then return mine.cc == row.cc and "exists" or "cc_differs" end
+  rows[#rows + 1] = { id = row.id, name = row.name, cc = row.cc, kind = KINDS[row.kind] and row.kind or "knob" }
+  M.save()
+  return "created"
 end
 
 function M.remove(id)

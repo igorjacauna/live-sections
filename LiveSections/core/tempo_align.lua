@@ -77,8 +77,8 @@ local function delete_tempo_from(a)
   for i = #list, 1, -1 do reaper.DeleteTempoTimeSigMarker(PROJ, list[i].idx) end
 end
 
-local function add_tempo(time, bpm, num, denom)
-  reaper.SetTempoTimeSigMarker(PROJ, -1, time, -1, -1, bpm, num or 0, denom or 0, false)
+local function add_tempo(time, bpm, num, denom, linear)
+  reaper.SetTempoTimeSigMarker(PROJ, -1, time, -1, -1, bpm, num or 0, denom or 0, linear or false)
 end
 
 -- Compasso 1 já marcado na música: o primeiro marcador com fórmula de compasso.
@@ -316,6 +316,41 @@ function M.nudge(song, next_song, d_bpm, d_ms)
   end
   undoable("ajuste fino do tempo", function() place_downbeat(song, next_song, new_time, new_bpm) end)
   return true, new_bpm, new_time
+end
+
+-- ------------------------------------------------------------------ biblioteca
+
+-- Tempo da música para o pacote (RF-182): lista relativa ao início, a
+-- primeira entrada em t = 0 com o tempo e a fórmula em vigor ali, e a fase
+-- (semínimas desde a última linha de compasso; 0 = começa no compasso).
+-- Tempo = { t, bpm, num, denom, linear? }   num/denom 0 = só tempo
+function M.song_tempo(song, next_song)
+  local bpm, num, denom = tempo_at(song.start_pos)
+  local list = { { t = 0, bpm = bpm, num = num, denom = denom } }
+  local phase = grid_before(song.start_pos).beat
+  for _, m in ipairs(tempo_markers_between(song.start_pos, limit(next_song))) do
+    if m.time - song.start_pos < EPS then
+      list[1].linear = m.linear or nil
+      if m.num > 0 then phase = 0 end
+    else
+      list[#list + 1] = { t = m.time - song.start_pos, bpm = m.bpm, num = m.num, denom = m.denom, linear = m.linear or nil }
+    end
+  end
+  return list, phase
+end
+
+-- Recria o tempo de uma música importada (RF-198): o primeiro, com fórmula,
+-- na linha de compasso `bar_line`; os demais em `start_pos` + t. Vai no fim
+-- do projeto, então as músicas de antes não mudam.
+function M.place_song_tempo(bar_line, start_pos, list)
+  for i, m in ipairs(list) do
+    if i == 1 then
+      add_tempo(bar_line, m.bpm, m.num, m.denom, m.linear)
+    else
+      add_tempo(start_pos + m.t, m.bpm, m.num, m.denom, m.linear)
+    end
+  end
+  reaper.UpdateTimeline()
 end
 
 return M

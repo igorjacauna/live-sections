@@ -18,7 +18,7 @@
 --   - FILE vira "audio/<nome>", sem repetir nome entre arquivos (RF-187);
 --   - ISBUS vira "0 0": a hierarquia vai em `level` e o import refaz a pasta.
 --
--- M.init({ layers, layer_params, chart, song_notes, kontakt_cc })
+-- M.init({ layers, layer_params, chart, song_notes, kontakt_cc, tempo_align })
 -- M.detect_tracks(song) -> { track }   na ordem do projeto (RF-179)
 -- M.filter_chunk(chunk, start_pos, end_pos, index_of, name_of)
 --     -> chunk, files, plugins
@@ -36,11 +36,11 @@ M.FORMAT = 1
 local PROJ = 0
 local EPS = 1e-6
 
-local layers, layer_params, chart, song_notes, kcc
+local layers, layer_params, chart, song_notes, kcc, tempo_align
 
 function M.init(deps)
   layers, layer_params, chart = deps.layers, deps.layer_params, deps.chart
-  song_notes, kcc = deps.song_notes, deps.kontakt_cc
+  song_notes, kcc, tempo_align = deps.song_notes, deps.kontakt_cc, deps.tempo_align
 end
 
 -- ------------------------------------------------------------------ detecção
@@ -250,6 +250,13 @@ function M.build(song, tracks, opts)
     chart = chart.get_text(song),
     note = song_notes.get(song),
   }
+
+  -- tempo e fórmula (RF-182): o limite da música faz o papel da seguinte
+  local next_song = { start_pos = song.end_pos }
+  local num, denom = tempo_align.song_signature(song, next_song)
+  pkg.bpm = tempo_align.song_bpm(song, next_song)
+  pkg.signature = num .. "/" .. denom
+  pkg.tempo, pkg.phase_beats = tempo_align.song_tempo(song, next_song)
 
   for _, sec in ipairs(song.sections or {}) do
     pkg.regions[#pkg.regions + 1] = {

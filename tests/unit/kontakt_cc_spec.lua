@@ -112,6 +112,24 @@ describe("kontakt_cc", function()
     end)
   end)
 
+  describe("linha vinda da biblioteca", function()
+    before_each(function() kcc.add_from_learn(msg("cc", 16)) end)   -- k1, CC 2
+
+    it("cria a que falta, sem controle físico, e salva", function()
+      assert.equal("created", kcc.ensure_row({ id = "k7", name = "Rotary", cc = 40, kind = "toggle" }))
+      reload()
+      assert.same({ id = "k7", name = "Rotary", cc = 40, kind = "toggle" }, kcc.get("k7"))
+      assert.is_nil(kcc.mapping("k7"))
+    end)
+
+    it("mesmo id e CC: já existe; outro CC: fica a desta máquina", function()
+      assert.equal("exists", kcc.ensure_row({ id = "k1", name = "Outro nome", cc = 2, kind = "knob" }))
+      assert.equal("cc_differs", kcc.ensure_row({ id = "k1", name = "Knob CC16", cc = 30, kind = "knob" }))
+      assert.same({ "Knob CC16", 2 }, { kcc.get("k1").name, kcc.get("k1").cc })
+      assert.equal(1, #kcc.rows())
+    end)
+  end)
+
   describe("avisos", function()
     it("CC repetido avisa nas duas linhas, mas deixa salvar", function()
       kcc.add_from_learn(msg("cc", 16))
