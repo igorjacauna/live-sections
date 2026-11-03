@@ -50,7 +50,7 @@ local WARN_REFRESH_S = 0.5
 
 local TOOLS = { { "select", "Selecionar" }, { "split", "Dividir" }, { "draw", "Desenhar" } }
 local TOOL_HINT = {
-  select = "Clique numa seção para editar; clique de novo nela para pôr o cursor no compasso, e Tocar daqui (ou Espaço) toca dali. Duplo clique toca do início dela. Arraste a borda entre duas seções para mover as duas juntas. Clique na régua para mover o cursor; arraste nela para desenhar. Ctrl/Cmd+roda dá zoom; com zoom, a roda rola.",
+  select = "Clique numa seção para editar; clique de novo nela para pôr o cursor no compasso. Tocar daqui (ou Espaço) toca do cursor. Duplo clique toca do início dela. Arraste a borda entre duas seções para mover as duas juntas. Clique na régua para mover o cursor; arraste nela para desenhar. Ctrl/Cmd+roda dá zoom; com zoom, a roda rola.",
   split = "Clique num compasso dentro de uma seção para dividir ali. Atalho: S divide no cursor.",
   draw = "Arraste sobre a faixa para criar uma seção, com snap no compasso e ímã nas bordas das seções e no início e fim da música. Se ela invadir outra, a vizinha é recortada.",
 }
@@ -182,9 +182,9 @@ local function draw_section(song, a, b)
   end
 end
 
--- Tocar daqui / Pausar / Continuar: parado, toca do cursor se ele está dentro
--- da seção selecionada, senão do início dela (sem seção, do cursor); tocando,
--- pausa; pausado, continua de onde parou.
+-- Tocar daqui / Pausar / Continuar: parado, toca do cursor (a seção onde ele
+-- está passa a ser a selecionada); tocando, pausa; pausado, continua de onde
+-- parou. Selecionar uma seção já leva o cursor ao início dela.
 local function transport_state()
   local ps = reaper.GetPlayState()
   if ps & 2 == 2 then return "paused" end
@@ -195,14 +195,13 @@ end
 local PLAY_LABEL = { stopped = "Tocar daqui", playing = "Pausar", paused = "Continuar" }
 local PLAY_ICON = { stopped = "play", playing = "stop", paused = "play" }
 
-local function toggle_play(section)
+local function toggle_play(song)
   local state = transport_state()
   if state == "stopped" then
     local cur = reaper.GetCursorPosition()
-    if section and cur > section.start_pos + EPS and cur < section.end_pos - EPS then
-      play_from(section, cur)
-    elseif section then
-      play_from(section)
+    local section = song and section_at(song, cur)
+    if section then
+      play_from(section, cur > section.start_pos + EPS and cur or nil)
     else
       perf.play_stop()
     end
@@ -242,9 +241,8 @@ local function shortcuts(ctx, song, snap)
   elseif not mod and song and ImGui.IsKeyPressed(ctx, ImGui.Key_S, false) then
     split_at(song, cursor_pos(snap))
   elseif not mod and ImGui.IsKeyPressed(ctx, ImGui.Key_Space, false) then
-    -- ouvir trechos rápido: toca da seção selecionada (do cursor, se ele está
-    -- nela) e para
-    if transport_state() == "stopped" then toggle_play(section_by_idx(song, st.selected)) else stop() end
+    -- ouvir trechos rápido: toca do cursor e para
+    if transport_state() == "stopped" then toggle_play(song) else stop() end
   end
 end
 
@@ -820,7 +818,7 @@ local function inspector(ctx, x, y, w, song, snap)
   local pw = kit.size(ctx, "button", "Tocar daqui") + 46
   if kit.button(ctx, "play_from", PLAY_LABEL[state], ix + 132, cy - 2, 36,
     { icon = PLAY_ICON[state], w = pw, active = state ~= "stopped", accent = state == "playing" and theme.C.ok or nil }) then
-    toggle_play(sec)
+    toggle_play(song)
   end
   if ix + 132 + pw + 6 + 40 <= ix + iw
     and kit.button(ctx, "stop", "", ix + 132 + pw + 6, cy - 2, 36, { icon = "stop", w = 40 }) then

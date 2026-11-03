@@ -342,10 +342,20 @@ describe("ui.editor_view", function()
       assert.matches("Verso, compasso 7", view.state().status)
     end)
 
-    it("com o cursor fora da seção selecionada, toca do início dela", function()
+    it("com o cursor em outra seção, toca do cursor e seleciona a seção dele", function()
+      local verso = view.state().selected
       r._cursor = 20
       frame({ press = "play_from" })
-      assert.equal(8, r._cursor)
+      assert.equal(20, r._cursor)
+      assert.equal(1, r._play_state)
+      assert.are_not.equal(verso, view.state().selected)
+      assert.matches("Refrão, compasso 11", view.state().status)
+    end)
+
+    it("com o cursor num trecho sem seção, toca do cursor", function()
+      r._cursor = 30
+      frame({ key = im.Key_Space })
+      assert.equal(30, r._cursor)
       assert.equal(1, r._play_state)
     end)
 
