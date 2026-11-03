@@ -14,6 +14,14 @@ local ImGui, theme, kit
 
 local TITLE = "Cifra · Live Sections"
 local PAD = 20
+local SCROLL_S = 0.45      -- duração da rolagem quando a seção avança
+local NEXT_H = 34          -- altura da linha "A seguir"
+
+-- Rolagem suave: quando as linhas avançam (as de cima saem e as de baixo
+-- entram), as que saíram continuam desenhadas acima e tudo desliza até o
+-- lugar novo. Troca de seção ou volta (loop) muda direto.
+local prev_rows = nil
+local scroll = nil         -- { from, gone = { linhas que saíram } }
 
 function M.init(deps) ImGui, theme, kit = deps.ImGui, deps.theme, deps.kit end
 
@@ -69,6 +77,30 @@ local function header(ctx, dl, x, y, w, state)
   return cy + 18 - y
 end
 
+local function same_row(a, b) return a.kind == b.kind and a.text == b.text end
+
+-- Quantas linhas do começo de `old` saíram para formar `new`; nil se `new`
+-- não é `old` avançado.
+local function advanced_by(old, new)
+  if not old or #new == 0 then return nil end
+  for k = 1, #old - 1 do
+    local n = math.min(#old - k, #new)
+    local ok = true
+    for i = 1, n do
+      if not same_row(old[k + i], new[i]) then ok = false; break end
+    end
+    if ok then return k end
+  end
+end
+
+local function rows_equal(a, b)
+  if not a or #a ~= #b then return false end
+  for i = 1, #a do if not same_row(a[i], b[i]) then return false end end
+  return true
+end
+
+local function ease_out(t) return 1 - (1 - t) ^ 3 end
+
 local function grid_row(ctx, dl, x, y, w, row, lyric, chord, line_h)
   local cells = row.cells or {}
   local cw = math.min(180, w / math.max(1, #cells))
@@ -102,23 +134,53 @@ function M.draw(ctx, state)
         "Cole a cifra no modo Editar → Cifra, com cabeçalhos [Intro], [Verso], [Refrão]… iguais aos nomes das seções.")
     else
       local lyric, chord, line_h = pick_sizes(ctx, rows, w - 16)
-      for _, row in ipairs(rows) do
-        if cy + line_h > y + h then break end
-        if row.kind == "next" then
-          cy = cy + 8
-          kit.txt(ctx, dl, "label", x + 16, cy + 4, theme.C.faint, "A SEGUIR · " .. row.text:upper())
-          cy = cy + 26
+      local now = reaper.time_precise()
+      if not rows_equal(prev_rows, rows) then
+        local k = advanced_by(prev_rows, rows)
+        scroll = k and { from = now, gone = { table.unpack(prev_rows, 1, k) } } or nil
+        prev_rows = rows
+      end
+      local list, shift = rows, 0
+      if scroll then
+        local t = (now - scroll.from) / SCROLL_S
+        if t >= 1 then
+          scroll = nil
         else
-          if row.kind == "grid" then
-            grid_row(ctx, dl, x + 16, cy, w - 16, row, lyric, chord, line_h)
-          elseif row.kind == "chords" then
-            kit.txt(ctx, dl, chord, x + 16, cy, theme.C.queue, row.text)
-          else
-            kit.txt(ctx, dl, lyric, x + 16, cy, theme.C.text, row.text)
+          list = {}
+          for _, r in ipairs(scroll.gone) do
+            list[#list + 1] = r
+            shift = shift + (r.kind == "next" and NEXT_H or line_h)
+          end
+          for _, r in ipairs(rows) do list[#list + 1] = r end
+          shift = shift * ease_out(t)
+        end
+      end
+      local top = cy
+      ImGui.DrawList_PushClipRect(dl, x, top, x + w + PAD / 2, y + h, true)
+      cy = cy - shift
+      -- parado, só linhas inteiras; rolando, a de baixo entra cortada
+      local limit = shift > 0 and y + h + line_h or y + h
+      for _, row in ipairs(list) do
+        if cy + line_h > limit then break end
+        if row.kind == "next" then
+          if cy + NEXT_H > top then
+            kit.txt(ctx, dl, "label", x + 16, cy + 12, theme.C.faint, "A SEGUIR · " .. row.text:upper())
+          end
+          cy = cy + NEXT_H
+        else
+          if cy + line_h > top then
+            if row.kind == "grid" then
+              grid_row(ctx, dl, x + 16, cy, w - 16, row, lyric, chord, line_h)
+            elseif row.kind == "chords" then
+              kit.txt(ctx, dl, chord, x + 16, cy, theme.C.queue, row.text)
+            else
+              kit.txt(ctx, dl, lyric, x + 16, cy, theme.C.text, row.text)
+            end
           end
           cy = cy + line_h
         end
       end
+      ImGui.DrawList_PopClipRect(dl)
     end
   end
   ImGui.SetCursorScreenPos(ctx, x, y)

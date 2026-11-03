@@ -95,8 +95,52 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
     document.documentElement.style.setProperty('--fs', (px * scale).toFixed(1) + 'px');
   }
 
+  // Rolagem suave: quando as linhas avançam (as de cima saem, as de baixo
+  // entram), as que saíram ficam por cima e tudo desliza até o lugar novo.
+  var prevRows = null, sliding = null;
+  function sameRow(a, b) { return a.kind === b.kind && a.text === b.text; }
+  function advancedBy(old, nw) {
+    if (!old || !nw.length) return 0;
+    for (var k = 1; k < old.length; k++) {
+      var n = Math.min(old.length - k, nw.length), ok = true;
+      for (var i = 0; i < n; i++) if (!sameRow(old[k + i], nw[i])) { ok = false; break; }
+      if (ok) return k;
+    }
+    return 0;
+  }
+  function endSlide() {
+    if (!sliding) return;
+    clearTimeout(sliding.timer);
+    sliding.gone.forEach(function (e) { e.remove(); });
+    sliding.box.style.transition = 'none';
+    sliding.box.style.transform = 'none';
+    sliding = null;
+  }
+  function showRows(main, rows, out) {
+    endSlide();
+    var box = main.firstElementChild;
+    var k = box && box.classList.contains('rows') ? advancedBy(prevRows, rows) : 0;
+    prevRows = rows.map(function (r) { return { kind: r.kind, text: r.text }; });
+    if (!k || !box.children[k]) {
+      box = el('div', 'rows');
+      box.replaceChildren.apply(box, out);
+      main.replaceChildren(box);
+      return;
+    }
+    var gone = Array.prototype.slice.call(box.children, 0, k);
+    var px = box.children[k].offsetTop - box.children[0].offsetTop;
+    box.replaceChildren.apply(box, gone.concat(out));
+    box.style.transition = 'none';
+    box.style.transform = 'none';
+    void box.offsetHeight;
+    box.style.transition = 'transform .45s cubic-bezier(.2,.7,.3,1)';
+    box.style.transform = 'translateY(' + (-px) + 'px)';
+    sliding = { box: box, gone: gone, timer: setTimeout(endSlide, 500) };
+  }
+
   function render(s) {
     if (!s.open) {
+      endSlide(); prevRows = null;
       $('section').textContent = 'Live Sections fechado';
       $('song').textContent = 'Live Sections';
       $('bar').textContent = ''; $('next').textContent = ''; $('prog').className = 'prog off'; $('play').textContent = ''; $('note').textContent = '';
@@ -120,6 +164,7 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
     if (!rows.length) {
       var msg = el('div', 'empty', s.has_chart ? 'Sem cifra para esta seção.' : 'Esta música não tem cifra.');
       msg.appendChild(el('small', null, 'No REAPER: modo Editar → Cifra, com cabeçalhos [Intro], [Verso], [Refrão]… iguais aos nomes das seções.'));
+      endSlide(); prevRows = null;
       main.replaceChildren(msg);
       return;
     }
@@ -136,7 +181,7 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
       }
       out.push(d);
     });
-    main.replaceChildren.apply(main, out);
+    showRows(main, rows, out);
   }
 
   function status(text, err) { var st = $('status'); st.textContent = text; st.className = 'st' + (err ? ' err' : ''); }

@@ -43,6 +43,38 @@ describe("ui.chart_view", function()
     assert.matches("Am", t)
   end)
 
+  it("quando a seção avança, as linhas deslizam: as que saíram somem depois da rolagem", function()
+    local r = stub.install()
+    local function rows(list)
+      local out = {}
+      for _, t in ipairs(list) do out[#out + 1] = { kind = "lyrics", text = t } end
+      return out
+    end
+    local state = { song = "A", section = "Verso", rows = rows({ "um", "dois", "três" }) }
+    r.set_now(10)
+    view.draw("ctx", state)
+    calls = {}
+    state.rows = rows({ "dois", "três", "quatro" })
+    view.draw("ctx", state)
+    assert.matches("um", texts())                 -- ainda visível, saindo por cima
+    assert.matches("quatro", texts())
+    calls = {}
+    r.set_now(11)
+    view.draw("ctx", state)
+    assert.is_nil(texts():match("um"))
+    assert.matches("quatro", texts())
+  end)
+
+  it("troca de seção muda direto, sem rolagem", function()
+    local r = stub.install()
+    r.set_now(10)
+    view.draw("ctx", { song = "A", section = "Verso", rows = { { kind = "lyrics", text = "verso" } } })
+    calls = {}
+    view.draw("ctx", { song = "A", section = "Refrão", rows = { { kind = "lyrics", text = "refrão" } } })
+    assert.is_nil(texts():match("verso"))
+    assert.matches("refrão", texts())
+  end)
+
   it("sem cifra e sem música mostram orientação", function()
     view.draw("ctx", { song = "A", section = "Intro", has_chart = false })
     assert.matches("Esta música não tem cifra", texts())
