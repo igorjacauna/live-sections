@@ -28,6 +28,7 @@ local function fake_imgui()
   function im.IsMouseClicked(_, b) return im.opts.mouse_click == b end
   function im.IsMouseDoubleClicked() return im.opts.double == true end
   function im.GetMousePos() return im.opts.mx or 0, im.opts.my or 0 end
+  function im.GetMouseWheel() return im.opts.wheel or 0, im.opts.wheel_h or 0 end
   function im.IsWindowFocused() return true end
   function im.IsAnyItemActive() return false end
   function im.IsKeyDown(_, k) return im.opts.down == k end
@@ -204,6 +205,83 @@ describe("ui.editor_view", function()
       assert.is_not_nil(found)
       assert.truthy(found[6]:find("…$"))
       assert.truthy(found[3] + #found[6] * 7 <= b.x + b.w)
+    end)
+  end)
+
+  describe("zoom da faixa", function()
+    local function v() return view.state().view end
+    local function strip_x(frac) local s = im.rects.strip; return s.x + frac * s.w end
+
+    it("começa com a música inteira e o mini-mapa", function()
+      assert.same({ 0, 40 }, { v().t0, v().span })
+      assert.is_table(im.rects.minimap)
+      assert.is_table(im.rects.zoom_in)
+    end)
+
+    it("Ctrl+roda dá zoom mantendo o ponto do mouse no lugar", function()
+      frame({ hover = "strip", down = im.Mod_Ctrl, wheel = 2, mx = strip_x(0.25), my = lane_y() })
+      assert.near(40 / 2.25, v().span, 1e-9)
+      assert.near(0.25, (10 - v().t0) / v().span, 1e-9)
+      local claimed = false
+      for _, c in ipairs(im.calls) do if c[1] == "SetItemKeyOwner" then claimed = true end end
+      assert.is_true(claimed)
+    end)
+
+    it("a roda só rola com zoom, e não sai da música", function()
+      frame({ hover = "strip", wheel = -1, mx = strip_x(0.5), my = lane_y() })
+      assert.same({ 0, 40 }, { v().t0, v().span })
+      frame({ press = "zoom_in" })
+      frame({ press = "zoom_in" })
+      local t0 = v().t0
+      frame({ hover = "strip", wheel = -1, mx = strip_x(0.5), my = lane_y() })
+      assert.near(t0 + v().span * 0.1, v().t0, 1e-9)
+      for _ = 1, 30 do frame({ hover = "strip", wheel = -3, mx = strip_x(0.5), my = lane_y() }) end
+      assert.near(40 - v().span, v().t0, 1e-9)
+    end)
+
+    it("+ aproxima até 2 compassos; − e Inteira voltam", function()
+      for _ = 1, 10 do frame({ press = "zoom_in" }) end
+      assert.near(4, v().span, 1e-9)                   -- 2 compassos de 2 s
+      frame({ press = "zoom_out" })
+      assert.near(6, v().span, 1e-9)
+      frame({ press = "zoom_all" })
+      assert.same({ 0, 40 }, { v().t0, v().span })
+    end)
+
+    it("com zoom, clicar na faixa usa o trecho visível", function()
+      frame({ press = "zoom_in" })
+      frame({ press = "zoom_in" })                       -- 17,8 s centrados em 20 s
+      local t0 = v().t0
+      assert.near(20 - 40 / 2.25 / 2, t0, 1e-9)
+      frame({ activate = "strip", active = "strip", mx = strip_x(0), my = lane_y() })
+      frame({ deactivate = "strip", mx = strip_x(0), my = lane_y() })
+      assert.equal(8, r._cursor)                          -- Verso (8–16)
+    end)
+
+    it("arrastar no mini-mapa centra o trecho visível no mouse", function()
+      frame({ press = "zoom_in" })
+      frame({ press = "zoom_in" })
+      local m = im.rects.minimap
+      frame({ active = "minimap", mx = m.x + m.w * 0.6 })
+      assert.near(24 - v().span / 2, v().t0, 1e-9)
+    end)
+
+    it("tocando, acompanha o cursor que sai do trecho visível", function()
+      for _ = 1, 4 do frame({ press = "zoom_in" }) end   -- 7,9 s centrados em 20 s
+      local function play_at(pos)
+        im.opts, im.calls = {}, {}
+        view.draw("ctx", 0, 0, 1100, 760, { song = model.songs()[1], pos = pos, playing = true })
+      end
+      play_at(20)
+      play_at(25)
+      assert.near(25 - v().span * 0.1, v().t0, 1e-9)
+    end)
+
+    it("trocar de música volta para a música inteira", function()
+      frame({ press = "zoom_in" })
+      im.opts, im.calls = {}, {}
+      view.draw("ctx", 0, 0, 1100, 760, { song = model.songs()[2], pos = 40, playing = false })
+      assert.same({ 40, 40 }, { v().t0, v().span })
     end)
   end)
 

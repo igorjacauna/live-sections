@@ -14,6 +14,9 @@
 -- o trecho sem seção. Dividir: clicar
 -- divide no compasso. Desenhar: arrastar cria uma seção. Na régua, clicar
 -- move o cursor e arrastar desenha. `S` divide no cursor; Ctrl/Cmd+Z desfaz.
+-- Zoom: Ctrl/Cmd+roda no ponto do mouse ou os botões −/+/Inteira; com zoom,
+-- a roda rola e o mini-mapa abaixo mostra e arrasta o trecho visível. Tocando,
+-- a faixa acompanha o cursor quando ele sai do trecho visível.
 --
 -- M.init(deps)          ImGui, theme, widgets, perf, layers, model, editor_ops,
 --                       validator, tempo_align, kontakt_wizard e
@@ -35,6 +38,10 @@ local GAP = 12
 local SIDE_W = 320
 local NARROW_W = 900       -- abaixo disso os avisos vão para baixo
 local RULER_H, LANE_H = 26, 92
+local NAV_H = 24           -- mini-mapa e botões de zoom abaixo da faixa
+local ZOOM_STEP = 1.5
+local MIN_VIEW_BARS = 2    -- zoom máximo: 2 compassos na faixa
+local SCROLL_STEP = 0.1    -- fração do trecho visível por passo da roda
 local EDGE_PX = 6          -- distância do mouse até a borda para arrastá-la
 local MAGNET_PX = 10       -- ímã: bordas de seção e início/fim da música
 local STATUS_S = 4
@@ -42,7 +49,7 @@ local WARN_REFRESH_S = 0.5
 
 local TOOLS = { { "select", "Selecionar" }, { "split", "Dividir" }, { "draw", "Desenhar" } }
 local TOOL_HINT = {
-  select = "Clique numa seção para editar; duplo clique toca a partir dela. Arraste a borda entre duas seções para mover as duas juntas. Clique na régua para mover o cursor; arraste nela para desenhar.",
+  select = "Clique numa seção para editar; duplo clique toca a partir dela. Arraste a borda entre duas seções para mover as duas juntas. Clique na régua para mover o cursor; arraste nela para desenhar. Ctrl/Cmd+roda dá zoom; com zoom, a roda rola.",
   split = "Clique num compasso dentro de uma seção para dividir ali. Atalho: S divide no cursor.",
   draw = "Arraste sobre a faixa para criar uma seção, com snap no compasso e ímã nas bordas das seções e no início e fim da música. Se ela invadir outra, a vizinha é recortada.",
 }
@@ -62,6 +69,7 @@ local st = {
   tool = "select",
   selected = nil,          -- region_idx da seção selecionada
   drag = nil,              -- { kind, t0, t, section?, edge? }
+  view = nil,              -- { song, t0, span, play_in }: trecho visível da faixa
   menu_section = nil,      -- seção do menu de contexto
   status = nil, status_until = 0,
   name_buf = nil, len_buf = nil, buf_for = nil,
@@ -77,6 +85,7 @@ function M.init(deps)
   kontakt_cc = deps.kontakt_cc
   st.round, st.tap_bpm = "int", nil
   st.tool, st.selected, st.drag, st.menu_section = "select", nil, nil, nil
+  st.view = nil
   st.status, st.status_until, st.buf_for = nil, 0, nil
   st.warnings, st.warn_at, st.warn_count = {}, -math.huge, nil
 end
@@ -357,20 +366,117 @@ end
 
 -- ------------------------------------------------------------------ faixa de estrutura
 
+-- ------------------------------------------------------------------ zoom da faixa
+
+local function full_span(song) return math.max(song.end_pos - song.start_pos, EPS) end
+
+-- Trecho visível da faixa, sempre dentro da música; volta à música inteira
+-- ao trocar de música.
+local function view_of(song)
+  local full = full_span(song)
+  local v = st.view
+  if not v or v.song ~= song.id then
+    v = { song = song.id, t0 = song.start_pos, span = full }
+    st.view = v
+  end
+  local _, m = reaper.TimeMap2_timeToBeats(PROJ, song.start_pos)
+  local bar = reaper.TimeMap2_beatsToTime(PROJ, 0, m + 1) - reaper.TimeMap2_beatsToTime(PROJ, 0, m)
+  v.span = math.max(math.min(full, MIN_VIEW_BARS * bar), math.min(full, v.span))
+  v.t0 = math.max(song.start_pos, math.min(song.end_pos - v.span, v.t0))
+  return v
+end
+
+local function zoomed(song) return view_of(song).span < full_span(song) - EPS end
+
+-- Zoom por `factor` (>1 aproxima) mantendo `anchor` no mesmo ponto da faixa.
+local function zoom(song, factor, anchor)
+  local v = view_of(song)
+  anchor = anchor or v.t0 + v.span / 2
+  local k = (anchor - v.t0) / v.span
+  v.span = v.span / factor
+  v.t0 = anchor - k * v.span
+  view_of(song)
+end
+
+-- A roda do mouse sobre a faixa não rola a janela (ReaImGui sem a função: rola
+-- as duas).
+local function claim_wheel(ctx)
+  local ok, f = pcall(function() return ImGui.SetItemKeyOwner end)
+  local ok2, key = pcall(function() return ImGui.Key_MouseWheelY end)
+  if ok and f and ok2 and key then f(ctx, key) end
+end
+
+-- Mini-mapa (música inteira, trecho visível arrastável) e botões de zoom.
+local function strip_nav(ctx, x, y, w, song)
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local v = view_of(song)
+  local full = full_span(song)
+  local bx = x + w
+  local function zbutton(id, label, fn)
+    local bw = kit.size(ctx, "small", label) + 20
+    bx = bx - bw
+    if kit.button(ctx, id, label, bx, y, NAV_H, { w = bw, style = "small" }) then fn() end
+    bx = bx - 4
+  end
+  zbutton("zoom_all", "Inteira", function() v.t0, v.span = song.start_pos, full end)
+  zbutton("zoom_in", "+", function() zoom(song, ZOOM_STEP) end)
+  zbutton("zoom_out", "−", function() zoom(song, 1 / ZOOM_STEP) end)
+  local mw = bx - 4 - x
+  if mw < 40 then return end
+
+  local function mx_of(t) return x + (t - song.start_pos) / full * mw end
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + mw, y + NAV_H, theme.C.bg, theme.R.r1)
+  for _, s in ipairs(song.sections) do
+    local c = widgets.region_color(s.color)
+    ImGui.DrawList_AddRectFilled(dl, mx_of(s.start_pos) + 1, y + 5, mx_of(s.end_pos) - 1, y + NAV_H - 5, theme.mix(theme.C.panel, c, 0.5), 2)
+  end
+  ImGui.SetCursorScreenPos(ctx, x, y)
+  ImGui.InvisibleButton(ctx, "minimap", mw, NAV_H)
+  if zoomed(song) then
+    local vx1, vx2 = mx_of(v.t0), mx_of(v.t0 + v.span)
+    ImGui.DrawList_AddRectFilled(dl, vx1, y, vx2, y + NAV_H, theme.rgba("#E8EDF5", 0.12), theme.R.r1)
+    ImGui.DrawList_AddRect(dl, vx1, y, vx2, y + NAV_H, theme.C.text, theme.R.r1, 0, 2)
+    if ImGui.IsItemActive(ctx) then
+      local mx = ImGui.GetMousePos(ctx)
+      v.t0 = song.start_pos + (mx - x) / mw * full - v.span / 2
+      view_of(song)
+    end
+  end
+  ImGui.DrawList_AddRect(dl, x, y, x + mw, y + NAV_H, theme.C.line2, theme.R.r1)
+end
+
 local function strip(ctx, x, y, w, song, snap)
   local dl = ImGui.GetWindowDrawList(ctx)
-  local span = math.max(song.end_pos - song.start_pos, EPS)
-  local function to_x(t) return x + (t - song.start_pos) / span * w end
-  local function to_t(px) return song.start_pos + math.max(0, math.min(1, (px - x) / w)) * span end
+  local v = view_of(song)
+  local v0, span = v.t0, v.span
+  local function to_x(t) return x + (t - v0) / span * w end
+  local function to_t(px) return v0 + math.max(0, math.min(1, (px - x) / w)) * span end
   local lane_y = y + RULER_H + 8
+
+  -- tocando, a faixa acompanha o cursor que sai do trecho visível (não no
+  -- meio de um arraste; se você rolou para longe, ela fica onde está)
+  local pos = snap.pos or 0
+  local inside = pos >= v0 - EPS and pos <= v0 + span + EPS
+  if snap.playing and not inside and v.play_in and not st.drag then
+    v.t0 = pos - span * SCROLL_STEP
+    view_of(song)
+    v0 = v.t0
+    inside = true
+  end
+  v.play_in = inside
+
+  ImGui.DrawList_PushClipRect(dl, x, y, x + w, lane_y + LANE_H, true)
 
   -- régua: um traço por compasso, número a cada `step`
   local first, last = bar_at(song.start_pos), bar_at(song.end_pos)
-  local n = math.max(1, last - first)
+  local _, vfirst = reaper.TimeMap2_timeToBeats(PROJ, v0)
+  local _, vlast = reaper.TimeMap2_timeToBeats(PROJ, v0 + span)
+  vfirst, vlast = math.max(first, vfirst), math.min(last, vlast + 1)
+  local n = math.max(1, vlast - vfirst)
   local step = 1
   while step < 64 and w / n * step < 36 do step = step * 2 end
   ImGui.DrawList_AddLine(dl, x, y + RULER_H, x + w, y + RULER_H, theme.C.line)
-  for m = first, last do
+  for m = vfirst, vlast do
     local tx = to_x(reaper.TimeMap2_beatsToTime(PROJ, 0, m))
     local major = (m - first) % step == 0
     ImGui.DrawList_AddLine(dl, tx, y + RULER_H - (major and 11 or 5), tx, y + RULER_H, major and theme.C.faint or theme.C.line2)
@@ -380,7 +486,7 @@ local function strip(ctx, x, y, w, song, snap)
   -- faixa: trechos sem seção hachurados, seções coloridas
   ImGui.DrawList_AddRectFilled(dl, x, lane_y, x + w, lane_y + LANE_H, theme.C.bg, theme.R.r2)
   for _, g in ipairs(song.gaps or {}) do
-    local gx1, gx2 = to_x(g.start_pos), to_x(g.end_pos)
+    local gx1, gx2 = math.max(x, to_x(g.start_pos)), math.min(x + w, to_x(g.end_pos))
     ImGui.DrawList_PushClipRect(dl, gx1, lane_y, gx2, lane_y + LANE_H, true)
     for hx = gx1 - LANE_H, gx2, 8 do
       ImGui.DrawList_AddLine(dl, hx, lane_y + LANE_H, hx + LANE_H, lane_y, theme.C.raise)
@@ -404,9 +510,11 @@ local function strip(ctx, x, y, w, song, snap)
     if s.region_idx == st.selected then
       ImGui.DrawList_AddRect(dl, sx1 - 1, top - 1, sx2 + 1, bottom + 1, theme.C.text, theme.R.r1 + 3, 0, 2)
     end
-    ImGui.DrawList_PushClipRect(dl, sx1 + 8, top, sx2 - 8, bottom, true)
-    kit.txt(ctx, dl, "button", sx1 + 10, top + 8, theme.C.text, s.name)
-    kit.txt(ctx, dl, "small", sx1 + 10, bottom - 22, theme.mix(theme.C.text, c, 0.3), bars(s.start_pos, s.end_pos) .. " comp.")
+    -- com zoom, o nome segue visível mesmo com o início da seção fora da faixa
+    local lx = math.max(sx1, x) + 10
+    ImGui.DrawList_PushClipRect(dl, math.max(sx1, x) + 8, top, math.min(sx2, x + w) - 8, bottom, true)
+    kit.txt(ctx, dl, "button", lx, top + 8, theme.C.text, s.name)
+    kit.txt(ctx, dl, "small", lx, bottom - 22, theme.mix(theme.C.text, c, 0.3), bars(s.start_pos, s.end_pos) .. " comp.")
     ImGui.DrawList_PopClipRect(dl)
     if st.tool == "select" and my >= lane_y and my <= lane_y + LANE_H then
       if math.abs(mx - sx2) <= EDGE_PX then hover_edge = { section = s, edge = "end" }
@@ -420,6 +528,19 @@ local function strip(ctx, x, y, w, song, snap)
   local hovered = ImGui.IsItemHovered(ctx)
   if hovered and (hover_edge or (st.drag and st.drag.kind == "edge")) then
     ImGui.SetMouseCursor(ctx, ImGui.MouseCursor_ResizeEW)
+  end
+  -- roda: Ctrl/Cmd dá zoom no ponto do mouse; com zoom, rola
+  if hovered then
+    local wy, wx = ImGui.GetMouseWheel(ctx)
+    wy, wx = wy or 0, wx or 0
+    local mod = ImGui.IsKeyDown(ctx, ImGui.Mod_Ctrl) or (ImGui.Mod_Super and ImGui.IsKeyDown(ctx, ImGui.Mod_Super))
+    if mod or zoomed(song) then claim_wheel(ctx) end
+    if mod and wy ~= 0 then
+      zoom(song, ZOOM_STEP ^ wy, to_t(mx))
+    elseif not mod and (wy ~= 0 or wx ~= 0) and zoomed(song) then
+      v.t0 = v.t0 - (wy + wx) * v.span * SCROLL_STEP
+      view_of(song)
+    end
   end
   -- ímã: perto de uma borda de seção ou do início/fim da música, gruda nela
   local function magnet(raw, skip)
@@ -511,12 +632,14 @@ local function strip(ctx, x, y, w, song, snap)
   end
 
   -- cursor / posição de reprodução
-  local pos = snap.pos or 0
   if pos >= song.start_pos and pos <= song.end_pos then
     local px = to_x(pos)
     ImGui.DrawList_AddLine(dl, px, y + 4, px, lane_y + LANE_H, theme.C.text, 2)
     ImGui.DrawList_AddTriangleFilled(dl, px - 5, y + 4, px + 5, y + 4, px, y + 12, theme.C.text)
   end
+  ImGui.DrawList_PopClipRect(dl)
+
+  strip_nav(ctx, x, lane_y + LANE_H + 8, w, song)
 
   -- menu de contexto da seção
   if ImGui.BeginPopup(ctx, "section_menu") then
@@ -533,7 +656,7 @@ local function strip(ctx, x, y, w, song, snap)
     ImGui.EndPopup(ctx)
   end
 
-  return RULER_H + 8 + LANE_H
+  return RULER_H + 8 + LANE_H + 8 + NAV_H
 end
 
 local function structure_panel(ctx, x, y, w, song, snap)
