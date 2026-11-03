@@ -14,14 +14,13 @@ local ImGui, theme, kit
 
 local TITLE = "Cifra · Live Sections"
 local PAD = 20
-local SCROLL_S = 0.45      -- duração da rolagem quando a seção avança
 local NEXT_H = 34          -- altura da linha "A seguir"
+local FOCUS_AT = 0.42      -- altura do ponto de leitura na área da cifra
+local FOLLOW = 6           -- quão rápido a tela alcança o ponto de leitura (1/s)
 
--- Rolagem suave: quando as linhas avançam (as de cima saem e as de baixo
--- entram), as que saíram continuam desenhadas acima e tudo desliza até o
--- lugar novo. Troca de seção ou volta (loop) muda direto.
-local prev_rows = nil
-local scroll = nil         -- { from, gone = { linhas que saíram } }
+-- Teleprompter: o ponto de leitura (state.focus, em linhas) fica fixo perto
+-- do meio e a cifra rola contínua até ele. Troca de seção pula direto.
+local shown = nil          -- { key, focus, at }
 
 function M.init(deps) ImGui, theme, kit = deps.ImGui, deps.theme, deps.kit end
 
@@ -77,30 +76,6 @@ local function header(ctx, dl, x, y, w, state)
   return cy + 18 - y
 end
 
-local function same_row(a, b) return a.kind == b.kind and a.text == b.text end
-
--- Quantas linhas do começo de `old` saíram para formar `new`; nil se `new`
--- não é `old` avançado.
-local function advanced_by(old, new)
-  if not old or #new == 0 then return nil end
-  for k = 1, #old - 1 do
-    local n = math.min(#old - k, #new)
-    local ok = true
-    for i = 1, n do
-      if not same_row(old[k + i], new[i]) then ok = false; break end
-    end
-    if ok then return k end
-  end
-end
-
-local function rows_equal(a, b)
-  if not a or #a ~= #b then return false end
-  for i = 1, #a do if not same_row(a[i], b[i]) then return false end end
-  return true
-end
-
-local function ease_out(t) return 1 - (1 - t) ^ 3 end
-
 local function grid_row(ctx, dl, x, y, w, row, lyric, chord, line_h)
   local cells = row.cells or {}
   local cw = math.min(180, w / math.max(1, #cells))
@@ -135,50 +110,53 @@ function M.draw(ctx, state)
     else
       local lyric, chord, line_h = pick_sizes(ctx, rows, w - 16)
       local now = reaper.time_precise()
-      if not rows_equal(prev_rows, rows) then
-        local k = advanced_by(prev_rows, rows)
-        scroll = k and { from = now, gone = { table.unpack(prev_rows, 1, k) } } or nil
-        prev_rows = rows
+      local target = state.focus or 0
+      local key = tostring(state.song) .. "\0" .. tostring(state.section)
+      if not shown or shown.key ~= key or target < shown.focus - 3 then
+        shown = { key = key, focus = target, at = now }
+      else
+        local k = 1 - math.exp(-FOLLOW * math.max(0, now - shown.at))
+        shown.focus, shown.at = shown.focus + (target - shown.focus) * k, now
       end
-      local list, shift = rows, 0
-      if scroll then
-        local t = (now - scroll.from) / SCROLL_S
-        if t >= 1 then
-          scroll = nil
-        else
-          list = {}
-          for _, r in ipairs(scroll.gone) do
-            list[#list + 1] = r
-            shift = shift + (r.kind == "next" and NEXT_H or line_h)
-          end
-          for _, r in ipairs(rows) do list[#list + 1] = r end
-          shift = shift * ease_out(t)
-        end
+
+      local function row_h(r) return r.kind == "next" and NEXT_H or line_h end
+      -- y (desde o topo da cifra) do ponto `f`, em linhas
+      local function y_of(f)
+        local yy, i = 0, 1
+        while i <= #rows and i <= f do yy = yy + row_h(rows[i]); i = i + 1 end
+        local r = rows[math.floor(f) + 1]
+        return yy + (r and (f - math.floor(f)) * row_h(r) or 0)
       end
-      local top = cy
-      ImGui.DrawList_PushClipRect(dl, x, top, x + w + PAD / 2, y + h, true)
-      cy = cy - shift
-      -- parado, só linhas inteiras; rolando, a de baixo entra cortada
-      local limit = shift > 0 and y + h + line_h or y + h
-      for _, row in ipairs(list) do
-        if cy + line_h > limit then break end
-        if row.kind == "next" then
-          if cy + NEXT_H > top then
+
+      local top, bottom = cy, y + h
+      ImGui.DrawList_PushClipRect(dl, x, top, x + w + PAD / 2, bottom, true)
+      cy = top + (bottom - top) * FOCUS_AT - y_of(shown.focus)
+      -- fundo do verso atual
+      local cur_top, cur_bottom = nil, nil
+      local yy = cy
+      for _, r in ipairs(rows) do
+        if r.current then cur_top = cur_top or yy; cur_bottom = yy + row_h(r) end
+        yy = yy + row_h(r)
+      end
+      if cur_top then
+        ImGui.DrawList_AddRectFilled(dl, x, cur_top - 2, x + w, cur_bottom - 4, theme.C.raise, 8)
+        ImGui.DrawList_AddRectFilled(dl, x, cur_top - 2, x + 4, cur_bottom - 4, theme.C.queue, 2)
+      end
+      for _, row in ipairs(rows) do
+        local rh = row_h(row)
+        if cy > bottom then break end
+        if cy + rh > top then
+          if row.kind == "next" then
             kit.txt(ctx, dl, "label", x + 16, cy + 12, theme.C.faint, "A SEGUIR · " .. row.text:upper())
+          elseif row.kind == "grid" then
+            grid_row(ctx, dl, x + 16, cy, w - 16, row, lyric, chord, line_h)
+          elseif row.kind == "chords" then
+            kit.txt(ctx, dl, chord, x + 16, cy, row.past and theme.C.faint or theme.C.queue, row.text)
+          else
+            kit.txt(ctx, dl, lyric, x + 16, cy, row.past and theme.C.faint or theme.C.text, row.text)
           end
-          cy = cy + NEXT_H
-        else
-          if cy + line_h > top then
-            if row.kind == "grid" then
-              grid_row(ctx, dl, x + 16, cy, w - 16, row, lyric, chord, line_h)
-            elseif row.kind == "chords" then
-              kit.txt(ctx, dl, chord, x + 16, cy, theme.C.queue, row.text)
-            else
-              kit.txt(ctx, dl, lyric, x + 16, cy, theme.C.text, row.text)
-            end
-          end
-          cy = cy + line_h
         end
+        cy = cy + rh
       end
       ImGui.DrawList_PopClipRect(dl)
     end

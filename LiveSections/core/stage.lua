@@ -67,7 +67,8 @@ function M.build(snap, opts)
   local units = chart.units_for(parsed, section)
   if units then
     local next_units = nxt and not snap.queued_song and chart.units_for(parsed, nxt) or nil
-    state.rows = chart.view(units, bar, bars, opts.max_lines or 6, state.next, next_units)
+    local rows, focus = chart.view(units, bar, bars, opts.max_lines or 6, state.next, next_units)
+    state.rows, state.focus = rows, math.floor(focus * 1000 + 0.5) / 1000
   end
   return state
 end

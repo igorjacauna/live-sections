@@ -8,8 +8,9 @@
 -- Cada bloco vira uma lista de versos: uma linha de acordes com a letra logo
 -- abaixo forma um verso; uma linha só de acordes ou só de letra também é um
 -- verso. Uma linha em grade, "| G | D | Em C |", é um verso que dura
--- exatamente um compasso por célula; os compassos que sobram na seção se
--- dividem igualmente entre os outros versos. Assim a linha atual sai do
+-- exatamente um compasso por célula; "{2}" no fim de uma linha diz que o
+-- verso dura 2 compassos (aceita "{1,5}"). Os compassos que sobram na seção
+-- se dividem igualmente entre os outros versos. Assim a linha atual sai do
 -- compasso em que a música está.
 --
 -- O texto fica no projeto: ProjExtState("LiveSections", "chart:<GUID do
@@ -20,9 +21,11 @@
 -- M.song_value(song, prefix) / M.set_song_value(song, prefix, text)
 -- M.for_song(song) -> parse do texto da música (em cache)
 -- M.units_for(parsed, section) -> versos da seção, ou nil
--- M.view(units, bar, bars, max_lines, next_name, next_units) -> rows
---   rows: { kind = "chords"|"lyrics"|"grid"|"next", text, current?, cells?, cell? }
---   (current/cell só em linhas de grade: o compasso exato)
+-- M.view(units, bar, bars, max_lines, next_name, next_units) -> rows, focus
+--   rows: { kind = "chords"|"lyrics"|"grid"|"next", text, current?, past?, cells?, cell? }
+--   a seção inteira (teleprompter); current = linhas do verso atual, past =
+--   as que já passaram; cell = compasso exato numa grade atual. focus: ponto
+--   de leitura em linhas desde o topo (fracionário), para centralizar.
 
 local M = {}
 
@@ -105,7 +108,18 @@ local function grid_cells(line)
   return cells
 end
 
-local function units_of(lines)
+-- "letra {2}" -> "letra", 2 (compassos do verso); sem marca, a linha e nil.
+local function bars_mark(line)
+  local body, n = line:match("^(.-)%s*{%s*(%d+[.,]?%d*)%s*}%s*$")
+  if not body then return line, nil end
+  n = tonumber((n:gsub(",", ".")))
+  if not n or n <= 0 then return line, nil end
+  return body, n
+end
+
+local function units_of(raw)
+  local lines, marks = {}, {}
+  for i, l in ipairs(raw) do lines[i], marks[i] = bars_mark(l) end
   local units, i = {}, 1
   while i <= #lines do
     local l = lines[i]
@@ -114,10 +128,10 @@ local function units_of(lines)
       local cells = grid_cells(l)
       units[#units + 1] = { kind = "grid", lines = { l }, cells = cells, bars = #cells }
     elseif kind == "chords" and lines[i + 1] and line_kind(lines[i + 1]) == "lyrics" then
-      units[#units + 1] = { kind = "pair", lines = { l, lines[i + 1] } }
+      units[#units + 1] = { kind = "pair", lines = { l, lines[i + 1] }, bars = marks[i] or marks[i + 1] }
       i = i + 1
     elseif kind ~= "blank" then
-      units[#units + 1] = { kind = kind, lines = { l } }
+      units[#units + 1] = { kind = kind, lines = { l }, bars = marks[i] }
     end
     i = i + 1
   end
@@ -176,72 +190,57 @@ local function timeline(units, bars)
     if u.bars then fixed = fixed + u.bars else flex = flex + 1 end
   end
   local each = flex > 0 and math.max(bars - fixed, 0) / flex or 0
-  local starts, at = {}, 0
+  local starts, durs, at = {}, {}, 0
   for i, u in ipairs(units) do
-    starts[i] = at
-    at = at + (u.bars or each)
+    starts[i], durs[i] = at, u.bars or each
+    at = at + durs[i]
   end
-  return starts
+  return starts, durs
 end
 
--- Linhas para exibir: a seção inteira, até `max_lines` linhas de texto (um
--- verso nunca é cortado). Não há "linha atual" (a divisão do tempo entre os
--- versos é estimada); o progresso da seção aparece à parte. Se a seção não
--- couber, a janela rola: começa no verso em que a estimativa está e, se
--- sobrar espaço no fim, mostra os anteriores. Se a seção inteira couber e
--- ainda sobrar espaço, entra "A seguir" com o começo da próxima. Linhas em
--- grade duram um compasso por célula, então acendem o compasso atual.
--- `bar` é o compasso dentro da seção (0 = primeiro, fracionário).
+-- Linhas para exibir: a seção inteira, como num teleprompter. O verso atual
+-- sai do compasso (`bar`, 0 = primeiro, fracionário) pela divisão do tempo
+-- entre os versos; `focus` anda dentro dele conforme o compasso avança, e a
+-- tela mantém esse ponto no meio. Depois da seção, "A seguir" com até
+-- `max_lines` linhas da próxima. Linhas em grade acendem o compasso atual.
 function M.view(units, bar, bars, max_lines, next_name, next_units)
   units = units or {}
   max_lines = math.max(max_lines or 6, 2)
-  local starts = timeline(units, bars or 0)
+  bar = bar or 0
+  local starts, durs = timeline(units, bars or 0)
   local cur = 1
-  for i = 1, #units do if (bar or 0) >= starts[i] - 1e-6 then cur = i end end
+  for i = 1, #units do if bar >= starts[i] - 1e-6 then cur = i end end
 
-  -- janela [first, last] de versos que cabe, contendo o verso estimado
-  local total = 0
-  for _, u in ipairs(units) do total = total + #u.lines end
-  local first, last, used = 1, #units, total
-  if total > max_lines then
-    first, last, used = cur, cur - 1, 0
-    while last < #units and (used + #units[last + 1].lines <= max_lines or used == 0) do
-      last = last + 1
-      used = used + #units[last].lines
-    end
-    while first > 1 and used + #units[first - 1].lines <= max_lines do
-      first = first - 1
-      used = used + #units[first].lines
-    end
-  end
-
-  local rows = {}
-  local function add_unit(u, current, start)
+  local rows, focus = {}, 0
+  local function add_unit(u, current, past, start)
     for _, l in ipairs(u.lines) do
       local kind = u.kind == "grid" and "grid" or line_kind(l) == "chords" and "chords" or "lyrics"
-      local row = { kind = kind, text = l }
+      local row = { kind = kind, text = l, current = current or nil, past = past or nil }
       if u.kind == "grid" then
         row.cells = u.cells
-        if current then
-          row.current = true
-          row.cell = math.min(#u.cells, math.floor((bar or 0) - start) + 1)
-        end
+        if current then row.cell = math.min(#u.cells, math.floor(bar - start) + 1) end
       end
       rows[#rows + 1] = row
     end
   end
-  for i = first, last do add_unit(units[i], i == cur, starts[i]) end
+  for i, u in ipairs(units) do
+    if i == cur then
+      local frac = durs[i] > 0 and math.max(0, math.min(1, (bar - starts[i]) / durs[i])) or 0
+      focus = #rows + frac * #u.lines
+    end
+    add_unit(u, i == cur, i < cur, starts[i])
+  end
 
-  if next_name and last == #units and used < max_lines then
+  if next_name then
     rows[#rows + 1] = { kind = "next", text = next_name }
-    used = used + 1
+    local used = 0
     for _, u in ipairs(next_units or {}) do
       if used + #u.lines > max_lines then break end
-      add_unit(u, false, 0)
+      add_unit(u, false, false, 0)
       used = used + #u.lines
     end
   end
-  return rows
+  return rows, focus
 end
 
 -- ------------------------------------------------------------------ projeto

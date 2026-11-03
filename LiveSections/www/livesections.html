@@ -40,6 +40,9 @@ header { display: grid; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid
 main { flex: 1; overflow: hidden; padding-top: 14px; }
 .row { font-family: var(--mono); font-size: var(--fs); line-height: 1.25; white-space: pre; padding-left: 14px; color: var(--text); }
 .row.chords { font-weight: 700; color: var(--queue); }
+.row.past { opacity: .35; }
+.row.cur { background: var(--raise); box-shadow: inset 4px 0 0 var(--queue); }
+.rows { will-change: transform; }
 .row.nexthdr { font: 700 13px var(--ui); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 12px 0 6px; border: 0; padding-left: 18px; }
 .grid { display: flex; gap: 6px; flex-wrap: wrap; white-space: normal; }
 .grid span { padding: 4px 12px; border-radius: 8px; background: var(--raise); font-weight: 700; }
@@ -95,52 +98,39 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
     document.documentElement.style.setProperty('--fs', (px * scale).toFixed(1) + 'px');
   }
 
-  // Rolagem suave: quando as linhas avançam (as de cima saem, as de baixo
-  // entram), as que saíram ficam por cima e tudo desliza até o lugar novo.
-  var prevRows = null, sliding = null;
-  function sameRow(a, b) { return a.kind === b.kind && a.text === b.text; }
-  function advancedBy(old, nw) {
-    if (!old || !nw.length) return 0;
-    for (var k = 1; k < old.length; k++) {
-      var n = Math.min(old.length - k, nw.length), ok = true;
-      for (var i = 0; i < n; i++) if (!sameRow(old[k + i], nw[i])) { ok = false; break; }
-      if (ok) return k;
-    }
-    return 0;
-  }
-  function endSlide() {
-    if (!sliding) return;
-    clearTimeout(sliding.timer);
-    sliding.gone.forEach(function (e) { e.remove(); });
-    sliding.box.style.transition = 'none';
-    sliding.box.style.transform = 'none';
-    sliding = null;
-  }
-  function showRows(main, rows, out) {
-    endSlide();
+  // Teleprompter: o ponto de leitura (s.focus, em linhas) fica fixo perto do
+  // meio e a cifra desliza até ele. Troca de seção pula direto.
+  var FOCUS_AT = 0.42, shownKey = null, shownSig = null;
+  function rowsSig(rows) { return JSON.stringify(rows.map(function (r) { return [r.kind, r.text, r.cells || null]; })); }
+  function showRows(main, rows, out, s) {
+    var key = (s.song || '') + '\u0000' + (s.section || '');
+    var sig = rowsSig(rows);
     var box = main.firstElementChild;
-    var k = box && box.classList.contains('rows') ? advancedBy(prevRows, rows) : 0;
-    prevRows = rows.map(function (r) { return { kind: r.kind, text: r.text }; });
-    if (!k || !box.children[k]) {
+    var jump = key !== shownKey || !box || !box.classList.contains('rows');
+    if (jump || sig !== shownSig) {
       box = el('div', 'rows');
       box.replaceChildren.apply(box, out);
       main.replaceChildren(box);
-      return;
+      shownSig = sig;
+    } else {
+      // mesmas linhas: só troca o destaque (atual, já passou, compasso da grade)
+      for (var i = 0; i < out.length; i++) {
+        box.children[i].className = out[i].className;
+        if (rows[i].kind === 'grid') box.children[i].replaceChildren.apply(box.children[i], Array.prototype.slice.call(out[i].childNodes));
+      }
     }
-    var gone = Array.prototype.slice.call(box.children, 0, k);
-    var px = box.children[k].offsetTop - box.children[0].offsetTop;
-    box.replaceChildren.apply(box, gone.concat(out));
-    box.style.transition = 'none';
-    box.style.transform = 'none';
-    void box.offsetHeight;
-    box.style.transition = 'transform .45s cubic-bezier(.2,.7,.3,1)';
-    box.style.transform = 'translateY(' + (-px) + 'px)';
-    sliding = { box: box, gone: gone, timer: setTimeout(endSlide, 500) };
+    var f = s.focus || 0, k = Math.min(Math.floor(f), box.children.length - 1);
+    var row = box.children[Math.max(0, k)];
+    var y = row ? row.offsetTop - box.children[0].offsetTop + (f - Math.floor(f)) * row.offsetHeight : 0;
+    var shift = main.clientHeight * FOCUS_AT - y;
+    box.style.transition = jump ? 'none' : 'transform .6s linear';
+    box.style.transform = 'translateY(' + shift.toFixed(1) + 'px)';
+    shownKey = key;
   }
 
   function render(s) {
     if (!s.open) {
-      endSlide(); prevRows = null;
+      shownKey = null;
       $('section').textContent = 'Live Sections fechado';
       $('song').textContent = 'Live Sections';
       $('bar').textContent = ''; $('next').textContent = ''; $('prog').className = 'prog off'; $('play').textContent = ''; $('note').textContent = '';
@@ -164,7 +154,7 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
     if (!rows.length) {
       var msg = el('div', 'empty', s.has_chart ? 'Sem cifra para esta seção.' : 'Esta música não tem cifra.');
       msg.appendChild(el('small', null, 'No REAPER: modo Editar → Cifra, com cabeçalhos [Intro], [Verso], [Refrão]… iguais aos nomes das seções.'));
-      endSlide(); prevRows = null;
+      shownKey = null;
       main.replaceChildren(msg);
       return;
     }
@@ -172,7 +162,7 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
     var out = [];
     rows.forEach(function (r) {
       if (r.kind === 'next') { out.push(el('div', 'row nexthdr', 'A seguir · ' + r.text)); return; }
-      var d = el('div', 'row ' + r.kind + (r.current ? ' cur' : ''));
+      var d = el('div', 'row ' + r.kind + (r.current ? ' cur' : '') + (r.past ? ' past' : ''));
       if (r.kind === 'grid') {
         d.classList.add('grid');
         (r.cells || []).forEach(function (c, i) { d.appendChild(el('span', r.cell === i + 1 ? 'on' : null, c)); });
@@ -181,7 +171,7 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
       }
       out.push(d);
     });
-    showRows(main, rows, out);
+    showRows(main, rows, out, s);
   }
 
   function status(text, err) { var st = $('status'); st.textContent = text; st.className = 'st' + (err ? ' err' : ''); }

@@ -40,10 +40,12 @@ describe("core.stage", function()
     assert.equal(3, s.rows[1].cell)
   end)
 
-  it("Verso: rola com a seção se não couber; progresso de 0 a 1", function()
+  it("Verso: a seção inteira com o verso atual e o ponto de leitura; progresso de 0 a 1", function()
     local s = stage.build(snap(13), { max_lines = 2 })
-    assert.equal("Em      C", s.rows[1].text)
-    assert.equal(2, #s.rows)
+    assert.equal(4, #s.rows)
+    assert.is_true(s.rows[3].current)
+    assert.is_true(s.rows[1].past)
+    assert.near(2.5, s.focus, 1e-3)               -- metade do 2º verso
     assert.equal(0.625, s.progress)               -- 2,5 de 4 compassos
     assert.equal(0, stage.build(snap(8)).progress)
   end)

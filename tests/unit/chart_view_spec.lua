@@ -43,36 +43,35 @@ describe("ui.chart_view", function()
     assert.matches("Am", t)
   end)
 
-  it("quando a seção avança, as linhas deslizam: as que saíram somem depois da rolagem", function()
+  local function text_at(t)
+    for _, c in ipairs(calls) do if c[1] == "DrawList_AddText" and c[6] == t then return c end end
+  end
+
+  it("teleprompter: o ponto de leitura fica perto do meio e a tela rola até ele", function()
     local r = stub.install()
-    local function rows(list)
-      local out = {}
-      for _, t in ipairs(list) do out[#out + 1] = { kind = "lyrics", text = t } end
-      return out
-    end
-    local state = { song = "A", section = "Verso", rows = rows({ "um", "dois", "três" }) }
+    local rows = {}
+    for i = 1, 30 do rows[#rows + 1] = { kind = "lyrics", text = "linha " .. i, past = i < 20 or nil, current = i == 20 or nil } end
     r.set_now(10)
-    view.draw("ctx", state)
+    view.draw("ctx", { song = "A", section = "Verso", rows = rows, focus = 19 })
+    local mid = text_at("linha 20")
+    assert.is_table(mid)
+    assert.is_true(mid[4] > 150 and mid[4] < 400)           -- perto do meio da área
+    assert.is_nil(text_at("linha 1"))                        -- bem acima, fora da tela
+    -- o ponto avança: no mesmo instante a tela ainda não andou; depois alcança
     calls = {}
-    state.rows = rows({ "dois", "três", "quatro" })
-    view.draw("ctx", state)
-    assert.matches("um", texts())                 -- ainda visível, saindo por cima
-    assert.matches("quatro", texts())
+    view.draw("ctx", { song = "A", section = "Verso", rows = rows, focus = 21 })
+    local y_now = text_at("linha 22")[4]
     calls = {}
-    r.set_now(11)
-    view.draw("ctx", state)
-    assert.is_nil(texts():match("um"))
-    assert.matches("quatro", texts())
+    r.set_now(12)
+    view.draw("ctx", { song = "A", section = "Verso", rows = rows, focus = 21 })
+    assert.near(mid[4], text_at("linha 22")[4], 1)
+    assert.is_true(y_now > text_at("linha 22")[4])
   end)
 
-  it("troca de seção muda direto, sem rolagem", function()
-    local r = stub.install()
-    r.set_now(10)
-    view.draw("ctx", { song = "A", section = "Verso", rows = { { kind = "lyrics", text = "verso" } } })
-    calls = {}
-    view.draw("ctx", { song = "A", section = "Refrão", rows = { { kind = "lyrics", text = "refrão" } } })
-    assert.is_nil(texts():match("verso"))
-    assert.matches("refrão", texts())
+  it("linhas que já passaram ficam apagadas", function()
+    view.draw("ctx", { song = "A", section = "Verso", focus = 1,
+      rows = { { kind = "lyrics", text = "antes", past = true }, { kind = "lyrics", text = "agora", current = true } } })
+    assert.are_not.equal(text_at("antes")[5], text_at("agora")[5])
   end)
 
   it("sem cifra e sem música mostram orientação", function()

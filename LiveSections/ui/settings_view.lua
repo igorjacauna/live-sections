@@ -275,7 +275,7 @@ local function chart_card(ctx, x, y, w)
   local cy = y + 16
   local c = cfg()
   cy = cy + title(ctx, dl, ix, cy, "Cifra no palco")
-  cy = cy + field_label(ctx, dl, ix, cy, "LINHAS NA TELA")
+  cy = cy + field_label(ctx, dl, ix, cy, "LINHAS DA PRÓXIMA SEÇÃO")
   local body = theme.font(ctx, "body")
   ImGui.SetCursorScreenPos(ctx, ix, cy)
   ImGui.SetNextItemWidth(ctx, 120)
@@ -284,7 +284,7 @@ local function chart_card(ctx, x, y, w)
   if moved then c.chart_lines = math.max(2, math.min(16, n)); save() end
   cy = cy + 40
   cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.muted,
-    "Conta a linha de acordes e a da letra. Mostra a seção inteira; se não couber, rola conforme a seção avança. Um verso nunca é cortado.") + 14
+    "A cifra rola como um teleprompter: o verso atual fica destacado no meio da tela e os que passaram ficam apagados. No fim da seção aparecem até estas linhas da próxima (acordes e letra contam separado).") + 14
   cy = cy + field_label(ctx, dl, ix, cy, "NO CELULAR OU TABLET")
   local info = web.info()
   local problems = {}

@@ -357,7 +357,7 @@ end
 
 -- ------------------------------------------------------------------ cifra
 
-local CHART_HELP = "Cole a cifra da música (estilo Cifra Club). Cada seção começa com um cabeçalho com o nome dela entre colchetes, como [Intro], [Verso], [Refrão]. Os acordes ficam na linha de cima da letra, em fonte monoespaçada. Para acompanhar compasso a compasso, escreva uma linha em grade: | G | D | Em | C |"
+local CHART_HELP = "Cole a cifra da música (estilo Cifra Club). Cada seção começa com um cabeçalho com o nome dela entre colchetes, como [Intro], [Verso], [Refrão]. Os acordes ficam na linha de cima da letra, em fonte monoespaçada. Para acompanhar compasso a compasso, escreva uma linha em grade: | G | D | Em | C |. Se uma frase dura mais ou menos que as outras, ponha no fim da linha quantos compassos ela dura: {2} ou {1,5}; as linhas sem número dividem o resto da seção."
 
 local function chart_modal(ctx)
   if st.chart_open then ImGui.OpenPopup(ctx, "Cifra da música"); st.chart_open = false end
