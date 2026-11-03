@@ -177,7 +177,15 @@ for n, tr in ipairs(order) do
   orig_guid[n] = reaper.GetTrackGUID(tr)
   local fx = {}
   for f = 0, reaper.TrackFX_GetCount(tr) - 1 do fx[#fx + 1] = select(2, reaper.TrackFX_GetFXName(tr, f, "")) end
-  pkg[n] = { name = name, chunk = filtered, fx = fx, sends_before = reaper.GetTrackNumSends(tr, -1) }
+  local rel = {}                         -- posições relativas esperadas, na ordem dos itens
+  for k = 0, reaper.CountTrackMediaItems(tr) - 1 do
+    local it = reaper.GetTrackMediaItem(tr, k)
+    local p = reaper.GetMediaItemInfo_Value(it, "D_POSITION")
+    if p >= song_start - 1e-6 and p < song_end - 1e-6 then
+      rel[#rel + 1] = { pos = p - song_start, beat = reaper.GetMediaItemInfo_Value(it, "C_BEATATTACHMODE") }
+    end
+  end
+  pkg[n] = { name = name, chunk = filtered, fx = fx, sends_before = reaper.GetTrackNumSends(tr, -1), rel = rel }
   out(string.format("%2d. %-24s chunk %s → %s · leitura %.0f ms · itens %d · GUIDs tirados %d · rotas %d (fora: %d) · FX: %s",
     n, name, kb(#(ok and chunk or "")), kb(#filtered), (t1 - t0) * 1000, items, guids, aux_k, aux_d,
     #fx > 0 and table.concat(fx, ", ") or "—"))
@@ -188,8 +196,22 @@ out(string.format("áudios copiados: %d (%s) para %s", nfiles - #missing, kb(cop
 for _, m in ipairs(missing) do out("  FALTOU: " .. m) end
 out(string.format("tempo total: leitura %.0f ms, filtro %.0f ms", t_get * 1000, t_filter * 1000))
 
+-- tempo, fórmula e fase no início da música (o import real recria o tempo antes das tracks)
+local start_bpm = reaper.TimeMap_GetDividedBpmAtTime(song_start)
+local _, start_num, start_denom = reaper.TimeMap_GetTimeSigAtTime(0, song_start)
+local beats_in_bar, measure = reaper.TimeMap2_timeToBeats(0, song_start)
+out(string.format("início: %.2f BPM %d/%d · compasso %d, tempo %.3f (0 = no compasso)",
+  start_bpm, start_num, start_denom, measure + 1, beats_in_bar))
+out(string.format("timebase do projeto (itemtimelock): %s · timebase da aba nova vem do modelo de projeto",
+  tostring(select(2, reaper.get_config_var_string("itemtimelock")))))
+
 -- ------------------------------------------------------------------ importar numa aba nova
 reaper.Main_OnCommand(NEW_PROJECT_TAB, 0)
+local new_bpm = reaper.TimeMap_GetDividedBpmAtTime(0)
+out(string.format("aba nova antes: %.2f BPM · itemtimelock %s", new_bpm,
+  tostring(select(2, reaper.get_config_var_string("itemtimelock")))))
+reaper.SetTempoTimeSigMarker(0, -1, 0, -1, -1, start_bpm, start_num, start_denom, false)
+reaper.UpdateTimeline()
 reaper.PreventUIRefresh(1)
 local new, t_set = {}, 0
 for n = 1, #pkg do
@@ -234,11 +256,30 @@ for n, tr in ipairs(new) do
     #fx < #pkg[n].fx and "  ← FX A MENOS" or ""))
 end
 out(string.format("GUIDs de track repetidos: %d · iguais aos do original: %d · itens offline: %d", dup, same_as_orig, offline))
+
+-- posição de cada item: esperada (relativa no original) × na aba nova
+out("\n-- posições (s): esperada → na aba nova (diferença) · timebase do item --")
+local worst = 0
+for n, tr in ipairs(new) do
+  for k = 0, reaper.CountTrackMediaItems(tr) - 1 do
+    local it = reaper.GetTrackMediaItem(tr, k)
+    local got = reaper.GetMediaItemInfo_Value(it, "D_POSITION")
+    local exp = pkg[n].rel[k + 1]
+    local diff = exp and (got - exp.pos) or 0
+    if math.abs(diff) > math.abs(worst) then worst = diff end
+    if k < 3 then
+      out(string.format("%2d.%d %-20s %.4f → %.4f (%+.4f) · beat %s→%s", n, k + 1, pkg[n].name,
+        exp and exp.pos or -1, got, diff, exp and exp.beat or "?",
+        reaper.GetMediaItemInfo_Value(it, "C_BEATATTACHMODE")))
+    end
+  end
+end
+out(string.format("maior diferença: %+.4f s", worst))
 out([[
 
 Confira na aba nova:
   1. Arme a track do Kontakt (entrada do teclado) e toque: mesmo timbre e ajustes?
   2. As camadas recebem do Kontakt e tocam (medidores nelas)?
-  3. Os áudios estão no lugar (começando em 0) e tocam?
+  3. Os áudios estão no lugar em relação ao marcador e tocam?
   4. Abra o FX do Kontakt: carregou rápido? Pediu amostras?
 Mande este console e as respostas 1–4. Depois feche a aba sem salvar.]])
