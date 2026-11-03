@@ -1,1 +1,1 @@
-- Correção: editar seções, tempo, fórmula ou parâmetros com a música tocando podia cortar o áudio por um instante (o desfazer guardava o estado de todos os plugins, inclusive cada Kontakt); agora guarda só o que a edição muda
+- Correção: dar play com o cursor no início exato de uma música mostrava a anterior por um instante e não tocava (o REAPER informa uma posição impossível logo depois do play; o Live Sections trocava de música em ciclo, com pausas)
