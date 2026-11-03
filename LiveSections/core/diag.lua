@@ -4,7 +4,9 @@
 -- mostra a média dos últimos WINDOW_S segundos e os últimos engasgos.
 --
 -- Engasgo: um intervalo entre o começo de dois ciclos maior que HITCH_MS
--- (normal: 16–33 ms). O registro diz quanto disso foi o script (o ciclo
+-- (normal: 16–33 ms), ou uma falha de áudio que o REAPER registrou
+-- (GetUnderrunTime: áudio = o buffer da placa esvaziou; mídia = leitura de
+-- disco atrasou), mesmo sem a tela travar. O registro diz quanto disso foi o script (o ciclo
 -- anterior, com o tempo de cada parte) e o que o ciclo anterior mexeu no
 -- REAPER (notas): o REAPER faz parte do trabalho dessas mudanças depois que o
 -- script devolve o controle (ponto de undo, estado do FX), fora do tempo
@@ -22,13 +24,16 @@
 local M = {}
 
 local WINDOW_S = 2.0
-local HITCH_MS = 150
+local HITCH_MS = 70
+local RECENT_S = 0.5       -- notas dos ciclos deste intervalo antes da falha
 local MAX_HITCHES = 30
 
 local samples = {}   -- { at, ms, events }
 local pending_events = 0
 local parts, notes = {}, {}
 local prev = nil     -- { started, ms, parts, notes }
+local recent = {}    -- { { at, notes } } dos últimos RECENT_S
+local xrun = nil     -- { audio, media } últimos carimbos vistos
 local hitches = {}
 local info_fn = nil
 
@@ -50,23 +55,50 @@ local function top_parts(list, n)
   return out
 end
 
+local function recent_notes()
+  local out = {}
+  for _, c in ipairs(recent) do
+    for what, n in pairs(c.notes) do out[what] = (out[what] or 0) + n end
+  end
+  return out
+end
+
+local function record(h)
+  local ok, info = pcall(function() return info_fn and info_fn() or nil end)
+  h.at, h.info = os.date("%H:%M:%S"), ok and info or nil
+  hitches[#hitches + 1] = h
+  if #hitches > MAX_HITCHES then table.remove(hitches, 1) end
+end
+
+-- Falha de áudio nova desde o ciclo anterior: "áudio", "mídia" ou nil.
+local function new_xrun()
+  local ok, get = pcall(function() return reaper.GetUnderrunTime end)
+  if not ok or not get then return nil end
+  local audio, media = get()
+  local seen = xrun
+  xrun = { audio = audio or 0, media = media or 0 }
+  if not seen then return nil end
+  if xrun.audio ~= seen.audio and xrun.audio > 0 then return "áudio" end
+  if xrun.media ~= seen.media and xrun.media > 0 then return "mídia" end
+end
+
 function M.cycle(started, finished)
   local ms = (finished - started) * 1000
   samples[#samples + 1] = { at = finished, ms = ms, events = pending_events }
   pending_events = 0
   while samples[1] and finished - samples[1].at > WINDOW_S do table.remove(samples, 1) end
 
-  if prev then
-    local gap = (started - prev.started) * 1000
-    if gap > HITCH_MS then
-      local ok, info = pcall(function() return info_fn and info_fn() or nil end)
-      hitches[#hitches + 1] = {
-        at = os.date("%H:%M:%S"), gap_ms = gap, script_ms = prev.ms,
-        parts = top_parts(prev.parts, 4), notes = prev.notes, info = ok and info or nil,
-      }
-      if #hitches > MAX_HITCHES then table.remove(hitches, 1) end
-    end
+  local gap = prev and (started - prev.started) * 1000
+  local kind = new_xrun()
+  if kind or (gap and gap > HITCH_MS) then
+    record({
+      kind = kind and ("falha de " .. kind) or "pausa",
+      gap_ms = gap or 0, script_ms = prev and prev.ms or 0,
+      parts = top_parts(prev and prev.parts or {}, 4), notes = recent_notes(),
+    })
   end
+  recent[#recent + 1] = { at = started, notes = notes }
+  while recent[1] and started - recent[1].at > RECENT_S do table.remove(recent, 1) end
   prev = { started = started, ms = ms, parts = parts, notes = notes }
   parts, notes = {}, {}
 end
@@ -93,7 +125,7 @@ function M.line(h)
   local ns = {}
   for what, n in pairs(h.notes) do ns[#ns + 1] = n > 1 and (what .. " x" .. n) or what end
   table.sort(ns)
-  return string.format("%s  pausa %.0f ms · script %.0f ms (%s)%s%s", h.at, h.gap_ms, h.script_ms,
+  return string.format("%s  %s · ciclo %.0f ms · script %.0f ms (%s)%s%s", h.at, h.kind or "pausa", h.gap_ms, h.script_ms,
     table.concat(ps, ", "), #ns > 0 and " · mexeu: " .. table.concat(ns, ", ") or "",
     h.info and " · " .. h.info or "")
 end
@@ -105,6 +137,6 @@ function M.report()
   return table.concat(out, "\n")
 end
 
-function M.reset() samples, pending_events, parts, notes, prev, hitches = {}, 0, {}, {}, nil, {} end
+function M.reset() samples, pending_events, parts, notes, prev, hitches, recent = {}, 0, {}, {}, nil, {}, {} end
 
 return M

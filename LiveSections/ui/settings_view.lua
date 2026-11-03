@@ -405,7 +405,7 @@ local function perf_card(ctx, x, y, w)
   kit.txt(ctx, dl, "label", ix, cy, theme.C.muted, string.format("ENGASGOS (%d)", #list))
   cy = cy + 20
   if #list == 0 then
-    cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.faint, "Nenhuma pausa maior que 150 ms desde que o script abriu.")
+    cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.faint, "Nenhuma pausa maior que 70 ms nem falha de áudio desde que o script abriu.")
   else
     for i = #list, math.max(1, #list - 4), -1 do
       cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.text, diag.line(list[i])) + 4
@@ -423,7 +423,7 @@ local function perf_card(ctx, x, y, w)
   end
   cy = cy + 40
   cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.faint,
-    "\"script\" é quanto o Live Sections demorou no ciclo antes da pausa; o resto foi o REAPER (áudio, plugins, salvamento automático). \"mexeu\" diz o que o script mudou no REAPER logo antes.")
+    "\"falha de áudio\" é o REAPER avisando que o áudio cortou (mesmo sem a tela travar). \"ciclo\" é o intervalo entre dois quadros da tela; \"script\" é quanto o Live Sections demorou no quadro anterior; o resto foi o REAPER (áudio, plugins, salvamento automático). \"mexeu\" diz o que o script mudou no REAPER no meio segundo antes.")
   return cy - y + 16
 end
 
