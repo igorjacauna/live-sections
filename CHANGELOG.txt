@@ -1,1 +1,3 @@
-- Correção: dar play com o cursor no início exato de uma música mostrava a anterior por um instante e não tocava (o REAPER informa uma posição impossível logo depois do play; o Live Sections trocava de música em ciclo, com pausas)
+- Biblioteca de músicas: Exportar (barra de músicas do modo Editar) salva a música configurada (seções, tempo, fórmula, cifra, anotação, Kontakt com o timbre, camadas, parâmetros e áudios) numa pasta da biblioteca
+- Montar setlist: "+ Da biblioteca" (setlist da Performance e modo Editar) adiciona várias músicas na ordem escolhida, no fim do projeto, cada uma numa pasta de tracks e com o seu tempo; avisa antes os plugins que faltam e depois as linhas do Mapeamento que precisam de Learn
+- Configurações: pasta da biblioteca (padrão nos recursos do REAPER, ou escolhida); em outro computador, leve a pasta e tenha o Kontakt e as bibliotecas instalados
