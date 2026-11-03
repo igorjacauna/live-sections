@@ -1,1 +1,4 @@
-- Diagnóstico de engasgos: registra também as falhas de áudio que o REAPER detecta (mesmo sem a tela travar) e pausas a partir de 70 ms, com o que o Live Sections mexeu no REAPER no meio segundo anterior
+- Editar: GRADE abaixo da faixa (Compasso, Tempo, ½ tempo, Livre) para posicionar seções entre compassos; com zoom, a régua mostra os tempos
+- Cifra: modo teleprompter, com o verso atual destacado no meio da tela, os anteriores apagados e rolagem contínua (janela Cifra e celular)
+- Cifra: "{2}" ou "{1,5}" no fim de uma linha diz quantos compassos ela dura; as outras dividem o resto da seção
+- Configurações: "Linhas na tela" virou "Linhas da próxima seção" (quantas linhas da próxima seção aparecem em "A seguir")
