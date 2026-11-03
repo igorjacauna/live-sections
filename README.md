@@ -13,19 +13,22 @@ Site, demo e instalação: https://live-sections.igor-jacauna-cloudflare.workers
   modos de compasso o salto é feito pelo motor do REAPER, com 0 samples de desvio
 - Fila cancelável sem glitch, loop de seção, parada no fim de cada música
 - MIDI learn por clique direito, learn global, LEDs por estado com velocity
-  configurável (seções, Play, mute e solo); notas, CC, Program Change e pitch bend
+  configurável (seções, Play, camada ligada); notas, CC, Program Change e pitch bend
 - Um Kontakt por música: só o atual armado no teclado, notas seguradas não
-  cortam, bypass com cauda, camadas do multi-out com faders e soft takeover;
-  duplo clique no nome da camada para renomear
+  cortam, bypass com cauda, camadas do multi-out com fader, botão Ligado e soft
+  takeover; duplo clique no nome da camada para renomear
 - Mapeamento: knobs, faders e botões do controlador viram um CC fixo só para o
   Kontakt da música atual (por um JSFX), com aprender em série, Enviar p/ Learn,
   Testar, valores por música e LED nos botões liga/desliga
+- Parâmetros nas camadas: até 4 controles do Mapeamento fixos em cada camada,
+  com nome por música ("Reverb", "Rotary") e valor ou ON/OFF legível de longe;
+  "+ parâmetro" e mexa o controle, sem sair da tela de performance
 - Modo Editar: faixa de estrutura com dividir, desenhar, arrastar bordas, ímã,
   chips de nome e um passo de undo por operação; avisos com correção
 - Tap tempo e alinhamento do compasso 1 para músicas gravadas sem grid
 - Cifra por música na janela de cifra e no celular/tablet (navegador, com QR
   Code): seção inteira com barra de progresso; anotação por música (tom, dica)
-- Modo palco com camadas e anotação, e 77 actions para o Action List ou o ReaLearn
+- Modo palco com camadas e anotação, e 69 actions para o Action List ou o ReaLearn
 - O áudio nunca depende do script: se ele fechar, o REAPER continua tocando
 
 ## Instalar
