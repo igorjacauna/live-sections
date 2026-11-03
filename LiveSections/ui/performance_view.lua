@@ -17,7 +17,7 @@ local diag = require("core.diag")
 
 local ImGui, theme, anim, widgets
 local perf, layers, feedback, mappings, learn, input, model, editor, settings_view, stage
-local kontakt_cc, mapping_view
+local kontakt_cc, mapping_view, layer_params
 
 local VERSION = require("version")
 
@@ -59,7 +59,7 @@ function M.init(deps)
   perf, layers, feedback = deps.perf, deps.layers, deps.feedback
   mappings, learn, input, model = deps.mappings, deps.learn, deps.input, deps.model
   editor, settings_view, stage = deps.editor, deps.settings, deps.stage
-  kontakt_cc, mapping_view = deps.kontakt_cc, deps.mapping
+  kontakt_cc, mapping_view, layer_params = deps.kontakt_cc, deps.mapping, deps.layer_params
   ui.mode, ui.stage, ui.setlist_open = "performance", false, false
   last_song_id, last_port_check, disconnected, last_value = nil, -math.huge, {}, {}
   last_high = {}
@@ -640,6 +640,32 @@ end
 -- Camadas como colunas de mixer. No palco (`fh` menor) o fader é mais
 -- baixo, para sobrar espaço para os cards, e sem camadas nada aparece.
 local FADER_H, STAGE_FADER_H = 132, 96
+local PARAM_H, PARAM_GAP = 50, 6
+
+-- Parâmetro fixo da camada (RF-143–RF-149): nome em cima; knob com o valor
+-- grande e uma barra; botão com a pílula ON/OFF; "—" sem valor conhecido.
+-- A borda acende por um instante quando o controle é mexido.
+local function param_box(ctx, dl, x, y, w, p)
+  ImGui.DrawList_AddRectFilled(dl, x, y, x + w, y + PARAM_H, theme.C.raise, theme.R.r1)
+  ImGui.DrawList_AddRect(dl, x, y, x + w, y + PARAM_H, p.flash and theme.C.text or theme.C.line, theme.R.r1, 0, p.flash and 2 or 1)
+  ImGui.DrawList_PushClipRect(dl, x + 6, y, x + w - 6, y + PARAM_H, true)
+  txt(ctx, dl, "small", x + 7, y + 5, theme.C.muted, p.name)
+  ImGui.DrawList_PopClipRect(dl)
+  local iy, iw = y + 22, w - 14
+  if p.kind == "knob" or p.kind == "encoder" then
+    txt(ctx, dl, "readout", x + 7, iy - 1, theme.C.text, p.value and tostring(p.value) or "—")
+    local by = y + PARAM_H - 8
+    ImGui.DrawList_AddRectFilled(dl, x + 7, by, x + 7 + iw, by + 3, theme.C.bg, 2)
+    if p.value then ImGui.DrawList_AddRectFilled(dl, x + 7, by, x + 7 + iw * p.value / 127, by + 3, theme.C.loop, 2) end
+    return
+  end
+  local on, known = p.on, p.value ~= nil
+  if p.kind == "momentary" then on = p.held end
+  local label = not known and "—" or on and "ON" or "OFF"
+  ImGui.DrawList_AddRectFilled(dl, x + 7, iy, x + 7 + iw, iy + 20, on and theme.C.ok or theme.C.bg, 10)
+  local tw = size(ctx, "label", label)
+  txt(ctx, dl, "label", x + 7 + (iw - tw) / 2, iy + 4, on and theme.C.ink or theme.C.muted, label)
+end
 
 local function layer_strip(ctx, x, y, w, fh)
   local dl = ImGui.GetWindowDrawList(ctx)
@@ -657,11 +683,17 @@ local function layer_strip(ctx, x, y, w, fh)
   end
   local lw = 96
   fh = fh or FADER_H
+  local params, most = {}, 0
+  for i in ipairs(list) do
+    params[i] = layer_params and layer_params.for_layer(song, i, now) or {}
+    most = math.max(most, #params[i])
+  end
+  local ph = most * (PARAM_H + PARAM_GAP)
   for i in ipairs(list) do
     local st = layers.layer_state(i)
     local lx = x + (i - 1) * (lw + GAP)
     if not st or lx + lw > x + w then break end
-    ImGui.DrawList_AddRectFilled(dl, lx, y, lx + lw, y + fh + 92, theme.C.panel, theme.R.r2)
+    ImGui.DrawList_AddRectFilled(dl, lx, y, lx + lw, y + fh + 92 + ph, theme.C.panel, theme.R.r2)
     ImGui.DrawList_PushClipRect(dl, lx + 6, y, lx + lw - 6, y + 30, true)
     txt(ctx, dl, "button", lx + 10, y + 10, theme.C.text, st.name)
     ImGui.DrawList_PopClipRect(dl)
@@ -715,6 +747,12 @@ local function layer_strip(ctx, x, y, w, fh)
       layers.toggle_mute(i)
     end
     widgets.mappable(ctx, { action = "layer_mute", arg = i }, "Liga/desliga " .. st.name)
+
+    local py = by + 26 + 12
+    for _, p in ipairs(params[i]) do
+      param_box(ctx, dl, lx + 6, py, lw - 12, p)
+      py = py + PARAM_H + PARAM_GAP
+    end
   end
   if rename and ImGui.BeginPopup(ctx, "rename_layer") then
     ImGui.Text(ctx, "Nome da camada nesta música")
@@ -734,7 +772,7 @@ local function layer_strip(ctx, x, y, w, fh)
     end
     ImGui.EndPopup(ctx)
   end
-  return 22 + fh + 92
+  return 22 + fh + 92 + ph
 end
 
 -- Espaço: Play/Stop no Performance e no Palco (fora de campos de texto).
@@ -805,10 +843,12 @@ end
 -- ------------------------------------------------------------------ desenho
 
 -- Aviso "Cutoff 64" por 2 s ao mexer um controle do Mapeamento (RF-135),
--- no topo da área da música, por cima do resto.
+-- no topo da área da música, por cima do resto. Parâmetros de camada já
+-- ficam fixos na coluna e não ganham aviso (RF-151).
 local function touch_toast(ctx, x, y, w)
   local t = kontakt_cc and kontakt_cc.last_touch(now)
   if not t then return end
+  if layer_params and snap.song and layer_params.is_param(snap.song, t.row.id) then return end
   local v = t.value or 0
   local s = t.row.name .. "  " .. ((t.row.kind == "knob" or t.row.kind == "encoder") and tostring(v) or (v >= 64 and "ON" or "OFF"))
   local style = ui.stage and "title" or "strong"

@@ -300,7 +300,7 @@ describe("ui.performance_view", function()
     end)
 
     describe("aviso do Mapeamento", function()
-      local function draw_touch(touch, stage, mode)
+      local function draw_touch(touch, stage, mode, lp)
         local im, calls = fake_imgui()
         local kcc = { handle = function() end, on_song = function() end, tick = function() end, led = function() end,
           last_touch = function() return touch end }
@@ -308,6 +308,7 @@ describe("ui.performance_view", function()
         view.init({
           ImGui = im, theme = theme, anim = anim, widgets = widgets, perf = perf, layers = layers,
           feedback = feedback, mappings = mappings, learn = learn, input = input, model = model, kontakt_cc = kcc,
+          layer_params = lp,
         })
         view.ui().stage = stage or false
         view.ui().mode = mode or "performance"
@@ -332,6 +333,14 @@ describe("ui.performance_view", function()
       it("sem toque recente não mostra nada", function()
         local texts = draw_touch(nil)
         for t in pairs(texts) do assert.is_nil(t:find("  64", 1, true)) end
+      end)
+
+      it("não aparece para parâmetro de camada da música atual", function()
+        local touch = { row = { id = "k1", name = "Cutoff", kind = "knob" }, value = 64 }
+        local lp = { for_layer = function() return {} end, is_param = function(_, id) return id == "k1" end }
+        assert.is_nil(draw_touch(touch, false, nil, lp)["Cutoff  64"])
+        touch.row.id = "k2"
+        assert.is_true(draw_touch(touch, false, nil, lp)["Cutoff  64"])
       end)
 
       it("não aparece em Configurações", function()
@@ -442,6 +451,55 @@ describe("ui.performance_view", function()
       for _, c in ipairs(calls) do if c[1] == "InvisibleButton" and c[2] == "fader1" then fader = c end end
       assert.is_true(fader[4] > fader[3])          -- mais alto que largo
       assert.is_true(fader[4] < 132)               -- mais baixo que no Performance
+    end)
+
+    describe("parâmetros nas camadas", function()
+      local function draw_params(views, stage)
+        local k = r.add_track("Kontakt A")
+        r.add_receive(k, r.add_track("Piano"), 0)
+        r.add_receive(k, r.add_track("Orgão"), 0)
+        layers.link(model.songs()[1], k)
+        local im, calls = fake_imgui()
+        widgets.init(im, theme, anim, learn, mappings)
+        view.init({
+          ImGui = im, theme = theme, anim = anim, widgets = widgets, perf = perf, layers = layers,
+          feedback = feedback, mappings = mappings, learn = learn, input = input, model = model,
+          layer_params = { for_layer = function(_, slot) return views[slot] or {} end, is_param = function() return false end },
+        })
+        view.ui().stage = stage or false
+        view.update(1)
+        view.draw("ctx")
+        local texts = {}
+        for _, c in ipairs(calls) do if c[1] == "DrawList_AddText" then texts[c[6]] = (texts[c[6]] or 0) + 1 end end
+        return texts, calls
+      end
+
+      it("knob com valor, liga/desliga ON/OFF, segurar e valor desconhecido", function()
+        local texts = draw_params({
+          { { name = "Reverb", kind = "knob", value = 87 }, { name = "Rotary", kind = "toggle", value = 127, on = true } },
+          { { name = "Delay", kind = "encoder" }, { name = "Fast", kind = "momentary", value = 0, held = false },
+            { name = "Leslie", kind = "toggle", value = 0, on = false } },
+        })
+        assert.is_truthy(texts.Reverb and texts["87"] and texts.Rotary and texts.ON)
+        assert.is_truthy(texts.Delay and texts["—"] and texts.Fast and texts.Leslie)
+        assert.equal(2, texts.OFF)
+      end)
+
+      it("aparecem também no Palco", function()
+        local texts = draw_params({ { { name = "Reverb", kind = "knob", value = 87 } } }, true)
+        assert.is_truthy(texts.Reverb and texts["87"])
+      end)
+
+      it("a coluna cresce com a camada que tem mais parâmetros", function()
+        local _, few = draw_params({})
+        local _, many = draw_params({ {}, { { name = "A", kind = "knob" }, { name = "B", kind = "knob" } } })
+        local function panel_h(calls)
+          for _, c in ipairs(calls) do
+            if c[1] == "DrawList_AddRectFilled" and c[7] == theme.C.panel and c[5] - c[3] == 96 then return c[6] - c[4] end
+          end
+        end
+        assert.equal(2 * 56, panel_h(many) - panel_h(few))
+      end)
     end)
 
     it("botão Ligado aceso com a camada tocando; clicar desliga (mute)", function()

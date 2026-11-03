@@ -92,6 +92,8 @@ if not jsfx_status.ok then
     jsfx_status.path, tostring(jsfx_status.err)))
 end
 kontakt_cc.init({ mappings = mappings, jsfx = kontakt_jsfx, layers = layers })
+local layer_params = require("core.layer_params")
+layer_params.init({ layers = layers, kontakt_cc = kontakt_cc })
 local wizard = require("ui.kontakt_wizard")
 wizard.init({ ImGui = ImGui, theme = theme, layers = layers, kit = view.kit })
 editor.init({
@@ -103,7 +105,7 @@ view.init({
   ImGui = ImGui, theme = theme, anim = anim, widgets = widgets,
   perf = perf, layers = layers, feedback = feedback, mappings = mappings,
   learn = learn, input = input, model = model, editor = editor, settings = settings_view, stage = stage,
-  kontakt_cc = kontakt_cc, mapping = mapping_view,
+  kontakt_cc = kontakt_cc, mapping = mapping_view, layer_params = layer_params,
 })
 chart_view.init({ ImGui = ImGui, theme = theme, kit = view.kit })
 mapping_view.init({
