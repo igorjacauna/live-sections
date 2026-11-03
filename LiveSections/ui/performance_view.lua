@@ -43,6 +43,8 @@ local ui = {
   maximized = false,       -- janela ocupando a área útil do monitor
   toggle_max = false,      -- pedido de maximizar/restaurar (aplicado pelo entrypoint)
   learn_conflict = nil,    -- { mapping, at }: o learn do Mapeamento recusou um controle
+  param_pick = nil,        -- { slot }: "+ parâmetro" esperando um controle
+  param_error = nil,       -- { text, at }: ligar o parâmetro falhou
 }
 local stage_state = {}
 local meters = {}          -- medidor por camada: [slot] = { l, r, hold, hold_at, t }
@@ -53,6 +55,7 @@ local disconnected = {}    -- nomes de portas
 local last_value = {}      -- [mapping] = último valor (borda de subida de CC/pitch bend)
 local snap = {}
 local rename = nil         -- { slot, buf }: popup de renomear camada
+local name_edit = nil      -- { song, row_id, buf, open }: quadro do nome do parâmetro
 
 function M.init(deps)
   ImGui, theme, anim, widgets = deps.ImGui, deps.theme, deps.anim, deps.widgets
@@ -64,6 +67,14 @@ function M.init(deps)
   last_song_id, last_port_check, disconnected, last_value = nil, -math.huge, {}, {}
   last_high = {}
   meters = {}
+end
+
+-- A espera do "+ parâmetro" termina ao trocar de música, sair do
+-- Performance ou entrar no Palco (RF-153).
+local function cancel_pick()
+  ui.param_pick = nil
+  local st = learn.state()
+  if st and st.mode == "pick" then learn.cancel() end
 end
 
 function M.ui() return ui end
@@ -258,6 +269,7 @@ function M.update(t)
 
   local id = snap.song and snap.song.id
   if id ~= last_song_id then
+    if last_song_id ~= nil then cancel_pick() end
     last_song_id = id
     layers.activate(snap.song, model.songs(), now)
     -- depois do activate: o Kontakt já saiu do bypass e o JSFX processa
@@ -384,6 +396,7 @@ local function top_bar(ctx, x, y, w)
   local function set_mode(mode)
     local st = learn.state()
     if mode ~= "mapping" and st and st.mode == "series" then learn.cancel() end
+    if mode ~= "performance" then cancel_pick() end
     ui.mode = mode
     if mode ~= "performance" then ui.stage = false end
   end
@@ -640,7 +653,79 @@ end
 -- Camadas como colunas de mixer. No palco (`fh` menor) o fader é mais
 -- baixo, para sobrar espaço para os cards, e sem camadas nada aparece.
 local FADER_H, STAGE_FADER_H = 132, 96
-local PARAM_H, PARAM_GAP = 50, 6
+local PARAM_H, PARAM_GAP, ADD_H = 50, 6, 34
+
+-- "+ parâmetro": a camada espera um controle; linha do Mapeamento existente
+-- ou controle novo (vira linha) passam a ser parâmetro dela e abrem o quadro
+-- do nome (RF-153–RF-157).
+local function start_pick(song, slot)
+  ui.param_pick = { slot = slot }
+  learn.start_pick(function(p)
+    ui.param_pick = nil
+    local row_id = p.row_id or kontakt_cc.add_from_learn(p.msg).id
+    local ok, err = layer_params.bind(song, slot, row_id)
+    if ok then
+      name_edit = { song = song, row_id = row_id, buf = "", open = true }
+    else
+      ui.param_error = { text = err == "full" and "A camada já tem 4 parâmetros" or "Não deu para ligar o parâmetro", at = now }
+    end
+    return kontakt_cc.mapping(row_id)
+  end)
+end
+
+local function add_button(ctx, dl, x, y, w, song, slot)
+  local waiting = ui.param_pick ~= nil and ui.param_pick.slot == slot
+  if button(ctx, "padd" .. slot, "", x, y, ADD_H, { w = w, active = waiting, accent = theme.C.learn }) then
+    cancel_pick()
+    if not waiting then start_pick(song, slot) end
+    waiting = not waiting
+  end
+  local fg = waiting and theme.C.ink or theme.C.learn
+  local lines = waiting and { "Mexa o", "controle…" } or { "+ parâmetro" }
+  local ty = y + (ADD_H - #lines * 14) / 2
+  for _, s in ipairs(lines) do
+    txt(ctx, dl, "small", x + (w - size(ctx, "small", s)) / 2, ty, fg, s)
+    ty = ty + 14
+  end
+end
+
+-- Quadro do nome depois de ligar: Enter salva; vazio ou Esc fica com o nome
+-- da linha do Mapeamento (RF-157, RF-158).
+local function name_popup(ctx)
+  if not name_edit then return end
+  if name_edit.open then
+    ImGui.OpenPopup(ctx, "param_name")
+    name_edit.open, name_edit.focus = false, true
+  end
+  if not ImGui.BeginPopup(ctx, "param_name") then
+    name_edit = nil
+    return
+  end
+  local row = kontakt_cc.get(name_edit.row_id)
+  ImGui.Text(ctx, "Nome do parâmetro nesta música")
+  if name_edit.focus then
+    ImGui.SetKeyboardFocusHere(ctx)
+    name_edit.focus = false
+  end
+  ImGui.SetNextItemWidth(ctx, 240)
+  local _, buf = ImGui.InputTextWithHint(ctx, "##param_name", row and row.name or "", name_edit.buf)
+  name_edit.buf = buf
+  local close = false
+  if ImGui.Button(ctx, "Salvar") or ImGui.IsKeyPressed(ctx, ImGui.Key_Enter, false) then
+    layer_params.rename(name_edit.song, name_edit.row_id, name_edit.buf)
+    close = true
+  end
+  ImGui.SameLine(ctx)
+  if ImGui.Button(ctx, "Enviar p/ Learn") then kontakt_cc.send_learn(name_edit.row_id, now) end
+  ImGui.SameLine(ctx)
+  if ImGui.Button(ctx, "Abrir Kontakt") then kontakt_cc.open_kontakt() end
+  if ImGui.IsKeyPressed(ctx, ImGui.Key_Escape, false) then close = true end
+  if close then
+    name_edit = nil
+    ImGui.CloseCurrentPopup(ctx)
+  end
+  ImGui.EndPopup(ctx)
+end
 
 -- Parâmetro fixo da camada (RF-143–RF-149): nome em cima; knob com o valor
 -- grande e uma barra; botão com a pílula ON/OFF; "—" sem valor conhecido.
@@ -688,7 +773,16 @@ local function layer_strip(ctx, x, y, w, fh)
     params[i] = layer_params and layer_params.for_layer(song, i, now) or {}
     most = math.max(most, #params[i])
   end
-  local ph = most * (PARAM_H + PARAM_GAP)
+  -- "+ parâmetro" só no Performance, em camada com menos de 4 (RF-152)
+  local editable = not ui.stage and layer_params ~= nil and kontakt_cc ~= nil
+  if not editable then cancel_pick() end
+  local st_learn = learn.state()
+  if ui.param_pick and not (st_learn and st_learn.mode == "pick") then ui.param_pick = nil end
+  local room = editable and most < layer_params.MAX
+  if editable and not room then
+    for i in ipairs(list) do room = room or #params[i] < layer_params.MAX end
+  end
+  local ph = most * (PARAM_H + PARAM_GAP) + (room and ADD_H + PARAM_GAP or 0)
   for i in ipairs(list) do
     local st = layers.layer_state(i)
     local lx = x + (i - 1) * (lw + GAP)
@@ -753,7 +847,9 @@ local function layer_strip(ctx, x, y, w, fh)
       param_box(ctx, dl, lx + 6, py, lw - 12, p)
       py = py + PARAM_H + PARAM_GAP
     end
+    if editable and #params[i] < layer_params.MAX then add_button(ctx, dl, lx + 6, py, lw - 12, song, i) end
   end
+  name_popup(ctx)
   if rename and ImGui.BeginPopup(ctx, "rename_layer") then
     ImGui.Text(ctx, "Nome da camada nesta música")
     ImGui.SetNextItemWidth(ctx, 220)
@@ -845,12 +941,7 @@ end
 -- Aviso "Cutoff 64" por 2 s ao mexer um controle do Mapeamento (RF-135),
 -- no topo da área da música, por cima do resto. Parâmetros de camada já
 -- ficam fixos na coluna e não ganham aviso (RF-151).
-local function touch_toast(ctx, x, y, w)
-  local t = kontakt_cc and kontakt_cc.last_touch(now)
-  if not t then return end
-  if layer_params and snap.song and layer_params.is_param(snap.song, t.row.id) then return end
-  local v = t.value or 0
-  local s = t.row.name .. "  " .. ((t.row.kind == "knob" or t.row.kind == "encoder") and tostring(v) or (v >= 64 and "ON" or "OFF"))
+local function banner(ctx, x, y, w, s, color)
   local style = ui.stage and "title" or "strong"
   local tw, th = size(ctx, style, s)
   local pw, ph = tw + 40, th + 24
@@ -858,7 +949,28 @@ local function touch_toast(ctx, x, y, w)
   local dl = ImGui.GetWindowDrawList(ctx)
   ImGui.DrawList_AddRectFilled(dl, px, py, px + pw, py + ph, theme.C.raise2, theme.R.r2)
   ImGui.DrawList_AddRect(dl, px, py, px + pw, py + ph, theme.C.line2, theme.R.r2)
-  txt(ctx, dl, style, px + 20, py + 12, theme.C.text, s)
+  txt(ctx, dl, style, px + 20, py + 12, color, s)
+end
+
+local function touch_toast(ctx, x, y, w)
+  local t = kontakt_cc and kontakt_cc.last_touch(now)
+  if not t then return end
+  if layer_params and snap.song and layer_params.is_param(snap.song, t.row.id) then return end
+  local v = t.value or 0
+  banner(ctx, x, y, w, t.row.name .. "  " .. ((t.row.kind == "knob" or t.row.kind == "encoder") and tostring(v) or (v >= 64 and "ON" or "OFF")), theme.C.text)
+end
+
+-- Avisos da espera do "+ parâmetro": controle de uma ação (RF-156) ou
+-- camada cheia.
+local NOTICE_S = 3
+local function pick_notice(ctx, x, y, w)
+  local c = ui.learn_conflict
+  if ui.param_pick and c and now - c.at < NOTICE_S then
+    local label = settings_view and settings_view.label and settings_view.label(c.mapping) or c.mapping.action
+    banner(ctx, x, y, w, string.format('Esse controle já é "%s"', label), theme.C.queue)
+  elseif ui.param_error and now - ui.param_error.at < NOTICE_S then
+    banner(ctx, x, y, w, ui.param_error.text, theme.C.queue)
+  end
 end
 
 function M.draw(ctx)
@@ -911,6 +1023,7 @@ function M.draw(ctx)
   if lh > 0 then cy = cy + lh + GAP end
   cy = cy + action_bar(ctx, cx, cy, cw) + GAP
   touch_toast(ctx, cx, y, cw)
+  pick_notice(ctx, cx, y, cw)
 
   ImGui.SetCursorScreenPos(ctx, x, y)
   ImGui.Dummy(ctx, w, math.max(0, cy - y))

@@ -22,6 +22,7 @@ local function fake_imgui(opts)
   function im.IsItemActive() return false end
   function im.BeginPopup(_, id) return opts.popup == id end
   function im.InputText(_, _, v) if opts.text then return true, opts.text end return false, v end
+  function im.InputTextWithHint(_, _, _, v) if opts.text then return true, opts.text end return false, v end
   function im.Button(_, label) return opts.button == label end
   function im.IsKeyPressed() return false end
   function im.GetContentRegionAvail() return opts.w or 1100, opts.h or 760 end
@@ -499,6 +500,105 @@ describe("ui.performance_view", function()
           end
         end
         assert.equal(2 * 56, panel_h(many) - panel_h(few))
+      end)
+    end)
+
+    describe("+ parâmetro", function()
+      local kcc, lp, song, piano_guid
+
+      local function frame(opts)
+        local im, calls = fake_imgui(opts)
+        widgets.init(im, theme, anim, learn, mappings)
+        view.init({
+          ImGui = im, theme = theme, anim = anim, widgets = widgets, perf = perf, layers = layers,
+          feedback = feedback, mappings = mappings, learn = learn, input = input, model = model,
+          kontakt_cc = kcc, layer_params = lp,
+        })
+        if opts and opts.setup then opts.setup() end
+        view.update(1)
+        view.draw("ctx")
+        local b, texts = {}, {}
+        for _, c in ipairs(calls) do
+          if c[1] == "InvisibleButton" then b[c[2]] = true
+          elseif c[1] == "DrawList_AddText" then texts[c[6]] = true end
+        end
+        return b, texts
+      end
+
+      before_each(function()
+        for _, m in ipairs({ "core.kontakt_cc", "core.kontakt_jsfx", "core.layer_params" }) do package.loaded[m] = nil end
+        local k = r.add_track("Kontakt A")
+        local piano = r.add_track("Piano", "{PIANO}")
+        piano_guid = "{PIANO}"
+        r.add_receive(k, piano, 0)
+        song = model.songs()[1]
+        layers.link(song, k)
+        kcc = require("core.kontakt_cc")
+        kcc.init({ mappings = mappings, jsfx = require("core.kontakt_jsfx"), layers = layers })
+        lp = require("core.layer_params")
+        lp.init({ layers = layers, kontakt_cc = kcc })
+      end)
+
+      it("aparece no Performance e some no Palco e com a camada cheia", function()
+        assert.is_true(frame().padd1)
+        assert.is_nil(frame({ setup = function() view.ui().stage = true end }).padd1)
+        for i = 1, 4 do
+          local row = kcc.add_from_learn({ port_name = MASTER, msg_type = "cc", channel = 1, number = 20 + i })
+          lp.bind(song, 1, row.id)
+        end
+        assert.is_nil(frame().padd1)
+      end)
+
+      it("clicar espera um controle; clicar de novo cancela", function()
+        local _, texts = frame({ press = "padd1" })
+        assert.equal("pick", learn.state().mode)
+        assert.is_true(texts["controle…"])
+        frame({ press = "padd1" })
+        assert.is_nil(learn.state())
+      end)
+
+      it("controle novo vira linha do Mapeamento, parâmetro da camada e abre o nome", function()
+        frame({ press = "padd1" })
+        view.handle_event(ev(0xB0, 16, 5))
+        assert.is_nil(learn.state())
+        local row = kcc.rows()[1]
+        assert.equal("Knob CC16", row.name)
+        assert.same({ { row = row.id, layer = piano_guid, name = "" } }, lp.list(song))
+        frame({ popup = "param_name", text = "Reverb", button = "Salvar" })
+        assert.equal("Reverb", lp.for_layer(song, 1, 1)[1].name)
+      end)
+
+      it("linha existente é ligada sem criar outra", function()
+        local row = kcc.add_from_learn({ port_name = MASTER, msg_type = "cc", channel = 1, number = 16 })
+        frame({ press = "padd1" })
+        view.handle_event(ev(0xB0, 16, 90))
+        assert.equal(1, #kcc.rows())
+        assert.equal(row.id, lp.list(song)[1].row)
+      end)
+
+      it("controle de uma ação avisa e continua esperando", function()
+        mappings.set({ action = "next_song", port_name = MASTER, msg_type = "note", channel = 1, number = 8 })
+        frame({ press = "padd1" })
+        view.handle_event(ev(0x90, 8, 127))
+        local _, texts = frame()
+        assert.equal("pick", learn.state().mode)
+        assert.is_true(texts['Esse controle já é "next_song"'])
+        assert.same({}, lp.list(song))
+      end)
+
+      it("trocar de música cancela a espera", function()
+        frame({ press = "padd1" })
+        r.set_play(false)
+        r._cursor = 41
+        view.update(1.2)
+        assert.is_nil(learn.state())
+        assert.is_nil(view.ui().param_pick)
+      end)
+
+      it("entrar no Palco cancela a espera", function()
+        frame({ press = "padd1" })
+        frame({ setup = function() view.ui().stage = true end })
+        assert.is_nil(learn.state())
       end)
     end)
 
