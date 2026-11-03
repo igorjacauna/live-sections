@@ -710,10 +710,11 @@ local function layer_strip(ctx, x, y, w, fh)
     end
 
     local by = fy + fh + 26
-    if button(ctx, "mute" .. i, "M", lx + 12, by, 26, { w = 32, active = st.mute, accent = theme.C.queue, style = "num" }) then
+    -- LIGADO aceso = camada tocando (mute invertido), como o LED do controle
+    if button(ctx, "on" .. i, "LIGADO", lx + 12, by, 26, { w = lw - 24, active = not st.mute, accent = theme.C.ok, style = "label" }) then
       layers.toggle_mute(i)
     end
-    widgets.mappable(ctx, { action = "layer_mute", arg = i }, "Mute " .. st.name)
+    widgets.mappable(ctx, { action = "layer_mute", arg = i }, "Liga/desliga " .. st.name)
   end
   if rename and ImGui.BeginPopup(ctx, "rename_layer") then
     ImGui.Text(ctx, "Nome da camada nesta música")

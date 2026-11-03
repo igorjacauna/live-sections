@@ -32,7 +32,7 @@ local ACTION_LABEL = {
   next_song = "Próxima música", prev_song = "Música anterior", goto_song = "Música %d",
   toggle_loop = "Loop", set_quantize = "Quantize: %s", cycle_quantize = "Quantize (percorrer)",
   play_stop = "Play/Stop", play = "Play", stop = "Stop", cancel = "Cancelar fila", panic = "Panic",
-  layer_volume = "Volume da camada %d", layer_mute = "Mute da camada %d", layer_solo = "Solo da camada %d",
+  layer_volume = "Volume da camada %d", layer_mute = "Liga/desliga a camada %d",
   toggle_setlist = "Setlist", tap_tempo = "Tap tempo",
 }
 

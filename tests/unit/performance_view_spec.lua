@@ -430,18 +430,37 @@ describe("ui.performance_view", function()
       assert.is_true(colors[theme.C.ok] and colors[theme.C.queue] and colors[theme.C.danger])
     end)
 
-    it("modo palco: camadas com fader vertical mais baixo e mute, sem solo", function()
+    it("modo palco: camadas com fader vertical mais baixo e botão Ligado, sem solo", function()
       local k = r.add_track("Kontakt A")
       r.add_receive(k, r.add_track("Piano"), 0)
       layers.link(model.songs()[1], k)
       local calls = draw({ setup = function() view.ui().stage = true end })
       local b = ids(calls)
-      assert.is_true(b.fader1 and b.mute1)
+      assert.is_true(b.fader1 and b.on1)
       assert.is_nil(b.solo1)
       local fader
       for _, c in ipairs(calls) do if c[1] == "InvisibleButton" and c[2] == "fader1" then fader = c end end
       assert.is_true(fader[4] > fader[3])          -- mais alto que largo
       assert.is_true(fader[4] < 132)               -- mais baixo que no Performance
+    end)
+
+    it("botão Ligado aceso com a camada tocando; clicar desliga (mute)", function()
+      local k = r.add_track("Kontakt A")
+      local piano = r.add_track("Piano")
+      r.add_receive(k, piano, 0)
+      layers.link(model.songs()[1], k)
+      local theme = require("ui.theme")
+      local function lit(calls)
+        local box
+        for _, c in ipairs(calls) do
+          if c[1] == "InvisibleButton" and c[2] == "on1" then box = true
+          elseif box and c[1] == "DrawList_AddRectFilled" then return c[7] == theme.C.ok end
+        end
+      end
+      assert.is_true(lit(draw()))
+      draw({ press = "on1" })
+      assert.equal(1, piano.info.B_MUTE)
+      assert.is_false(lit(draw()))
     end)
 
     it("duplo clique no nome renomeia a camada desta música", function()

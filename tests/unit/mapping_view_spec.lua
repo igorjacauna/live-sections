@@ -168,7 +168,7 @@ describe("ui.mapping_view", function()
   it("mostra o conflito do learn com o nome da ação", function()
     ui.learn_conflict = { mapping = { action = "layer_mute", arg = 1 }, at = reaper.time_precise() }
     frame()
-    assert.is_true(drawn('Esse controle já é "Mute da camada 1"'))
+    assert.is_true(drawn('Esse controle já é "Liga/desliga a camada 1"'))
   end)
 
   it("mostra o erro ao gravar o JSFX com o caminho", function()
