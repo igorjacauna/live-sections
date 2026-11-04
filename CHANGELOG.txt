@@ -1,4 +1,4 @@
-- Multitracks: no modo Editar, marque as tracks de áudio de cada música (bateria, baixo, vozes…); elas ganham fader, medidor e botão Ligado num grupo próprio, ao lado das camadas, na Performance e no Palco
-- Controlador: novas actions "Multitrack 1–8 volume (CC)" (com soft takeover) e "Multitrack 1–8 liga-desliga" (LED aceso com a multitrack tocando)
-- Cor das colunas: camadas e multitracks usam a cor da track no REAPER; clique direito no nome para escolher outra
-- Biblioteca: exportar e "+ Da biblioteca" levam as multitracks da música
+- Cifra: o botão Salvar fica sempre visível, sem precisar redimensionar ou rolar a janela
+- Diálogos de exportar, da biblioteca e do assistente de Kontakt crescem com o conteúdo e quebram textos longos, sem esconder os botões
+- Configurações: a lista de mapeamentos não corta mais a coluna Mensagem; o cartão da biblioteca não confere a pasta no disco a cada quadro
+- Desempenho: os engasgos no modo Editar e nas Configurações dizem qual painel demorou

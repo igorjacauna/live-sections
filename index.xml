@@ -9,11 +9,11 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <link rel="website">https://live-sections.igor-jacauna-cloudflare.workers.dev</link>
         <link rel="website">https://github.com/igorjacauna/live-sections</link>
       </metadata>
-      <version name="0.7.0" author="Igor Jacaúna" time="2026-11-04T00:19:27Z">
-        <changelog><![CDATA[- Multitracks: no modo Editar, marque as tracks de áudio de cada música (bateria, baixo, vozes…); elas ganham fader, medidor e botão Ligado num grupo próprio, ao lado das camadas, na Performance e no Palco
-- Controlador: novas actions "Multitrack 1–8 volume (CC)" (com soft takeover) e "Multitrack 1–8 liga-desliga" (LED aceso com a multitrack tocando)
-- Cor das colunas: camadas e multitracks usam a cor da track no REAPER; clique direito no nome para escolher outra
-- Biblioteca: exportar e "+ Da biblioteca" levam as multitracks da música
+      <version name="0.7.1" author="Igor Jacaúna" time="2026-11-04T12:35:54Z">
+        <changelog><![CDATA[- Cifra: o botão Salvar fica sempre visível, sem precisar redimensionar ou rolar a janela
+- Diálogos de exportar, da biblioteca e do assistente de Kontakt crescem com o conteúdo e quebram textos longos, sem esconder os botões
+- Configurações: a lista de mapeamentos não corta mais a coluna Mensagem; o cartão da biblioteca não confere a pasta no disco a cada quadro
+- Desempenho: os engasgos no modo Editar e nas Configurações dizem qual painel demorou
 ]]></changelog>
         <source file="actions/Live Sections - Camada 1 liga-desliga.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20liga-desliga.lua</source>
         <source file="actions/Live Sections - Camada 1 volume (CC).lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20volume%20(CC).lua</source>
@@ -157,11 +157,11 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
 
 Ative em Preferences > Control/OSC/web > Add > Web browser interface, escolha "livesections.html" como página padrão e abra o endereço mostrado no celular (mesma rede Wi-Fi).]]></description>
       </metadata>
-      <version name="0.7.0" author="Igor Jacaúna" time="2026-11-04T00:19:27Z">
-        <changelog><![CDATA[- Multitracks: no modo Editar, marque as tracks de áudio de cada música (bateria, baixo, vozes…); elas ganham fader, medidor e botão Ligado num grupo próprio, ao lado das camadas, na Performance e no Palco
-- Controlador: novas actions "Multitrack 1–8 volume (CC)" (com soft takeover) e "Multitrack 1–8 liga-desliga" (LED aceso com a multitrack tocando)
-- Cor das colunas: camadas e multitracks usam a cor da track no REAPER; clique direito no nome para escolher outra
-- Biblioteca: exportar e "+ Da biblioteca" levam as multitracks da música
+      <version name="0.7.1" author="Igor Jacaúna" time="2026-11-04T12:35:54Z">
+        <changelog><![CDATA[- Cifra: o botão Salvar fica sempre visível, sem precisar redimensionar ou rolar a janela
+- Diálogos de exportar, da biblioteca e do assistente de Kontakt crescem com o conteúdo e quebram textos longos, sem esconder os botões
+- Configurações: a lista de mapeamentos não corta mais a coluna Mensagem; o cartão da biblioteca não confere a pasta no disco a cada quadro
+- Desempenho: os engasgos no modo Editar e nas Configurações dizem qual painel demorou
 ]]></changelog>
         <source file="livesections.html">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/www/livesections.html.txt</source>
       </version>
