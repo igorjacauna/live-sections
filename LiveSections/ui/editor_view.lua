@@ -23,7 +23,8 @@
 --
 -- M.init(deps)          ImGui, theme, widgets, perf, layers, model, editor_ops,
 --                       validator, tempo_align, kontakt_wizard,
---                       library_view (botão Exportar) e
+--                       library_view (botão Exportar), stems (cartão
+--                       Multitracks) e
 --                       kit = { txt, size, button } da performance_view
 -- M.tap()               um toque do tap tempo (ação mapeável tap_tempo)
 -- M.draw(ctx, x, y, w, h, snap) -> altura usada
@@ -34,7 +35,7 @@ local notes = require("core.song_notes")
 
 local M = {}
 
-local ImGui, theme, widgets, perf, layers, model, ops, validator, kit, tempo, wizard, kontakt_cc, library_view
+local ImGui, theme, widgets, perf, layers, model, ops, validator, kit, tempo, wizard, kontakt_cc, library_view, stems
 
 local PROJ = 0
 local EPS = 1e-6
@@ -88,7 +89,7 @@ function M.init(deps)
   perf, layers, model = deps.perf, deps.layers, deps.model
   ops, validator, kit = deps.editor_ops, deps.validator, deps.kit
   tempo, wizard = deps.tempo_align, deps.kontakt_wizard
-  kontakt_cc, library_view = deps.kontakt_cc, deps.library_view
+  kontakt_cc, library_view, stems = deps.kontakt_cc, deps.library_view, deps.stems
   st.round, st.tap_bpm = "int", nil
   st.tool, st.selected, st.drag, st.menu_section = "select", nil, nil, nil
   st.view = nil
@@ -1195,6 +1196,40 @@ end
 -- Painel com fundo atrás do conteúdo: a altura só é conhecida depois de
 -- desenhar, então o fundo usa a altura medida no ciclo anterior.
 local heights = {}
+-- Multitracks da música (RF-212–RF-215): as tracks com áudio nela, sem o
+-- Kontakt e as camadas; cada clique marca ou desmarca, até 8.
+local stem_cache = nil     -- { song, state, list }: candidatos por mudança do projeto
+
+local function stems_card(ctx, x, y, w, song)
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local pad = 16
+  local ix, iw = x + pad, w - 2 * pad
+  local cy = y + pad
+  kit.txt(ctx, dl, "label", ix, cy, theme.C.muted, "MULTITRACKS")
+  cy = cy + 24
+  local state = reaper.GetProjectStateChangeCount(PROJ)
+  if not (stem_cache and stem_cache.song == song.id and stem_cache.state == state) then
+    stem_cache = { song = song.id, state = state, list = stems.candidates(song) }
+  end
+  local list = stem_cache.list
+  if #list == 0 then
+    cy = cy + wrapped(ctx, "small", ix, cy, iw, theme.C.muted,
+      "Nenhuma track com áudio nesta música além do Kontakt e das camadas.") + 6
+    return cy + pad - y
+  end
+  cy = cy + wrapped(ctx, "small", ix, cy, iw, theme.C.muted,
+    "Marque as tracks que ganham fader no grupo MULTITRACKS da Performance e do Palco.") + 10
+  for i, c in ipairs(list) do
+    if kit.button(ctx, "stem_pick" .. i, c.name, ix, cy, 28, { w = iw, active = c.on }) then
+      local ok, err = stems.toggle(song, c.track)
+      if not ok and err == "full" then say("Até " .. stems.MAX .. " multitracks por música.") end
+      stem_cache = nil
+    end
+    cy = cy + 32
+  end
+  return cy + pad - 4 - y
+end
+
 local function panel_behind(ctx, id, x, y, w, fn)
   panel(ImGui.GetWindowDrawList(ctx), x, y, w, heights[id] or 0)
   local h = fn()
@@ -1242,6 +1277,10 @@ function M.draw(ctx, x, y, w, h, snap)
     side_bottom = side_bottom + panel_behind(ctx, "kontakt", sx, ky, sw, function() return kontakt_card(ctx, sx, ky, sw, song) end) + GAP
     local msg = wizard.draw(ctx)
     if msg then say(msg); st.warn_count = nil end
+  end
+  if song and stems then
+    local my = side_bottom
+    side_bottom = side_bottom + panel_behind(ctx, "stems", sx, my, sw, function() return stems_card(ctx, sx, my, sw, song) end) + GAP
   end
   chart_modal(ctx)
   if library_view then

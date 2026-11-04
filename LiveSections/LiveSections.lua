@@ -113,7 +113,7 @@ editor.init({
   ImGui = ImGui, theme = theme, widgets = widgets, perf = perf, layers = layers, model = model,
   editor_ops = require("core.editor_ops"), validator = require("core.validator"),
   tempo_align = require("core.tempo_align"), kontakt_wizard = wizard, kit = view.kit, kontakt_cc = kontakt_cc,
-  library_view = library_view,
+  library_view = library_view, stems = stems,
 })
 view.init({
   ImGui = ImGui, theme = theme, anim = anim, widgets = widgets,

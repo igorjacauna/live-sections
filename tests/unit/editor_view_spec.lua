@@ -43,7 +43,7 @@ end
 -- 4/4 a 120 BPM: compasso = 2 s. Música A (0–40): Intro 0–8, Verso 8–16,
 -- Refrão 16–24 e trecho sem seção 24–40. Música B (40–80) sem seções.
 describe("ui.editor_view", function()
-  local r, im, view, model, perf, layers, theme, widgets, wiz, lib_view
+  local r, im, view, model, perf, layers, theme, widgets, wiz, lib_view, stems
 
   local function frame(opts)
     im.opts = opts or {}
@@ -83,7 +83,7 @@ describe("ui.editor_view", function()
     r = stub.install()
     for _, m in ipairs({ "core.project_model", "core.quantize", "core.queue", "core.transport", "core.performance",
       "core.layers", "core.editor_ops", "core.validator", "core.tempo_align", "ui.widgets", "ui.theme", "ui.anim",
-      "ui.performance_view", "ui.editor_view", "ui.kontakt_wizard", "ui.library_view" }) do
+      "ui.performance_view", "ui.editor_view", "ui.kontakt_wizard", "ui.library_view", "core.stems" }) do
       package.loaded[m] = nil
     end
     r.set_project_length(80)
@@ -104,6 +104,8 @@ describe("ui.editor_view", function()
     pv.init({ ImGui = im, theme = theme, widgets = widgets })
     wiz = require("ui.kontakt_wizard")
     wiz.init({ ImGui = im, theme = theme, layers = layers, kit = pv.kit })
+    stems = require("core.stems")
+    stems.init({ layers = layers })
     lib_view = require("ui.library_view")
     lib_view.init({ ImGui = im, theme = theme, kit = pv.kit, library = {},
       song_package = { detect_tracks = function() return {} end } })
@@ -111,7 +113,7 @@ describe("ui.editor_view", function()
       ImGui = im, theme = theme, widgets = widgets, perf = perf, layers = layers, model = model,
       editor_ops = require("core.editor_ops"), validator = require("core.validator"),
       tempo_align = require("core.tempo_align"), kontakt_wizard = wiz, kit = pv.kit,
-      library_view = lib_view,
+      library_view = lib_view, stems = stems,
     })
     frame()
   end)
@@ -473,6 +475,35 @@ describe("ui.editor_view", function()
       local opened = false
       for _, c in ipairs(im.calls) do if c[1] == "OpenPopup" and c[3] == "Assistente de Kontakt" then opened = true end end
       assert.is_true(opened)
+    end)
+  end)
+
+  describe("Multitracks", function()
+    it("o cartão lista as tracks com áudio na música e marca com um clique", function()
+      local bat = r.add_track("Bateria", "{BAT}")
+      local bx = r.add_track("Baixo", "{BX}")
+      r.add_item(2, 10, -1, bat)
+      r.add_item(4, 10, -1, bx)
+      r.add_item(50, 10, -1, r.add_track("Só na B", "{B}"))
+      frame()
+      assert.is_table(im.rects.stem_pick1)
+      assert.is_table(im.rects.stem_pick2)
+      assert.is_nil(im.rects.stem_pick3)
+      frame({ press = "stem_pick2" })
+      assert.same({ bx }, stems.list(model.songs()[1]))
+    end)
+
+    it("até 8: a 9ª não marca e avisa", function()
+      local tracks = {}
+      for i = 1, 9 do
+        tracks[i] = r.add_track("T" .. i, "{T" .. i .. "}")
+        r.add_item(2, 10, -1, tracks[i])
+      end
+      stems.set(model.songs()[1], { table.unpack(tracks, 1, 8) })
+      frame()
+      frame({ press = "stem_pick9" })
+      assert.equal(8, #stems.list(model.songs()[1]))
+      assert.equal("Até 8 multitracks por música.", view.state().status)
     end)
   end)
 
