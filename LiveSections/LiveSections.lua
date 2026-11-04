@@ -94,6 +94,8 @@ end
 kontakt_cc.init({ mappings = mappings, jsfx = kontakt_jsfx, layers = layers })
 local layer_params = require("core.layer_params")
 layer_params.init({ layers = layers, kontakt_cc = kontakt_cc })
+local stems = require("core.stems")
+stems.init({ layers = layers })
 -- biblioteca de músicas (exportar e montar setlist)
 local library = require("core.library")
 library.init({ mappings = mappings })
