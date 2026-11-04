@@ -14,6 +14,7 @@
 
 local web = require("core.web_remote")
 local qr = require("core.qrcode")
+local diag = require("core.diag")
 
 local M = {}
 
@@ -435,6 +436,24 @@ end
 -- Escolher pede qualquer arquivo de dentro dela; o caminho também pode ser
 -- digitado.
 local lib_buf = nil
+-- A pasta da biblioteca é conferida no disco no máximo uma vez por
+-- LIB_CHECK_S, e logo depois de mudar: conferir a cada quadro trava a tela.
+local LIB_CHECK_S = 2.0
+local lib_check = nil      -- { at, path, ok }
+
+local function library_dir()
+  local now = reaper.time_precise()
+  if not (lib_check and now - lib_check.at < LIB_CHECK_S) then
+    local path, ok = library.dir()
+    lib_check = { at = now, path = path, ok = ok }
+  end
+  return lib_check.path, lib_check.ok
+end
+
+local function set_library_dir(path)
+  library.set_dir(path)
+  lib_check, lib_buf = nil, nil
+end
 
 local function parent(path) return path and path:match("^(.*)[\\/][^\\/]*$") end
 
@@ -456,7 +475,7 @@ local function library_card(ctx, x, y, w)
   local cy = y + 16
   cy = cy + title(ctx, dl, ix, cy, "Biblioteca de músicas")
   cy = cy + field_label(ctx, dl, ix, cy, "PASTA DA BIBLIOTECA")
-  local path, ok = library.dir()
+  local path, ok = library_dir()
   local chosen = type(cfg().library_dir) == "string" and cfg().library_dir ~= ""
   local body = theme.font(ctx, "body")
   ImGui.SetCursorScreenPos(ctx, ix, cy)
@@ -465,8 +484,7 @@ local function library_card(ctx, x, y, w)
   lib_buf = buf ~= path and buf or nil
   if ImGui.IsItemDeactivatedAfterEdit(ctx) then
     local typed = (buf or ""):gsub("^%s+", ""):gsub("%s+$", "")
-    library.set_dir(typed ~= "" and typed or nil)
-    lib_buf = nil
+    set_library_dir(typed ~= "" and typed or nil)
   end
   theme.pop_font(ctx, body)
   cy = cy + 36
@@ -478,14 +496,13 @@ local function library_card(ctx, x, y, w)
   if kit.button(ctx, "library_choose", "Escolher", bx, cy, 30, { w = choose_w }) then
     local picked, file = reaper.GetUserFileNameForRead("", "Escolha qualquer arquivo dentro da pasta da biblioteca", "")
     local folder = picked and library_of(file)
-    if folder and folder ~= "" then library.set_dir(folder); lib_buf = nil end
+    if folder and folder ~= "" then set_library_dir(folder) end
   end
   bx = bx + choose_w + 6
   if chosen then
     local def_w = kit.size(ctx, "button", "Padrão") + 24
     if kit.button(ctx, "library_default", "Padrão", bx, cy, 30, { w = def_w }) then
-      library.set_dir(nil)
-      lib_buf = nil
+      set_library_dir(nil)
     end
     bx = bx + def_w + 6
   end
@@ -504,8 +521,10 @@ end
 local function card(ctx, id, x, y, w, fn)
   local dl = ImGui.GetWindowDrawList(ctx)
   ImGui.DrawList_AddRectFilled(dl, x, y, x + w, y + (heights[id] or 0), theme.C.panel, theme.R.r2)
+  local t0 = reaper.time_precise()
   local h = fn(ctx, x, y, w)
   heights[id] = h
+  diag.part("config " .. id, t0)
   return h
 end
 

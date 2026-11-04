@@ -32,6 +32,7 @@
 
 local chart = require("core.chart")
 local notes = require("core.song_notes")
+local diag = require("core.diag")
 
 local M = {}
 
@@ -1230,16 +1231,21 @@ local function stems_card(ctx, x, y, w, song)
   return cy + pad - 4 - y
 end
 
+-- Cada painel soma o seu tempo no diagnóstico ("edit <painel>").
 local function panel_behind(ctx, id, x, y, w, fn)
+  local t0 = now()
   panel(ImGui.GetWindowDrawList(ctx), x, y, w, heights[id] or 0)
   local h = fn()
   heights[id] = h
+  diag.part("edit " .. id, t0)
   return h
 end
 
 function M.draw(ctx, x, y, w, h, snap)
   local song = snap.song
+  local t0 = now()
   refresh_warnings()
+  diag.part("edit validação", t0)
   shortcuts(ctx, song, snap)
 
   local narrow = w < NARROW_W
@@ -1275,7 +1281,9 @@ function M.draw(ctx, x, y, w, h, snap)
   if song and wizard then
     local ky = side_bottom
     side_bottom = side_bottom + panel_behind(ctx, "kontakt", sx, ky, sw, function() return kontakt_card(ctx, sx, ky, sw, song) end) + GAP
+    local t1 = now()
     local msg = wizard.draw(ctx)
+    diag.part("edit assistente", t1)
     if msg then say(msg); st.warn_count = nil end
   end
   if song and stems then
