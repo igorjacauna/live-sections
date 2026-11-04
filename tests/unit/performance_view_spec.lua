@@ -317,6 +317,36 @@ describe("ui.performance_view", function()
       return out
     end
 
+    it("cards encolhem para caber e rolam quando nem assim cabem", function()
+      -- 4 colunas em 850 px; 12 seções = 3 linhas de 140 = 444 px
+      local fit = view.cards_layout(12, 850, 600, 140)
+      assert.same({ 4, 3, 140, 444, false }, { fit.cols, fit.rows, fit.card_h, fit.height, fit.scroll })
+      local shrunk = view.cards_layout(12, 850, 360, 140)
+      assert.equal(112, shrunk.card_h)
+      assert.is_false(shrunk.scroll)
+      local scroll = view.cards_layout(24, 850, 360, 140)
+      assert.equal(100, scroll.card_h)
+      assert.is_true(scroll.scroll)
+    end)
+
+    it("com muitas seções, a grade rola e as ações continuam na janela", function()
+      local calls = draw({ h = 420, setup = function()
+        for k = 0, 15 do r.add_region(24 + k, 25 + k, "Pre " .. (k + 1)) end
+      end })
+      -- a altura das camadas vem do quadro anterior: confere o segundo
+      for k in pairs(calls) do calls[k] = nil end
+      view.draw("ctx")
+      local child, play_y, y = false, nil, nil
+      for _, c in ipairs(calls) do
+        if c[1] == "BeginChild" and c[3] == "##cards" then child = true end
+        if c[1] == "EndChild" then child = child and "fechou" end
+        if c[1] == "SetCursorScreenPos" then y = c[4] end
+        if c[1] == "InvisibleButton" and c[2] == "act_play" then play_y = y end
+      end
+      assert.equal("fechou", child)
+      assert.is_true(play_y + 44 <= 420)
+    end)
+
     it("desenha barra superior, setlist, cards, camadas e ações", function()
       local b = ids(draw())
       assert.is_true(b.mode_perf and b.mode_edit and b.stage and b.quantize)

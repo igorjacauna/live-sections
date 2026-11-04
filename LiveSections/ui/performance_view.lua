@@ -27,6 +27,7 @@ local SETLIST_W = 240
 local NARROW_W = 760       -- abaixo disso a setlist vira faixa compacta
 local CARD_MIN_W = 190
 local CARD_H, STAGE_CARD_H = 140, 190
+local CARD_MIN_H = 100     -- ainda cabem número, estado e nome
 local GAP = 12
 
 local QUANTIZE_LABEL = {
@@ -645,29 +646,64 @@ local function empty_state(ctx, x, y, w)
   return h
 end
 
-local function cards(ctx, x, y, w)
+-- Cards das seções em até `max_h` de altura: com muitas seções eles
+-- encolhem até CARD_MIN_H e, se ainda não couberem, a grade rola sozinha
+-- até a seção tocando ou na fila. Assim camadas e botões continuam na tela.
+local cards_focus = nil    -- índice do card que a rolagem seguiu por último
+
+function M.cards_layout(n, w, max_h, card_h)
+  local cols = math.max(1, math.floor((w + GAP) / (CARD_MIN_W + GAP)))
+  local rows = (n + cols - 1) // cols
+  local function total(h) return rows * h + (rows - 1) * GAP end
+  if max_h and total(card_h) > max_h then
+    card_h = math.max(CARD_MIN_H, math.floor((max_h - (rows - 1) * GAP) / rows))
+  end
+  return { cols = cols, rows = rows, card_h = card_h, height = total(card_h),
+    scroll = max_h ~= nil and total(card_h) > max_h }
+end
+
+local function cards(ctx, x, y, w, max_h)
   local s = snap
   local song = s.song
   local list = song and song.sections or {}
   if #list == 0 then return empty_state(ctx, x, y, w) end
-  local card_h = ui.stage and STAGE_CARD_H or CARD_H
-  local cols = math.max(1, math.floor((w + GAP) / (CARD_MIN_W + GAP)))
-  local cw = (w - (cols - 1) * GAP) / cols
+  local lay = M.cards_layout(#list, w, max_h, ui.stage and STAGE_CARD_H or CARD_H)
+  local ox, oy, gw = x, y, w
+  local scrolling = lay.scroll
+  if scrolling then
+    ImGui.SetCursorScreenPos(ctx, x, y)
+    if not ImGui.BeginChild(ctx, "##cards", w, max_h) then return max_h end
+    ox, oy = ImGui.GetCursorScreenPos(ctx)
+    gw = w - 16   -- barra de rolagem
+    lay = M.cards_layout(#list, gw, nil, lay.card_h)
+  end
+  local cw = (gw - (lay.cols - 1) * GAP) / lay.cols
+  local focus = nil
   for i, sec in ipairs(list) do
-    local col, row = (i - 1) % cols, (i - 1) // cols
-    ImGui.SetCursorScreenPos(ctx, x + col * (cw + GAP), y + row * (card_h + GAP))
+    local col, row = (i - 1) % lay.cols, (i - 1) // lay.cols
+    ImGui.SetCursorScreenPos(ctx, ox + col * (cw + GAP), oy + row * (lay.card_h + GAP))
     local state = M.card_state(sec, s)
+    if state == "queued" or (not focus and (state == "playing" or state == "loop")) then focus = i end
     local res = widgets.section_card(ctx, "sec" .. sec.region_idx, {
       name = sec.name, color = sec.color, slot = sec.slot,
       bars = measure(sec.end_pos) - measure(sec.start_pos),
       state = state, progress = s.progress, beats_left = s.beats_left,
       control = { action = "trigger_slot", arg = sec.slot },
-    }, cw, card_h)
+    }, cw, lay.card_h)
     if res == "trigger" then perf.trigger_section(sec)
     elseif res == "cancel" then perf.cancel() end
   end
-  local rows = (#list + cols - 1) // cols
-  return rows * card_h + (rows - 1) * GAP
+  if scrolling then
+    if focus and focus ~= cards_focus then
+      local row = (focus - 1) // lay.cols
+      ImGui.SetScrollY(ctx, math.max(0, row * (lay.card_h + GAP) - (max_h - lay.card_h) / 2))
+    end
+    cards_focus = focus
+    ImGui.EndChild(ctx)
+    return max_h
+  end
+  cards_focus = focus
+  return lay.height
 end
 
 -- Medidor de nível: escala -60 a +6 dB; desce suave e segura o pico 1,5 s.
@@ -1077,9 +1113,12 @@ local function space_key(ctx)
   if not mod and ImGui.IsKeyPressed(ctx, ImGui.Key_Space, false) then perf.play_stop() end
 end
 
+local ACTION_H = 44
+local strip_h = 0          -- altura das camadas no quadro anterior
+
 local function action_bar(ctx, x, y, w)
   local s = snap
-  local h = 44
+  local h = ACTION_H
   local items = {
     { "prev_song", "Música anterior", "prev_song", function() perf.prev_song() end },
     { "toggle_loop", s.looping and "Loop ligado" or "Loop", "loop", function() perf.toggle_loop() end, s.looping and theme.C.loop },
@@ -1218,8 +1257,13 @@ function M.draw(ctx)
     local nh = note_box(ctx, cx, cy, cw, "strong")
     cy = cy + (nh > 0 and nh + GAP or 0) + GAP
   end
-  cy = cy + cards(ctx, cx, cy, cw) + GAP * 2
+  -- os cards ficam com o que sobra depois das camadas (altura do quadro
+  -- anterior) e da barra de ações
+  local below = (strip_h > 0 and strip_h + GAP or 0) + ACTION_H + GAP + GAP * 2
+  local max_cards = math.max(CARD_MIN_H, y + h - cy - below)
+  cy = cy + cards(ctx, cx, cy, cw, max_cards) + GAP * 2
   local lh = layer_strip(ctx, cx, cy, cw, ui.stage and STAGE_FADER_H or FADER_H)
+  strip_h = lh
   if lh > 0 then cy = cy + lh + GAP end
   cy = cy + action_bar(ctx, cx, cy, cw) + GAP
   touch_toast(ctx, cx, y, cw)
