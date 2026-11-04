@@ -17,6 +17,11 @@ Site, demo e instalação: https://live-sections.igor-jacauna-cloudflare.workers
 - Um Kontakt por música: só o atual armado no teclado, notas seguradas não
   cortam, bypass com cauda, camadas do multi-out com fader, botão Ligado e soft
   takeover; duplo clique no nome da camada para renomear
+- Multitracks: as tracks de áudio escolhidas em cada música (bateria, baixo,
+  vozes…) ganham fader, medidor e botão Ligado num grupo próprio, ao lado das
+  camadas, na Performance e no Palco, com faders e botões do controlador
+- Cor das colunas: camadas e multitracks usam a cor da track no REAPER;
+  clique direito no nome para trocar
 - Mapeamento: knobs, faders e botões do controlador viram um CC fixo só para o
   Kontakt da música atual (por um JSFX), com aprender em série, Enviar p/ Learn,
   Testar, valores por música e LED nos botões liga/desliga
@@ -33,7 +38,8 @@ Site, demo e instalação: https://live-sections.igor-jacauna-cloudflare.workers
   Kontakt e as bibliotecas dele precisam estar instalados lá
 - Cifra por música na janela de cifra e no celular/tablet (navegador, com QR
   Code): seção inteira com barra de progresso; anotação por música (tom, dica)
-- Modo palco com camadas e anotação, e 69 actions para o Action List ou o ReaLearn
+- Modo palco com camadas, multitracks e anotação, e 85 actions para o Action
+  List ou o ReaLearn
 - O áudio nunca depende do script: se ele fechar, o REAPER continua tocando
 
 ## Instalar

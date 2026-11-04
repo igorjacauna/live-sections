@@ -161,6 +161,11 @@ input, select { user-select: text; }
 .layers { padding: 14px; display: grid; gap: 12px; }
 .faders { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
 .layer { flex: 0 0 132px; display: grid; align-content: start; justify-items: center; gap: 8px; padding: 10px 8px; border-radius: 12px; background: var(--raise); border: 1px solid var(--line); transition: opacity .2s; }
+.layer { --lc: transparent; border-top: 4px solid var(--lc); }
+.layer.tinted .ffill { background: linear-gradient(to top, color-mix(in oklab, var(--lc) 45%, var(--raise2)), var(--lc)); }
+.groups { display: flex; gap: 22px; flex-wrap: wrap; align-items: start; }
+.group { display: grid; gap: 8px; min-width: 0; }
+.layer .lname { cursor: context-menu; }
 .layer .lname { font-weight: 800; font-size: 12.5px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ftrack { --v: .7; --hw: .7; position: relative; width: 40px; height: 132px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); cursor: ns-resize; touch-action: none; }
 .ffill { position: absolute; left: 6px; right: 6px; bottom: 6px; height: calc(var(--v) * (100% - 26px) + 7px); border-radius: 6px; background: linear-gradient(to top, color-mix(in oklab, var(--text) 30%, var(--raise2)), color-mix(in oklab, var(--text) 70%, var(--raise2))); }
@@ -476,20 +481,23 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
   const chipColor = (n) => (CHIPS.find((c) => c.name === baseName(n)) || { color: DEFAULT_COLOR }).color;
   const S = (name, start, len) => ({ name, start, len, color: chipColor(name) });
   // camada: volume, ligado (mute invertido) e até 4 parâmetros (knob 0–127 ou liga/desliga)
-  const L = (name, vol, params = []) => ({ name, vol, mute: false, params });
+  const L = (name, vol, params = [], color = null) => ({ name, vol, mute: false, params, color });
   const P = (name, kind, v) => ({ name, kind, v });
 
   let songs = [
     { name: 'Rua Augusta', bpm: 96, sig: [4, 4], bars: 56, bar1: 0,
       kontakt: { track: 'Kontakt 7 · Rua Augusta' },
-      layers: [L('Piano', .78, [P('Reverb', 'knob', 87), P('Brilho', 'knob', 52)]), L('Pad', .55, [P('Filtro', 'knob', 64)]),
-        L('Cordas', .62, [P('Legato', 'toggle', 127)]), L('Synth', .4)],
+      layers: [L('Piano', .78, [P('Reverb', 'knob', 87), P('Brilho', 'knob', 52)], '#5B8DEF'), L('Pad', .55, [P('Filtro', 'knob', 64)], '#9B6BE8'),
+        L('Cordas', .62, [P('Legato', 'toggle', 127)], '#E0A43A'), L('Synth', .4)],
+      stems: [L('Bateria', .8, [], '#E5566B'), L('Baixo', .74, [], '#2BB39A'), L('Guitarra', .6, [], '#E8C547'), L('Vozes', .7)],
       sections: [S('Intro', 0, 4), S('Verso', 4, 8), S('Pré', 12, 4), S('Refrão', 16, 8), S('Verso 2', 24, 8), S('Refrão 2', 32, 8), S('Ponte', 40, 4), S('Refrão 3', 44, 8), S('Outro', 52, 4)] },
     { name: 'Maré Alta', bpm: 128, sig: [4, 4], bars: 64, bar1: 0,
       kontakt: { track: 'Kontakt 7 · Maré Alta' },
       layers: [L('Rhodes', .7, [P('Tremolo', 'toggle', 0), P('Drive', 'knob', 40)]), L('Baixo synth', .82), L('Pluck', .5, [P('Delay', 'knob', 70)])],
+      stems: [L('Bateria', .78, [], '#E5566B'), L('Percussão', .6, [], '#E3559F')],
       sections: [S('Intro', 0, 8), S('Verso', 8, 16), S('Refrão', 24, 8), S('Drop', 36, 8), S('Ponte', 44, 8), S('Refrão 2', 52, 8), S('Outro', 60, 4)] },
     { name: 'Sete Oitavos', bpm: 140, sig: [7, 8], bars: 40, bar1: 0, kontakt: null, layers: [],
+      stems: [L('Bateria', .8, [], '#E5566B'), L('Baixo', .7, [], '#2BB39A'), L('Sax', .65, [], '#5B8DEF')],
       sections: [S('Intro', 0, 4), S('Verso', 4, 8), S('Refrão', 12, 8), S('Solo', 20, 8), S('Refrão 2', 28, 8), S('Outro', 36, 4)] },
   ];
 
@@ -732,6 +740,7 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
       loop: 'Ligar/desligar loop', cancel: 'Cancelar fila', prev: 'Música anterior', next: 'Próxima música',
       prevsec: 'Seção anterior', nextsec: 'Próxima seção', play: 'Play/Stop', panic: 'Panic',
       song: `Ir para a música ${a}`, vol: `Volume da camada ${a}`, mute: `Liga/desliga a camada ${a}`,
+      svol: `Volume da multitrack ${a}`, smute: `Liga/desliga a multitrack ${a}`,
       setlist: 'Expandir setlist',
     })[k] || id;
   }
@@ -801,13 +810,26 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
       <span class="pn">${esc(p.name)}</span>${val}</div>`;
   }
 
+  // multitrack: fader direto (sem takeover na demo), LIGADO e cor
+  function stemHTML(l, i) {
+    return `<div class="layer${l.mute ? ' muted' : ''}${l.color ? ' tinted' : ''}" style="--lc:${l.color || 'transparent'}">
+      <div class="lname" data-color="stem:${i}" title="${esc(l.name)} · botão direito: cor">${esc(l.name)}</div>
+      <div class="ftrack" data-sfader="${i}" data-map="svol:${i + 1}" style="--v:${l.vol}"><span class="ffill"></span><span class="fcap"></span></div>
+      <div class="fval num">${fmtDb(l.vol)}</div>
+      <button class="ligado" data-act="smute" data-arg="${i}" data-map="smute:${i + 1}" aria-pressed="${!l.mute}" title="Liga/desliga a multitrack">LIGADO</button>
+    </div>`;
+  }
+
   function layersHTML(s) {
-    if (!s.kontakt) return `<div class="nolayers">Esta música não tem Kontakt vinculado, então não há camadas. Vincule um no modo Editar.</div>`;
+    const st = s.stems || [];
+    if (!s.kontakt && !st.length) return `<div class="nolayers">Esta música não tem Kontakt vinculado nem multitracks. Configure no modo Editar.</div>`;
+    const stemGroup = st.length ? `<div class="group"><span class="eyebrow">Multitracks</span><div class="faders">${st.map(stemHTML).join('')}</div></div>` : '';
+    if (!s.kontakt) return `<section class="layers panel"><div class="groups">${stemGroup}</div></section>`;
     return `<section class="layers panel">
       <div class="ph"><span class="eyebrow">Camadas</span><span class="faint">${esc(s.kontakt.track)} · ${s.layers.length} saídas · teclado: ${esc(settings.kbd)}</span></div>
-      <div class="faders">${s.layers.map((l, i) => `
-        <div class="layer${l.mute ? ' muted' : ''}" data-l="${i}">
-          <div class="lname" title="${esc(l.name)}">${esc(l.name)}</div>
+      <div class="groups"><div class="faders">${s.layers.map((l, i) => `
+        <div class="layer${l.mute ? ' muted' : ''}${l.color ? ' tinted' : ''}" data-l="${i}" style="--lc:${l.color || 'transparent'}">
+          <div class="lname" data-color="layer:${i}" title="${esc(l.name)} · botão direito: cor">${esc(l.name)}</div>
           <div class="ftrack${takeover[i] ? ' tko' : ''}" data-fader="${i}" data-map="vol:${i + 1}" style="--v:${l.vol};--hw:${hw[i] ?? 0}">
             <span class="ffill"></span><span class="fcap"></span><span class="fghost" title="Posição atual do fader físico"></span>
           </div>
@@ -817,7 +839,7 @@ body.learn-global [data-map]:hover { outline-style: solid; outline-color: var(--
           <div class="params">${l.params.map((p, j) => paramHTML(i, j, p)).join('')}
             ${!stage && l.params.length < 4 ? `<button class="padd${pick === i ? ' wait' : ''}" data-act="padd" data-arg="${i}">${pick === i ? 'Mexa o<br>controle…' : '+ parâmetro'}</button>` : ''}</div>
         </div>`).join('')}
-      </div></section>`;
+      </div>${stemGroup}</div></section>`;
   }
 
   function actionsHTML() {
@@ -1583,6 +1605,7 @@ Para usar em outro computador, leve a pasta da biblioteca. Lá precisam estar in
       case 'nextsec': stepSection(1); break;
       case 'panic': toast('Panic: All Notes Off e sustain solto em todos os canais.'); break;
       case 'mute': s.layers[+arg].mute = !s.layers[+arg].mute; renderView(); break;
+      case 'smute': s.stems[+arg].mute = !s.stems[+arg].mute; renderView(); break;
       case 'padd': {
         const i = +arg;
         if (pick === i) { pick = null; renderView(); break; }
@@ -1739,7 +1762,18 @@ Para usar em outro computador, leve a pasta da biblioteca. Lá precisam estar in
     }
   });
 
+  const PALETTE = ['#5B8DEF', '#2BB39A', '#E0A43A', '#E5566B', '#9B6BE8', '#E8C547', '#E3559F', '#7A8AA6', null];
   document.addEventListener('contextmenu', (e) => {
+    const c = e.target.closest('[data-color]');
+    if (c) {
+      e.preventDefault();
+      const [kind, i] = c.dataset.color.split(':');
+      const l = (kind === 'stem' ? cur().stems : cur().layers)[+i];
+      l.color = PALETTE[(PALETTE.indexOf(l.color) + 1) % PALETTE.length];
+      renderView();
+      toast(`No Live Sections, o botão direito abre a paleta, e a cor de ${l.name} vai para a track no REAPER.`);
+      return;
+    }
     const m = e.target.closest('[data-map]');
     if (m) { e.preventDefault(); showMidiMenu(m.dataset.map, e.clientX, e.clientY); return; }
     const sec = mode === 'edit' && e.target.closest('.sec');
@@ -1764,6 +1798,15 @@ Para usar em outro computador, leve a pasta da biblioteca. Lá precisam estar in
     setText(h, hw[i] < l.vol ? '↑ Suba o fader' : '↓ Desça o fader');
   }
 
+  function moveStem(i, v) {
+    const l = cur().stems[i];
+    l.vol = v;
+    const tr = $(`.ftrack[data-sfader="${i}"]`);
+    if (!tr) return;
+    tr.style.setProperty('--v', v);
+    setText($('.fval', tr.closest('.layer')), fmtDb(v));
+  }
+
   // Soft takeover: o fader físico só assume a camada quando cruza o valor atual dela.
   function moveHw(i, v) {
     const l = cur().layers[i], prev = hw[i];
@@ -1777,6 +1820,11 @@ Para usar em outro computador, leve a pasta da biblioteca. Lá precisam estar in
   document.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || globalLearn) return;
     // No protótipo, arrastar o fader simula mexer o fader físico do controlador.
+    const sf = e.target.closest('[data-sfader]');
+    if (sf) {
+      drag = { kind: 'stem', i: +sf.dataset.sfader, track: sf };
+      moveStem(drag.i, faderValue(e, sf)); e.preventDefault(); return;
+    }
     const f = e.target.closest('[data-fader]');
     if (f) {
       drag = { kind: 'ghost', i: +f.dataset.fader, track: f };
@@ -1832,6 +1880,8 @@ Para usar em outro computador, leve a pasta da biblioteca. Lá precisam estar in
       miniMove(e);
     } else if (drag.kind === 'ghost') {
       moveHw(drag.i, faderValue(e, drag.track));
+    } else if (drag.kind === 'stem') {
+      moveStem(drag.i, faderValue(e, drag.track));
     } else if (drag.kind === 'edge') {
       const x = s.sections[drag.si], bar = clamp(snapB(s, barAt(e)), drag.min, drag.max);
       if (drag.edge === 'R') {
