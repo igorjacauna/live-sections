@@ -51,6 +51,17 @@ describe("actions.remote", function()
     assert.near(64 / 127, c.value, 1e-3)
   end)
 
+  it("volume de multitrack também precisa de um fader ou knob", function()
+    r.set_now(1)
+    remote.heartbeat(1)
+    remote.run_action("stem_volume", 3)
+    assert.matches("fader ou knob", r.calls_to("MB")[1][1])
+    r._midi_cc = { 127, 127 }
+    remote.run_action("stem_volume", 3)
+    local c = remote.poll()[1]
+    assert.same({ "stem_volume", 3, 1 }, { c.action, c.arg, c.value })
+  end)
+
   it("cada script de actions/ é uma ação conhecida", function()
     local actions = require("midi.mappings").ACTIONS
     local p = io.popen("ls LiveSections/actions/")
@@ -66,6 +77,6 @@ describe("actions.remote", function()
       end
     end
     p:close()
-    assert.equal(69, n)
+    assert.equal(85, n)
   end)
 end)

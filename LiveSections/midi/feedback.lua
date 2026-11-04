@@ -79,6 +79,7 @@ local function same_section(a, b) return a ~= nil and b ~= nil and a.region_idx 
 --   ctx.looping   seção presa em loop
 --   ctx.transport true com o transporte tocando
 --   ctx.layer     função: estado { mute } da camada N, ou nil
+--   ctx.stem      função: estado { mute } da multitrack N, ou nil
 function M.state_for(mapping, ctx)
   if mapping.action == "trigger_slot" then
     local section = ctx.sections and ctx.sections[mapping.arg]
@@ -91,9 +92,11 @@ function M.state_for(mapping, ctx)
     return ctx.looping and "loop" or "idle"
   elseif mapping.action == "play" or mapping.action == "play_stop" then
     return ctx.transport and "playing" or "idle"
-  elseif mapping.action == "layer_mute" then
-    -- liga/desliga: aceso quando a camada toca, para o LED dizer o que soa
-    local st = ctx.layer and ctx.layer(mapping.arg)
+  elseif mapping.action == "layer_mute" or mapping.action == "stem_mute" then
+    -- liga/desliga: aceso quando a camada (ou multitrack) toca, para o LED
+    -- dizer o que soa
+    local get = mapping.action == "layer_mute" and ctx.layer or ctx.stem
+    local st = get and get(mapping.arg)
     return (st and not st.mute) and "playing" or "idle"
   elseif mapping.action == "kontakt_cc" then
     -- só os botões liga/desliga acendem (RF-134); mandar algo a um knob

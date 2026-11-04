@@ -214,6 +214,8 @@ describe("ui.settings_view", function()
   it("rótulos dos controles", function()
     assert.equal("Seção 3", view.label({ action = "trigger_slot", arg = 3 }))
     assert.equal("Panic", view.label({ action = "panic" }))
+    assert.equal("Volume da multitrack 2", view.label({ action = "stem_volume", arg = 2 }))
+    assert.equal("Liga/desliga a multitrack 5", view.label({ action = "stem_mute", arg = 5 }))
   end)
 
   it("os controles do Mapeamento não aparecem na lista de mapeamentos", function()

@@ -55,6 +55,15 @@ describe("midi.feedback", function()
         { fb.state_for(mute(1), c), fb.state_for(mute(2), c), fb.state_for(mute(3), c) })
     end)
 
+    it("liga/desliga de multitrack acende com ela tocando; camadas não interferem", function()
+      local stem = function(slot) return ({ { mute = false }, { mute = true } })[slot] end
+      local mute = function(n) return { action = "stem_mute", arg = n } end
+      local c = { stem = stem, layer = function() return { mute = true } end }
+      assert.same({ "playing", "idle", "idle" },
+        { fb.state_for(mute(1), c), fb.state_for(mute(2), c), fb.state_for(mute(3), c) })
+      assert.equal("idle", fb.state_for(mute(1), {}))
+    end)
+
     it("Play e Play/Stop acendem com o transporte tocando", function()
       assert.equal("playing", fb.state_for({ action = "play" }, { transport = true }))
       assert.equal("playing", fb.state_for({ action = "play_stop" }, { transport = true }))

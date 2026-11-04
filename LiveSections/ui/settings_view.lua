@@ -35,6 +35,7 @@ local ACTION_LABEL = {
   toggle_loop = "Loop", set_quantize = "Quantize: %s", cycle_quantize = "Quantize (percorrer)",
   play_stop = "Play/Stop", play = "Play", stop = "Stop", cancel = "Cancelar fila", panic = "Panic",
   layer_volume = "Volume da camada %d", layer_mute = "Liga/desliga a camada %d",
+  stem_volume = "Volume da multitrack %d", stem_mute = "Liga/desliga a multitrack %d",
   toggle_setlist = "Setlist", tap_tempo = "Tap tempo",
 }
 

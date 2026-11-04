@@ -17,7 +17,7 @@ local diag = require("core.diag")
 
 local ImGui, theme, anim, widgets
 local perf, layers, feedback, mappings, learn, input, model, editor, settings_view, stage
-local kontakt_cc, mapping_view, layer_params, library_view
+local kontakt_cc, mapping_view, layer_params, library_view, stems
 
 local VERSION = require("version")
 
@@ -64,7 +64,7 @@ function M.init(deps)
   mappings, learn, input, model = deps.mappings, deps.learn, deps.input, deps.model
   editor, settings_view, stage = deps.editor, deps.settings, deps.stage
   kontakt_cc, mapping_view, layer_params = deps.kontakt_cc, deps.mapping, deps.layer_params
-  library_view = deps.library_view
+  library_view, stems = deps.library_view, deps.stems
   diag.set_info(function()
     local s = snap or {}
     return string.format("%s · %s em %.1f s%s", ui.mode, s.playing and "tocando" or "parado", s.pos or 0,
@@ -88,7 +88,7 @@ function M.ui() return ui end
 
 -- ------------------------------------------------------------------ ações
 
-local CONTINUOUS = { layer_volume = true }
+local CONTINUOUS = { layer_volume = true, stem_volume = true }
 
 function M.run(action, arg, value)
   if action == "trigger_slot" then return perf.trigger_slot(arg)
@@ -107,6 +107,8 @@ function M.run(action, arg, value)
   elseif action == "panic" then feedback.reset(); return perf.panic()
   elseif action == "layer_volume" then return layers.set_layer_volume(arg, value or 0)
   elseif action == "layer_mute" then return layers.toggle_mute(arg)
+  elseif action == "stem_volume" then return stems and stems.set_volume(arg, value or 0)
+  elseif action == "stem_mute" then return stems and stems.toggle_mute(arg)
   elseif action == "toggle_setlist" then ui.setlist_open = not ui.setlist_open; return ui.setlist_open
   elseif action == "tap_tempo" then return editor and editor.tap()
   end
@@ -240,6 +242,13 @@ local function update_leds()
     return layer_cache[slot] or nil
   end
   if kontakt_cc then ctx.kontakt_on = kontakt_cc.led end
+  if stems then
+    local stem_cache = {}
+    function ctx.stem(slot)
+      if stem_cache[slot] == nil then stem_cache[slot] = stems.state(slot) or false end
+      return stem_cache[slot] or nil
+    end
+  end
   for _, m in ipairs(mappings.all()) do feedback.set_state(m, feedback.state_for(m, ctx)) end
   feedback.flush(now)
 end
@@ -288,6 +297,7 @@ function M.update(t)
     if last_song_id ~= nil then cancel_pick() end
     last_song_id = id
     layers.activate(snap.song, model.songs(), now)
+    if stems then stems.activate(snap.song) end
     -- depois do activate: o Kontakt já saiu do bypass e o JSFX processa
     if kontakt_cc then kontakt_cc.on_song(snap.song) end
     diag.note("troca de música")

@@ -3,7 +3,7 @@
 -- Os scripts antigos com o prefixo "Live Sections - " são apagados antes.
 
 local DIR = "LiveSections/actions/"
-local SLOTS, SONGS, LAYERS = 16, 16, 8
+local SLOTS, SONGS, LAYERS, STEMS = 16, 16, 8, 8
 
 local QUANTIZE = {
   { "now", "Imediato" }, { "beat", "Batida" }, { "bar", "1 compasso" }, { "2bar", "2 compassos" },
@@ -25,6 +25,10 @@ for _, q in ipairs(QUANTIZE) do list[#list + 1] = { "Quantize " .. q[2], "set_qu
 for i = 1, LAYERS do
   list[#list + 1] = { string.format("Camada %d volume (CC)", i), "layer_volume", i }
   list[#list + 1] = { string.format("Camada %d liga-desliga", i), "layer_mute", i }
+end
+for i = 1, STEMS do
+  list[#list + 1] = { string.format("Multitrack %d volume (CC)", i), "stem_volume", i }
+  list[#list + 1] = { string.format("Multitrack %d liga-desliga", i), "stem_mute", i }
 end
 
 local TEMPLATE = [[

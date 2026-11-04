@@ -99,6 +99,24 @@ describe("ui.performance_view", function()
       assert.is_true(view.ui().setlist_open)
     end)
 
+    it("multitracks: fader segue o valor e o botão liga/desliga", function()
+      local got = {}
+      local fake = { activate = function() end, state = function() end,
+        set_volume = function(slot, v) got[#got + 1] = { "vol", slot, v } end,
+        toggle_mute = function(slot) got[#got + 1] = { "mute", slot } end }
+      view.init({
+        ImGui = fake_imgui(), theme = theme, anim = anim, widgets = widgets, perf = perf, layers = layers,
+        feedback = feedback, mappings = mappings, learn = learn, input = input, model = model, stems = fake,
+      })
+      mappings.set({ action = "stem_volume", arg = 2, port_name = MASTER, msg_type = "pb", channel = 2 })
+      view.handle_event(ev(0xE1, 0, 0x40))
+      view.handle_event(ev(0xE1, 0, 0x20))
+      assert.same({ "vol", 2 }, { got[2][1], got[2][2] })
+      assert.near(0x20 * 128 / 16383, got[2][3], 1e-9)
+      view.run("stem_mute", 3)
+      assert.same({ "mute", 3 }, got[3])
+    end)
+
     it("controle do Mapeamento vai para o kontakt_cc, inclusive o soltar", function()
       local got = {}
       local kcc = { handle = function(m, value, released) got[#got + 1] = { m.arg, value, released or false } end,

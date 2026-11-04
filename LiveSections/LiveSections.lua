@@ -120,6 +120,7 @@ view.init({
   perf = perf, layers = layers, feedback = feedback, mappings = mappings,
   learn = learn, input = input, model = model, editor = editor, settings = settings_view, stage = stage,
   kontakt_cc = kontakt_cc, mapping = mapping_view, layer_params = layer_params, library_view = library_view,
+  stems = stems,
 })
 chart_view.init({ ImGui = ImGui, theme = theme, kit = view.kit })
 library_view.init({

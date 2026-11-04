@@ -69,7 +69,7 @@ end
 
 function M.run_action(action, arg)
   local value = midi_value()
-  if action == "layer_volume" and not value then
+  if (action == "layer_volume" or action == "stem_volume") and not value then
     reaper.MB("Esta action controla um volume: ligue-a a um fader ou knob (CC) na lista de actions ou no ReaLearn.",
       "Live Sections", 0)
     return
