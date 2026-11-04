@@ -137,3 +137,14 @@ Confere se o Live Sections consegue se colocar sozinho no menu Extensions, grava
 Para desfazer: com o REAPER fechado, troque o `reaper-menu.ini` pelo `reaper-menu.ini.spike11-backup`.
 
 **Mande:** o console e as respostas 2–3.
+
+**Resultado (2026-11-04, REAPER 7.84/x64, Windows):** a seção é `[Main extensions]`, o item aparece **sem reiniciar** e abre o Live Sections. Com a seção personalizada, o REAPER põe o que as extensões adicionam (ReaPack) no submenu "Default menu: Main extensions", abaixo do item.
+
+## 12_submenu_reapack.lua: submenu ReaPack no menu Extensions
+Descobre os IDs das ações do ReaPack e como o `reaper-menu.ini` grava um submenu, para o Live Sections recriar o submenu "ReaPack" ao se pôr no menu Extensions. O script só lê.
+1. Em **Options → Customize menus/toolbars…**, escolha **Main extensions** na lista do topo.
+2. Selecione o item "Live Sections" e clique em **Add… → Submenu**, com o nome `ReaPack`.
+3. Dentro do submenu, adicione a ação **"ReaPack: Synchronize packages"** (Add… → Action…) e um **separador**. Clique em **Save** e feche.
+4. Rode o script.
+
+**Mande:** o console.
