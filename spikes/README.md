@@ -148,3 +148,5 @@ Descobre os IDs das ações do ReaPack e como o `reaper-menu.ini` grava um subme
 4. Rode o script.
 
 **Mande:** o console.
+
+**Decisão (2026-11-04):** o Live Sections não mexe nos menus do usuário (o spike 12 não foi rodado). As Configurações ganharam o cartão "Abrir mais rápido", com o passo a passo para o menu Extensions, uma barra de ferramentas ou um atalho.

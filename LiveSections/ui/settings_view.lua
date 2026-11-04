@@ -518,6 +518,38 @@ end
 
 -- ------------------------------------------------------------------ desenho
 
+-- Como deixar o Live Sections a um clique: o REAPER não deixa um script
+-- criar menu sozinho sem mexer nos menus do usuário (spikes 11 e 12), então
+-- o cartão ensina o caminho e copia o nome da ação para o filtro.
+local ACTION_NAME = "LiveSections.lua"
+local QUICK_STEPS = {
+  { "Menu Extensions", "Options → Customize menus/toolbars… → escolha \"Main extensions\" na lista do topo → Add… → Action… → procure a ação abaixo → Save. O ReaPack passa para o submenu \"Default menu\"." },
+  { "Barra de ferramentas", "Na mesma janela, escolha \"Main toolbar\" (ou uma Floating toolbar) → Add… → Action… → a ação abaixo → Save. O botão fica aceso com o Live Sections aberto." },
+  { "Atalho", "Actions → Show action list → procure a ação abaixo → Add… em Shortcuts → aperte a tecla (ou um botão do controlador)." },
+}
+local quick_copied_at = nil
+
+local function quick_card(ctx, x, y, w)
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local ix, iw = x + 16, w - 32
+  local cy = y + 16
+  cy = cy + title(ctx, dl, ix, cy, "Abrir mais rápido")
+  for _, step in ipairs(QUICK_STEPS) do
+    cy = cy + field_label(ctx, dl, ix, cy, step[1]:upper())
+    cy = cy + kit.wrapped(ctx, "small", ix, cy, iw, theme.C.muted, step[2]) + 10
+  end
+  cy = cy + field_label(ctx, dl, ix, cy, "AÇÃO")
+  kit.txt(ctx, dl, "num", ix, cy + 6, theme.C.text, "Script: " .. ACTION_NAME)
+  local label = quick_copied_at and reaper.time_precise() - quick_copied_at < 2 and "Copiado" or "Copiar nome"
+  local cw = kit.size(ctx, "button", "Copiar nome") + 24
+  if kit.button(ctx, "copy_action", label, ix + iw - cw, cy, 30, { w = cw }) then
+    ImGui.SetClipboardText(ctx, ACTION_NAME)
+    quick_copied_at = reaper.time_precise()
+  end
+  cy = cy + 40
+  return cy - y + 8
+end
+
 local function card(ctx, id, x, y, w, fn)
   local dl = ImGui.GetWindowDrawList(ctx)
   ImGui.DrawList_AddRectFilled(dl, x, y, x + w, y + (heights[id] or 0), theme.C.panel, theme.R.r2)
@@ -544,6 +576,7 @@ function M.draw(ctx, x, y, w, h, snap)
   place("transport", transport_card, 2)
   place("chart", chart_card, 2)
   if library then place("library", library_card, 1) end
+  place("quick", quick_card, 2)
   local wide_y = math.max(col_y[1], col_y[2])
   local mh = card(ctx, "mappings", x, wide_y, w, mappings_card)
   local bottom = wide_y + mh + GAP

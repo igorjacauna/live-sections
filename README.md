@@ -53,6 +53,10 @@ Requer REAPER 7+ e a extensão [ReaImGui](https://github.com/cfillion/reaimgui)
    `https://live-sections.igor-jacauna-cloudflare.workers.dev/index.xml`
 3. Browse packages → **Live Sections** → Install → Apply
 4. Actions → Show action list → rode **LiveSections.lua**
+5. Opcional: para abrir com um clique, ponha a ação no menu Extensions
+   (Options → Customize menus/toolbars → Main extensions), numa barra de
+   ferramentas ou num atalho. O passo a passo está em Configurações → Abrir
+   mais rápido
 
 Instalação manual: copie a pasta `LiveSections/` para a pasta `Scripts` do REAPER.
 

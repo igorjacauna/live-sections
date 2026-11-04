@@ -211,6 +211,21 @@ describe("ui.settings_view", function()
     assert.matches("Chrome → Permissões", table.concat(text, " "))
   end)
 
+  it("abrir mais rápido: ensina menu, barra e atalho e copia o nome da ação", function()
+    im.calls = {}
+    frame({ press = "copy_action" })
+    local text, copied = {}, nil
+    for _, c in ipairs(im.calls) do
+      if c[1] == "SetClipboardText" then copied = c[3] end
+      for _, v in ipairs(c) do if type(v) == "string" then text[#text + 1] = v end end
+    end
+    assert.equal("LiveSections.lua", copied)
+    local all = table.concat(text, " ")
+    assert.matches("Main extensions", all)
+    assert.matches("Main toolbar", all)
+    assert.matches("Shortcuts", all)
+  end)
+
   it("rótulos dos controles", function()
     assert.equal("Seção 3", view.label({ action = "trigger_slot", arg = 3 }))
     assert.equal("Panic", view.label({ action = "panic" }))
