@@ -282,6 +282,9 @@ describe("layers", function()
       assert.is_nil(st.solo)
       assert.near(0.716, st.pos, 1e-9)
       assert.is_nil(layers.layer_state(3))
+      assert.is_nil(st.color)
+      cordas.info.I_CUSTOMCOLOR = 0x1000000 | 0x3366CC
+      assert.equal(0x3366CC, layers.layer_state(1).color)
 
       assert.is_true(layers.set_volume_ui(1, 0.3))
       assert.near(0.3, pos(cordas), 1e-9)

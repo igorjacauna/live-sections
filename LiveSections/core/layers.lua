@@ -42,8 +42,9 @@
 -- M.rename_layer(slot, name) -> ok, final|err   renomeia a track da camada N
 --                        da música atual, num passo de undo ("empty_name",
 --                        "no_layer")
--- M.layer_state(slot) -> { name, pos (0–1), mute, peak_l, peak_r }?
---                       pico de saída da track (amplitude linear, 1 = 0 dB)
+-- M.layer_state(slot) -> { name, pos (0–1), mute, peak_l, peak_r, color? }?
+--                       pico de saída da track (amplitude linear, 1 = 0 dB);
+--                       color: cor nativa da track (nil sem cor própria)
 -- M.set_volume_ui(slot, pos)   fader da tela; o físico precisa alcançar de novo
 -- M.release_takeover()   o fader físico precisa alcançar de novo (ex.: o
 --                        volume mudou pela tela)
@@ -54,6 +55,8 @@
 --                        e travava a thread principal do REAPER.
 
 local diag = require("core.diag")
+local fader = require("core.fader")
+local track_color = require("core.track_color")
 
 local M = {}
 
@@ -391,16 +394,7 @@ local function layer_track(slot)
   return layer and layer.track
 end
 
-local function fader_pos(track)
-  local vol = reaper.GetMediaTrackInfo_Value(track, "D_VOL")
-  if vol <= 0 then return 0 end
-  return math.max(0, math.min(1, reaper.DB2SLIDER(20 * math.log(vol, 10)) / 1000))
-end
-
-local function volume_of(pos)
-  if pos <= 0 then return 0 end
-  return 10 ^ (reaper.SLIDER2DB(pos * 1000) / 20)
-end
+local fader_pos, volume_of = fader.pos_of, fader.volume_of
 
 function M.set_layer_volume(slot, value)
   local track = layer_track(slot)
@@ -431,7 +425,7 @@ function M.layer_state(slot)
   local tr = layer.track
   return {
     name = layer.name, pos = fader_pos(tr),
-    mute = reaper.GetMediaTrackInfo_Value(tr, "B_MUTE") ~= 0,
+    mute = reaper.GetMediaTrackInfo_Value(tr, "B_MUTE") ~= 0, color = track_color.get(tr),
     peak_l = reaper.Track_GetPeakInfo(tr, 0), peak_r = reaper.Track_GetPeakInfo(tr, 1),
   }
 end
