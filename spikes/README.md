@@ -127,3 +127,13 @@ Base do "Exportar música" / "Montar setlist": confere se o chunk das tracks lev
 | Tempo | precisa ser recriado antes/junto das tracks; `TimeMap_GetTimeSigAtTime` devolve `num, denom, bpm` (sem retorno inicial) |
 
 Conclusão: chunk filtrado sem GUIDs serve para o pacote. O import recria o tempo com a fase (`phase_beats`) e arredonda posições relativas mínimas para 0.
+
+## 11_menu_extensions.lua: o Live Sections no menu Extensions
+Confere se o Live Sections consegue se colocar sozinho no menu Extensions, gravando um item no `reaper-menu.ini` (o arquivo do *Customize menus/toolbars*).
+1. Rode o script. Ele mostra o ID do Live Sections e as seções do `reaper-menu.ini`, e pergunta se pode gravar o item (faz backup antes).
+2. Responda **Sim** e abra o menu **Extensions sem reiniciar**: o Live Sections aparece?
+3. Feche e abra o REAPER e confira de novo: o Live Sections aparece? O **ReaPack** continua lá? Clicar no item abre o Live Sections?
+
+Para desfazer: com o REAPER fechado, troque o `reaper-menu.ini` pelo `reaper-menu.ini.spike11-backup`.
+
+**Mande:** o console e as respostas 2–3.
