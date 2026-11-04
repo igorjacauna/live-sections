@@ -848,125 +848,226 @@ local function param_box(ctx, dl, x, y, w, p)
   txt(ctx, dl, "label", x + 7 + (iw - tw) / 2, iy + 4, on and theme.C.ink or theme.C.muted, label)
 end
 
+-- Cores da paleta das colunas: as dos chips de seção, com nome de cor.
+local COLOR_NAMES = { "Azul", "Verde", "Laranja", "Vermelho", "Roxo", "Amarelo", "Rosa", "Cinza" }
+local track_color = require("core.track_color")
+local color_pick = nil     -- track do clique direito no nome da coluna
+
+local function native_rgba(native, alpha)
+  local r, g, b = reaper.ColorFromNative(native)
+  return (r << 24) | (g << 16) | (b << 8) | math.floor((alpha or 1) * 255 + 0.5)
+end
+
+-- Paleta do clique direito no nome: muda a cor da track no REAPER (RF-228).
+local function color_popup(ctx)
+  if not color_pick then return end
+  if not ImGui.BeginPopup(ctx, "track_color") then
+    color_pick = nil
+    return
+  end
+  for k, c in ipairs(theme.SECTION_COLORS) do
+    ImGui.ColorButton(ctx, "##swatch" .. k, theme.rgba(c.color), 0, 14, 14)
+    ImGui.SameLine(ctx)
+    if ImGui.MenuItem(ctx, COLOR_NAMES[k] or c.name) then track_color.set(color_pick, c.color) end
+  end
+  if ImGui.MenuItem(ctx, "Sem cor") then track_color.set(color_pick, nil) end
+  ImGui.EndPopup(ctx)
+end
+
+-- Fontes das colunas: camadas do Kontakt e multitracks. Cada uma diz como
+-- ler o estado e agir na N-ésima coluna da música atual.
+local SOURCES = {
+  layer = {
+    id = "", vol = "layer_volume", mute = "layer_mute",
+    state = function(i) return layers.layer_state(i) end,
+    set_ui = function(i, v) return layers.set_volume_ui(i, v) end,
+    takeover = function(i) return layers.takeover(i) end,
+    toggle = function(i) return layers.toggle_mute(i) end,
+    track = function(song, i) local l = layers.layers(song)[i]; return l and l.track end,
+  },
+  stem = {
+    id = "s", vol = "stem_volume", mute = "stem_mute",
+    state = function(i) return stems.state(i) end,
+    set_ui = function(i, v) return stems.set_volume_ui(i, v) end,
+    takeover = function(i) return stems.takeover(i) end,
+    toggle = function(i) return stems.toggle_mute(i) end,
+    track = function(song, i) return stems.list(song)[i] end,
+  },
+}
+
+-- Uma coluna de mixer (RF-218, RF-227, RF-229): nome (duplo clique renomeia,
+-- clique direito escolhe a cor), fader, medidor, aviso de takeover e
+-- LIGADO. `extra` é a altura abaixo do LIGADO (parâmetros das camadas).
+local function column(ctx, dl, kind, i, lx, y, lw, fh, extra)
+  local src = SOURCES[kind]
+  local st = src.state(i)
+  local tint = st.color and native_rgba(st.color)
+  ImGui.DrawList_AddRectFilled(dl, lx, y, lx + lw, y + fh + 92 + extra, theme.C.panel, theme.R.r2)
+  if tint then ImGui.DrawList_AddRectFilled(dl, lx, y, lx + lw, y + 4, tint, theme.R.r2) end
+  ImGui.DrawList_PushClipRect(dl, lx + 6, y, lx + lw - 6, y + 30, true)
+  txt(ctx, dl, "button", lx + 10, y + 10, theme.C.text, st.name)
+  ImGui.DrawList_PopClipRect(dl)
+  -- duplo clique no nome renomeia a track desta música; direito, a cor
+  ImGui.SetCursorScreenPos(ctx, lx + 6, y + 4)
+  ImGui.InvisibleButton(ctx, src.id .. "lname" .. i, lw - 12, 26)
+  if ImGui.IsItemClicked(ctx, ImGui.MouseButton_Right) then
+    color_pick = src.track(snap.song, i)
+    ImGui.OpenPopup(ctx, "track_color")
+  end
+  if ImGui.IsItemHovered(ctx) then
+    ImGui.SetTooltip(ctx, "Duplo clique para renomear · botão direito para a cor")
+    if ImGui.IsMouseDoubleClicked(ctx, ImGui.MouseButton_Left) then
+      rename = { slot = i, buf = st.name, kind = kind }
+      ImGui.OpenPopup(ctx, "rename_layer")
+    end
+  end
+
+  -- fader: arrastar na tela muda o volume; o físico precisa alcançar de novo
+  local fx, fy = lx + (lw - 40) / 2, y + 34
+  ImGui.SetCursorScreenPos(ctx, fx, fy)
+  ImGui.InvisibleButton(ctx, src.id .. "fader" .. i, 40, fh)
+  if ImGui.IsItemActive(ctx) then
+    local _, my = ImGui.GetMousePos(ctx)
+    src.set_ui(i, 1 - (my - fy) / fh)
+    st = src.state(i)
+  end
+  widgets.mappable(ctx, { action = src.vol, arg = i }, "Volume " .. st.name)
+  ImGui.DrawList_AddRectFilled(dl, fx, fy, fx + 40, fy + fh, theme.C.bg, 10)
+  ImGui.DrawList_AddRect(dl, fx, fy, fx + 40, fy + fh, theme.C.line, 10)
+  local vy = fy + fh * (1 - st.pos)
+  local fill = st.mute and theme.C.line2 or (tint and native_rgba(st.color, 0.6)) or theme.C.muted & 0xFFFFFF66
+  ImGui.DrawList_AddRectFilled(dl, fx + 3, vy, fx + 37, fy + fh - 3, fill, 8)
+  ImGui.DrawList_AddRectFilled(dl, fx - 3, vy - 4, fx + 43, vy + 4, theme.C.text, 3)
+
+  -- nível de saída, ao lado do fader
+  local m = meter_state(src.id .. i, st.peak_l, st.peak_r)
+  local mx = fx + 50
+  meter(dl, mx, fy, 5, fh, m.l)
+  meter(dl, mx + 7, fy, 5, fh, m.r)
+  if m.hold > 0 then
+    local hy = fy + fh * (1 - m.hold)
+    local hc = m.hold >= db_level(-3) and theme.C.danger or m.hold >= db_level(-12) and theme.C.queue or theme.C.ok
+    ImGui.DrawList_AddLine(dl, mx, hy, mx + 12, hy, hc, 2)
+  end
+
+  -- soft takeover: onde está o fader físico e para onde movê-lo
+  local dir = src.takeover(i)
+  if dir then
+    txt(ctx, dl, "label", lx + 10, fy + fh + 6, theme.C.queue, dir == "up" and "SUBA O FADER" or "DESÇA O FADER")
+  end
+
+  local by = fy + fh + 26
+  -- LIGADO aceso = tocando (mute invertido), como o LED do controle; sempre verde
+  if button(ctx, src.id .. "on" .. i, "LIGADO", lx + 12, by, 26, { w = lw - 24, active = not st.mute, accent = theme.C.ok, style = "label" }) then
+    src.toggle(i)
+  end
+  widgets.mappable(ctx, { action = src.mute, arg = i }, "Liga/desliga " .. st.name)
+  return by + 26 + 12
+end
+
+local function rename_popup(ctx)
+  if not (rename and ImGui.BeginPopup(ctx, "rename_layer")) then return end
+  ImGui.Text(ctx, rename.kind == "stem" and "Nome da multitrack" or "Nome da camada nesta música")
+  ImGui.SetNextItemWidth(ctx, 220)
+  local _, buf = ImGui.InputText(ctx, "##layer_name", rename.buf)
+  rename.buf = buf
+  if ImGui.Button(ctx, "Renomear") or ImGui.IsKeyPressed(ctx, ImGui.Key_Enter, false) then
+    local ok
+    if rename.kind == "stem" then ok = stems.rename(rename.slot, rename.buf)
+    else ok = layers.rename_layer(rename.slot, rename.buf) end
+    if ok then
+      rename = nil
+      ImGui.CloseCurrentPopup(ctx)
+    end
+  end
+  ImGui.SameLine(ctx)
+  if ImGui.Button(ctx, "Cancelar") then
+    rename = nil
+    ImGui.CloseCurrentPopup(ctx)
+  end
+  ImGui.EndPopup(ctx)
+end
+
+-- Camadas como colunas de mixer e, depois delas, o grupo MULTITRACKS
+-- (RF-217): na mesma fileira se couber, senão na linha de baixo. No palco
+-- (`fh` menor) o fader é mais baixo e, sem colunas, nada aparece.
 local function layer_strip(ctx, x, y, w, fh)
   local dl = ImGui.GetWindowDrawList(ctx)
   local song = snap.song
   local list = song and layers.layers(song) or {}
-  if ui.stage and #list == 0 then return 0 end
-  txt(ctx, dl, "label", x, y, theme.C.muted, "CAMADAS")
-  y = y + 22
-  if #list == 0 then
+  local n_stems = (song and stems) and #stems.list(song) or 0
+  if ui.stage and #list == 0 and n_stems == 0 then return 0 end
+  local lw = 96
+  fh = fh or FADER_H
+
+  if #list == 0 and n_stems == 0 then
+    txt(ctx, dl, "label", x, y, theme.C.muted, "CAMADAS")
+    y = y + 22
     local note = song and not layers.track_of(song) and "Sem Kontakt vinculado a esta música. Vincule no modo Editar."
       or "O Kontakt desta música não tem camadas (tracks filhas)."
     ImGui.DrawList_AddRect(dl, x, y, x + w, y + 44, theme.C.line2, theme.R.r2)
     txt(ctx, dl, "small", x + 14, y + 14, theme.C.muted, note)
     return 66
   end
-  local lw = 96
-  fh = fh or FADER_H
-  local params, most = {}, 0
-  for i in ipairs(list) do
-    params[i] = layer_params and layer_params.for_layer(song, i, now) or {}
-    most = math.max(most, #params[i])
-  end
-  -- "+ parâmetro" só no Performance, em camada com menos de 4 (RF-152)
-  local editable = not ui.stage and layer_params ~= nil and kontakt_cc ~= nil
-  if not editable then cancel_pick() end
-  local st_learn = learn.state()
-  if ui.param_pick and not (st_learn and st_learn.mode == "pick") then ui.param_pick = nil end
-  local room = editable and most < layer_params.MAX
-  if editable and not room then
-    for i in ipairs(list) do room = room or #params[i] < layer_params.MAX end
-  end
-  local ph = most * (PARAM_H + PARAM_GAP) + (room and ADD_H + PARAM_GAP or 0)
-  for i in ipairs(list) do
-    local st = layers.layer_state(i)
-    local lx = x + (i - 1) * (lw + GAP)
-    if not st or lx + lw > x + w then break end
-    ImGui.DrawList_AddRectFilled(dl, lx, y, lx + lw, y + fh + 92 + ph, theme.C.panel, theme.R.r2)
-    ImGui.DrawList_PushClipRect(dl, lx + 6, y, lx + lw - 6, y + 30, true)
-    txt(ctx, dl, "button", lx + 10, y + 10, theme.C.text, st.name)
-    ImGui.DrawList_PopClipRect(dl)
-    -- duplo clique no nome renomeia a camada desta música (a track)
-    ImGui.SetCursorScreenPos(ctx, lx + 6, y + 4)
-    ImGui.InvisibleButton(ctx, "lname" .. i, lw - 12, 26)
-    if ImGui.IsItemHovered(ctx) then
-      ImGui.SetTooltip(ctx, "Duplo clique para renomear")
-      if ImGui.IsMouseDoubleClicked(ctx, ImGui.MouseButton_Left) then
-        rename = { slot = i, buf = st.name }
-        ImGui.OpenPopup(ctx, "rename_layer")
+
+  local row_h = 0
+  local cx = x
+  if #list > 0 then
+    txt(ctx, dl, "label", x, y, theme.C.muted, "CAMADAS")
+    local params, most = {}, 0
+    for i in ipairs(list) do
+      params[i] = layer_params and layer_params.for_layer(song, i, now) or {}
+      most = math.max(most, #params[i])
+    end
+    -- "+ parâmetro" só no Performance, em camada com menos de 4 (RF-152)
+    local editable = not ui.stage and layer_params ~= nil and kontakt_cc ~= nil
+    if not editable then cancel_pick() end
+    local st_learn = learn.state()
+    if ui.param_pick and not (st_learn and st_learn.mode == "pick") then ui.param_pick = nil end
+    local room = editable and most < layer_params.MAX
+    if editable and not room then
+      for i in ipairs(list) do room = room or #params[i] < layer_params.MAX end
+    end
+    local ph = most * (PARAM_H + PARAM_GAP) + (room and ADD_H + PARAM_GAP or 0)
+    for i in ipairs(list) do
+      local lx = x + (i - 1) * (lw + GAP)
+      if not layers.layer_state(i) or lx + lw > x + w then break end
+      local py = column(ctx, dl, "layer", i, lx, y + 22, lw, fh, ph)
+      for _, p in ipairs(params[i]) do
+        param_box(ctx, dl, lx + 6, py, lw - 12, p)
+        if editable then param_hit(ctx, lx + 6, py, lw - 12, song, i, p) end
+        py = py + PARAM_H + PARAM_GAP
       end
+      if editable and #params[i] < layer_params.MAX then add_button(ctx, dl, lx + 6, py, lw - 12, song, i) end
+      cx = lx + lw + GAP
     end
-
-    -- fader: arrastar na tela muda o volume; o físico precisa alcançar de novo
-    local fx, fy = lx + (lw - 40) / 2, y + 34
-    ImGui.SetCursorScreenPos(ctx, fx, fy)
-    ImGui.InvisibleButton(ctx, "fader" .. i, 40, fh)
-    if ImGui.IsItemActive(ctx) then
-      local _, my = ImGui.GetMousePos(ctx)
-      layers.set_volume_ui(i, 1 - (my - fy) / fh)
-      st = layers.layer_state(i)
-    end
-    widgets.mappable(ctx, { action = "layer_volume", arg = i }, "Volume " .. st.name)
-    ImGui.DrawList_AddRectFilled(dl, fx, fy, fx + 40, fy + fh, theme.C.bg, 10)
-    ImGui.DrawList_AddRect(dl, fx, fy, fx + 40, fy + fh, theme.C.line, 10)
-    local vy = fy + fh * (1 - st.pos)
-    ImGui.DrawList_AddRectFilled(dl, fx + 3, vy, fx + 37, fy + fh - 3, st.mute and theme.C.line2 or theme.C.muted & 0xFFFFFF66, 8)
-    ImGui.DrawList_AddRectFilled(dl, fx - 3, vy - 4, fx + 43, vy + 4, theme.C.text, 3)
-
-    -- nível de saída da camada, ao lado do fader
-    local m = meter_state(i, st.peak_l, st.peak_r)
-    local mx = fx + 50
-    meter(dl, mx, fy, 5, fh, m.l)
-    meter(dl, mx + 7, fy, 5, fh, m.r)
-    if m.hold > 0 then
-      local hy = fy + fh * (1 - m.hold)
-      local hc = m.hold >= db_level(-3) and theme.C.danger or m.hold >= db_level(-12) and theme.C.queue or theme.C.ok
-      ImGui.DrawList_AddLine(dl, mx, hy, mx + 12, hy, hc, 2)
-    end
-
-    -- soft takeover: onde está o fader físico e para onde movê-lo
-    local dir = layers.takeover(i)
-    if dir then
-      txt(ctx, dl, "label", lx + 10, fy + fh + 6, theme.C.queue, dir == "up" and "SUBA O FADER" or "DESÇA O FADER")
-    end
-
-    local by = fy + fh + 26
-    -- LIGADO aceso = camada tocando (mute invertido), como o LED do controle
-    if button(ctx, "on" .. i, "LIGADO", lx + 12, by, 26, { w = lw - 24, active = not st.mute, accent = theme.C.ok, style = "label" }) then
-      layers.toggle_mute(i)
-    end
-    widgets.mappable(ctx, { action = "layer_mute", arg = i }, "Liga/desliga " .. st.name)
-
-    local py = by + 26 + 12
-    for _, p in ipairs(params[i]) do
-      param_box(ctx, dl, lx + 6, py, lw - 12, p)
-      if editable then param_hit(ctx, lx + 6, py, lw - 12, song, i, p) end
-      py = py + PARAM_H + PARAM_GAP
-    end
-    if editable and #params[i] < layer_params.MAX then add_button(ctx, dl, lx + 6, py, lw - 12, song, i) end
+    row_h = 22 + fh + 92 + ph
+    cx = cx + GAP
   end
+
+  if n_stems > 0 then
+    -- mesma fileira se couber; senão, linha de baixo
+    local need = n_stems * (lw + GAP) - GAP
+    local sy = y
+    if #list > 0 and cx + need > x + w then
+      cx, sy = x, y + row_h + GAP
+    elseif #list == 0 then
+      cx = x
+    end
+    txt(ctx, dl, "label", cx, sy, theme.C.muted, "MULTITRACKS")
+    for i = 1, n_stems do
+      local lx = cx + (i - 1) * (lw + GAP)
+      if not stems.state(i) or lx + lw > x + w then break end
+      column(ctx, dl, "stem", i, lx, sy + 22, lw, fh, 0)
+    end
+    row_h = math.max(row_h, sy - y + 22 + fh + 92)
+  end
+
   menu_popup(ctx, list)
   name_popup(ctx)
-  if rename and ImGui.BeginPopup(ctx, "rename_layer") then
-    ImGui.Text(ctx, "Nome da camada nesta música")
-    ImGui.SetNextItemWidth(ctx, 220)
-    local _, buf = ImGui.InputText(ctx, "##layer_name", rename.buf)
-    rename.buf = buf
-    if ImGui.Button(ctx, "Renomear") or ImGui.IsKeyPressed(ctx, ImGui.Key_Enter, false) then
-      if layers.rename_layer(rename.slot, rename.buf) then
-        rename = nil
-        ImGui.CloseCurrentPopup(ctx)
-      end
-    end
-    ImGui.SameLine(ctx)
-    if ImGui.Button(ctx, "Cancelar") then
-      rename = nil
-      ImGui.CloseCurrentPopup(ctx)
-    end
-    ImGui.EndPopup(ctx)
-  end
-  return 22 + fh + 92 + ph
+  rename_popup(ctx)
+  color_popup(ctx)
+  return row_h
 end
 
 -- Espaço: Play/Stop no Performance e no Palco (fora de campos de texto).

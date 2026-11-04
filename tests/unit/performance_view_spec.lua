@@ -39,14 +39,14 @@ describe("ui.performance_view", function()
   local r, view, perf, layers, mappings, learn, input, feedback, widgets, theme, anim, model, dir
   local MASTER, KEYS = "SMC-Mixer-Master", "Keys"
 
-  local lib_opened, lib_view
+  local lib_opened, lib_view, stems_dep
 
   local function load(im)
     widgets.init(im, theme, anim, learn, mappings)
     view.init({
       ImGui = im, theme = theme, anim = anim, widgets = widgets, perf = perf, layers = layers,
       feedback = feedback, mappings = mappings, learn = learn, input = input, model = model,
-      library_view = lib_view,
+      library_view = lib_view, stems = stems_dep,
     })
   end
 
@@ -394,6 +394,69 @@ describe("ui.performance_view", function()
       view.update(3)
       view.handle_event(ev(0x90, 5, 127))
       assert.equal("panic", view.ui().learn_conflict.mapping.action)
+    end)
+
+    describe("multitracks e cor das colunas", function()
+      local kt, piano, bateria, baixo
+
+      local function texts(calls)
+        local out = {}
+        for _, c in ipairs(calls) do if c[1] == "DrawList_AddText" then out[c[6]] = true end end
+        return out
+      end
+
+      before_each(function()
+        package.loaded["core.stems"] = nil
+        stems_dep = require("core.stems")
+        stems_dep.init({ layers = layers })
+        kt = r.add_track("Kontakt A", "{KT}")
+        piano = r.add_track("Piano", "{PIANO}")
+        r.add_receive(kt, piano, 0)
+        bateria = r.add_track("Bateria", "{BAT}")
+        baixo = r.add_track("Baixo", "{BX}")
+        for _, tr in ipairs(r._tracks) do tr.info.D_VOL = 1 end
+        model.refresh(0)
+        layers.link(model.songs()[1], kt)
+        stems_dep.set(model.songs()[1], { bateria, baixo })
+      end)
+      after_each(function() stems_dep = nil end)
+
+      it("grupo MULTITRACKS depois das camadas, na Performance e no Palco", function()
+        local calls = draw()
+        local b = ids(calls)
+        assert.is_true(b.lname1 and b.fader1 and b.on1)
+        assert.is_true(b.slname1 and b.sfader1 and b.son1 and b.son2)
+        assert.is_true(texts(calls).MULTITRACKS and texts(calls).CAMADAS)
+        b = ids(draw({ setup = function() view.ui().stage = true end }))
+        assert.is_true(b.sfader2 and b.fader1)
+      end)
+
+      it("música sem Kontakt e com multitracks mostra só as multitracks", function()
+        layers.unlink(model.songs()[1])
+        local calls = draw()
+        assert.is_true(ids(calls).sfader1)
+        assert.is_nil(ids(calls).fader1)
+        assert.is_nil(texts(calls).CAMADAS)
+        assert.is_true(ids(draw({ setup = function() view.ui().stage = true end })).sfader1)
+      end)
+
+      it("o botão LIGADO da multitrack liga/desliga a track", function()
+        draw({ press = "son2" })
+        assert.equal(1, baixo.info.B_MUTE)
+      end)
+
+      it("a coluna usa a cor da track; clique direito no nome escolhe outra", function()
+        bateria.info.I_CUSTOMCOLOR = 0x1000000 | 0x3366CC   -- nativa (BGR no stub): RGB #CC6633
+        local found = false
+        for _, c in ipairs(draw()) do
+          if c[1] == "DrawList_AddRectFilled" and c[7] == 0xCC6633FF then found = true end
+        end
+        assert.is_true(found)
+        draw({ rclick = "lname1", popup = "track_color", menu = "Vermelho" })   -- abre e escolhe no mesmo quadro
+        assert.equal(0x1000000 | 0x6B56E5, piano.info.I_CUSTOMCOLOR)
+        draw({ rclick = "slname2", popup = "track_color", menu = "Sem cor" })
+        assert.equal(0, baixo.info.I_CUSTOMCOLOR)
+      end)
     end)
 
     describe("+ Da biblioteca", function()
