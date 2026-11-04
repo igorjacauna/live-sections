@@ -54,6 +54,9 @@ footer { display: flex; gap: 8px; align-items: center; justify-content: space-be
 footer .st { font: 600 13px var(--ui); color: var(--faint); }
 footer .st.err { color: var(--danger); }
 footer button { font: 700 15px var(--ui); color: var(--text); background: var(--raise); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; }
+footer button.on { color: var(--ink); background: var(--ok); border-color: var(--ok); }
+footer .tools { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+#keep { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: .01; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -67,7 +70,7 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
 <main id="chart"></main>
 <footer>
   <span class="st" id="status">Conectando…</span>
-  <span><button id="smaller" type="button" aria-label="Diminuir letra">A−</button> <button id="bigger" type="button" aria-label="Aumentar letra">A+</button></span>
+  <span class="tools"><button id="awake" type="button" aria-pressed="false">Tela acesa</button> <button id="smaller" type="button" aria-label="Diminuir letra">A−</button> <button id="bigger" type="button" aria-label="Aumentar letra">A+</button></span>
 </footer>
 
 <script>
@@ -214,6 +217,65 @@ footer button { font: 700 15px var(--ui); color: var(--text); background: var(--
     try { localStorage.setItem('ls_scale', String(scale)); } catch (e) {}
     last = '';
   }
+  // Tela acesa: o celular não apaga a tela enquanto a cifra está aberta.
+  // A Wake Lock API só existe em HTTPS; pelo IP da rede (HTTP) a página
+  // toca em laço um vídeo mudo de 3 s, que segura a tela no Android e no
+  // iPhone. Os dois só começam depois de um toque na página (regra dos
+  // navegadores); a escolha fica salva no aparelho.
+  var KEEP_VIDEO = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAYPbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAC7gAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAAnl0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAC7gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAABAAAAAQAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAu4AAAAAAABAAAAAAHxbWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABAAAAAwABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABnG1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAVxzdGJsAAAAuHN0c2QAAAAAAAAAAQAAAKhhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAABAAEABIAAAASAAAAAAAAAABFUxhdmM2Mi4xMS4xMDAgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAALmF2Y0MBQsAe/+EAFmdCwB7ZHsBEAAADAAQAAAMAEDxYuSABAAVoy4PEyAAAABBwYXNwAAAAAQAAAAEAAAAUYnRydAAAAAAAAAdNAAAAAAAAABhzdHRzAAAAAAAAAAEAAAAGAAAgAAAAABRzdHNzAAAAAAAAAAEAAAABAAAAHHN0c2MAAAAAAAAAAQAAAAEAAAABAAAAAQAAACxzdHN6AAAAAAAAAAAAAAAGAAACiQAAAAsAAAALAAAACgAAAAoAAAAKAAAAKHN0Y28AAAAAAAAABgAABlQAAAjtAAAJCAAACSMAAAk9AAAJVwAAAsF0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAACAAAAAAAAC7gAAAAAAAAAAAAAAAEBAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAu4AAAEAAABAAAAAAI5bWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAAAfQAAAYcBVxAAAAAAALWhkbHIAAAAAAAAAAHNvdW4AAAAAAAAAAAAAAABTb3VuZEhhbmRsZXIAAAAB5G1pbmYAAAAQc21oZAAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAABqHN0YmwAAAB+c3RzZAAAAAAAAAABAAAAbm1wNGEAAAAAAAAAAQAAAAAAAAAAAAEAEAAAAAAfQAAAAAAANmVzZHMAAAAAA4CAgCUAAgAEgICAF0AVAAAAAAAfQAAAASsFgICABRWIVuUABoCAgAECAAAAFGJ0cnQAAAAAAAAfQAAAASsAAAAgc3R0cwAAAAAAAAACAAAAGAAABAAAAAABAAABwAAAAChzdHNjAAAAAAAAAAIAAAABAAAAAQAAAAEAAAACAAAABAAAAAEAAAB4c3RzegAAAAAAAAAAAAAAGQAAABUAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAsc3RjbwAAAAAAAAAHAAAGPwAACN0AAAj4AAAJEwAACS0AAAlHAAAJYQAAABpzZ3BkAQAAAHJvbGwAAAACAAAAAf//AAAAHHNiZ3AAAAAAcm9sbAAAAAEAAAAZAAAAAQAAAGF1ZHRhAAAAWW1ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kaXJhcHBsAAAAAAAAAAAAAAAALGlsc3QAAAAkqXRvbwAAABxkYXRhAAAAAQAAAABMYXZmNjIuMy4xMDAAAAAIZnJlZQAAAzptZGF03gIATGF2YzYyLjExLjEwMAACMEAOAAACcgYF//9u3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NSByMzIyMiBiMzU2MDVhIC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyNSAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTAgcmVmPTMgZGVibG9jaz0xOi0zOi0zIGFuYWx5c2U9MHgxOjB4MTExIG1lPWhleCBzdWJtZT03IHBzeT0xIHBzeV9yZD0yLjAwOjAuNzAgbWl4ZWRfcmVmPTEgbWVfcmFuZ2U9MTYgY2hyb21hX21lPTEgdHJlbGxpcz0xIDh4OGRjdD0wIGNxbT0wIGRlYWR6b25lPTIxLDExIGZhc3RfcHNraXA9MSBjaHJvbWFfcXBfb2Zmc2V0PS00IHRocmVhZHM9MSBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTAgd2VpZ2h0cD0wIGtleWludD0yNTAga2V5aW50X21pbj0yIHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yMy4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4yMACAAAAAD2WIhAXzn///D0UAAVefgAEYIAcBGCAHARggBwEYIAcAAAAHQZo4C+c6gAEYIAcBGCAHARggBwEYIAcAAAAHQZpUAvnOoAEYIAcBGCAHARggBwEYIAcAAAAGQZpgF851ARggBwEYIAcBGCAHARggBwAAAAZBmoAXznUBGCAHARggBwEYIAcBGCAHAAAABkGaoBXOdQEYIAcBGCAHARggBwEYIAc=';
+  var awake = true, held = false, lock = null, video = null;
+  try { awake = localStorage.getItem('ls_awake') !== '0'; } catch (e) {}
+
+  function showAwake() {
+    var b = $('awake');
+    b.className = awake && held ? 'on' : '';
+    b.setAttribute('aria-pressed', awake ? 'true' : 'false');
+    b.textContent = !awake ? 'Tela normal' : held ? 'Tela acesa' : 'Toque: tela acesa';
+  }
+  function playVideo() {
+    if (!video) {
+      video = document.createElement('video');
+      video.id = 'keep';
+      video.src = KEEP_VIDEO;
+      video.muted = true; video.loop = true;
+      video.setAttribute('muted', ''); video.setAttribute('playsinline', ''); video.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(video);
+      video.addEventListener('pause', function () { if (!lock) { held = false; showAwake(); } });
+    }
+    var p = video.play();
+    if (p && p.then) p.then(function () { held = true; showAwake(); }, function () { held = false; showAwake(); });
+    else { held = true; showAwake(); }
+  }
+  function hold() {
+    if (!awake || document.visibilityState !== 'visible') return;
+    if (navigator.wakeLock && window.isSecureContext) {
+      if (lock && !lock.released) return;
+      navigator.wakeLock.request('screen').then(function (l) {
+        lock = l; held = true; showAwake();
+        l.addEventListener('release', function () { held = false; showAwake(); });
+      }, playVideo);
+    } else if (!(video && !video.paused)) {
+      playVideo();
+    }
+  }
+  function letGo() {
+    if (lock) { lock.release(); lock = null; }
+    if (video) video.pause();
+    held = false; showAwake();
+  }
+  $('awake').addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    awake = !awake;
+    try { localStorage.setItem('ls_awake', awake ? '1' : '0'); } catch (e) {}
+    if (awake) hold(); else letGo();
+    showAwake();
+  });
+  // qualquer toque na página vale como o gesto que os navegadores pedem
+  document.addEventListener('click', hold);
+  document.addEventListener('touchend', hold);
+  document.addEventListener('visibilitychange', hold);
+  showAwake();
+
   $('smaller').addEventListener('click', function () { setScale(1 / 1.1); });
   $('bigger').addEventListener('click', function () { setScale(1.1); });
   window.addEventListener('resize', function () { last = ''; });

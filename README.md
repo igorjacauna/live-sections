@@ -37,7 +37,8 @@ Site, demo e instalação: https://live-sections.igor-jacauna-cloudflare.workers
   música depois da outra. Em outro computador, leve a pasta da biblioteca; o
   Kontakt e as bibliotecas dele precisam estar instalados lá
 - Cifra por música na janela de cifra e no celular/tablet (navegador, com QR
-  Code): seção inteira com barra de progresso; anotação por música (tom, dica)
+  Code): seção inteira com barra de progresso; anotação por música (tom, dica);
+  no celular, a tela fica acesa enquanto a cifra está aberta
 - Modo palco com camadas, multitracks e anotação, e 85 actions para o Action
   List ou o ReaLearn
 - O áudio nunca depende do script: se ele fechar, o REAPER continua tocando
