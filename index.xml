@@ -9,10 +9,11 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <link rel="website">https://live-sections.igor-jacauna-cloudflare.workers.dev</link>
         <link rel="website">https://github.com/igorjacauna/live-sections</link>
       </metadata>
-      <version name="0.6.0" author="Igor Jacaúna" time="2026-11-03T23:29:23Z">
-        <changelog><![CDATA[- Biblioteca de músicas: Exportar (barra de músicas do modo Editar) salva a música configurada (seções, tempo, fórmula, cifra, anotação, Kontakt com o timbre, camadas, parâmetros e áudios) numa pasta da biblioteca
-- Montar setlist: "+ Da biblioteca" (setlist da Performance e modo Editar) adiciona várias músicas na ordem escolhida, no fim do projeto, cada uma numa pasta de tracks e com o seu tempo; avisa antes os plugins que faltam e depois as linhas do Mapeamento que precisam de Learn
-- Configurações: pasta da biblioteca (padrão nos recursos do REAPER, ou escolhida); em outro computador, leve a pasta e tenha o Kontakt e as bibliotecas instalados
+      <version name="0.7.0" author="Igor Jacaúna" time="2026-11-04T00:19:27Z">
+        <changelog><![CDATA[- Multitracks: no modo Editar, marque as tracks de áudio de cada música (bateria, baixo, vozes…); elas ganham fader, medidor e botão Ligado num grupo próprio, ao lado das camadas, na Performance e no Palco
+- Controlador: novas actions "Multitrack 1–8 volume (CC)" (com soft takeover) e "Multitrack 1–8 liga-desliga" (LED aceso com a multitrack tocando)
+- Cor das colunas: camadas e multitracks usam a cor da track no REAPER; clique direito no nome para escolher outra
+- Biblioteca: exportar e "+ Da biblioteca" levam as multitracks da música
 ]]></changelog>
         <source file="actions/Live Sections - Camada 1 liga-desliga.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20liga-desliga.lua</source>
         <source file="actions/Live Sections - Camada 1 volume (CC).lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Camada%201%20volume%20(CC).lua</source>
@@ -64,6 +65,22 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <source file="actions/Live Sections - Ir para música 15.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Ir%20para%20m%C3%BAsica%2015.lua</source>
         <source file="actions/Live Sections - Ir para música 16.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Ir%20para%20m%C3%BAsica%2016.lua</source>
         <source file="actions/Live Sections - Loop liga-desliga.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Loop%20liga-desliga.lua</source>
+        <source file="actions/Live Sections - Multitrack 1 liga-desliga.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%201%20liga-desliga.lua</source>
+        <source file="actions/Live Sections - Multitrack 1 volume (CC).lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%201%20volume%20(CC).lua</source>
+        <source file="actions/Live Sections - Multitrack 2 liga-desliga.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%202%20liga-desliga.lua</source>
+        <source file="actions/Live Sections - Multitrack 2 volume (CC).lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%202%20volume%20(CC).lua</source>
+        <source file="actions/Live Sections - Multitrack 3 liga-desliga.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%203%20liga-desliga.lua</source>
+        <source file="actions/Live Sections - Multitrack 3 volume (CC).lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%203%20volume%20(CC).lua</source>
+        <source file="actions/Live Sections - Multitrack 4 liga-desliga.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%204%20liga-desliga.lua</source>
+        <source file="actions/Live Sections - Multitrack 4 volume (CC).lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%204%20volume%20(CC).lua</source>
+        <source file="actions/Live Sections - Multitrack 5 liga-desliga.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%205%20liga-desliga.lua</source>
+        <source file="actions/Live Sections - Multitrack 5 volume (CC).lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%205%20volume%20(CC).lua</source>
+        <source file="actions/Live Sections - Multitrack 6 liga-desliga.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%206%20liga-desliga.lua</source>
+        <source file="actions/Live Sections - Multitrack 6 volume (CC).lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%206%20volume%20(CC).lua</source>
+        <source file="actions/Live Sections - Multitrack 7 liga-desliga.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%207%20liga-desliga.lua</source>
+        <source file="actions/Live Sections - Multitrack 7 volume (CC).lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%207%20volume%20(CC).lua</source>
+        <source file="actions/Live Sections - Multitrack 8 liga-desliga.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%208%20liga-desliga.lua</source>
+        <source file="actions/Live Sections - Multitrack 8 volume (CC).lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Multitrack%208%20volume%20(CC).lua</source>
         <source file="actions/Live Sections - Música anterior.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20M%C3%BAsica%20anterior.lua</source>
         <source file="actions/Live Sections - Panic.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Panic.lua</source>
         <source file="actions/Live Sections - Play-Stop.lua" main="main">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/actions/Live%20Sections%20-%20Play-Stop.lua</source>
@@ -94,6 +111,7 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <source file="core/chart.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/chart.lua</source>
         <source file="core/diag.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/diag.lua</source>
         <source file="core/editor_ops.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/editor_ops.lua</source>
+        <source file="core/fader.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/fader.lua</source>
         <source file="core/kontakt_cc.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/kontakt_cc.lua</source>
         <source file="core/kontakt_jsfx.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/kontakt_jsfx.lua</source>
         <source file="core/layer_params.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/layer_params.lua</source>
@@ -108,7 +126,9 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
         <source file="core/song_notes.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/song_notes.lua</source>
         <source file="core/song_package.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/song_package.lua</source>
         <source file="core/stage.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/stage.lua</source>
+        <source file="core/stems.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/stems.lua</source>
         <source file="core/tempo_align.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/tempo_align.lua</source>
+        <source file="core/track_color.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/track_color.lua</source>
         <source file="core/transport.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/transport.lua</source>
         <source file="core/validator.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/validator.lua</source>
         <source file="core/web_remote.lua">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/core/web_remote.lua</source>
@@ -137,10 +157,11 @@ Software livre sob a licença GPL-3.0. Requer a extensão ReaImGui, do repositó
 
 Ative em Preferences > Control/OSC/web > Add > Web browser interface, escolha "livesections.html" como página padrão e abra o endereço mostrado no celular (mesma rede Wi-Fi).]]></description>
       </metadata>
-      <version name="0.6.0" author="Igor Jacaúna" time="2026-11-03T23:29:23Z">
-        <changelog><![CDATA[- Biblioteca de músicas: Exportar (barra de músicas do modo Editar) salva a música configurada (seções, tempo, fórmula, cifra, anotação, Kontakt com o timbre, camadas, parâmetros e áudios) numa pasta da biblioteca
-- Montar setlist: "+ Da biblioteca" (setlist da Performance e modo Editar) adiciona várias músicas na ordem escolhida, no fim do projeto, cada uma numa pasta de tracks e com o seu tempo; avisa antes os plugins que faltam e depois as linhas do Mapeamento que precisam de Learn
-- Configurações: pasta da biblioteca (padrão nos recursos do REAPER, ou escolhida); em outro computador, leve a pasta e tenha o Kontakt e as bibliotecas instalados
+      <version name="0.7.0" author="Igor Jacaúna" time="2026-11-04T00:19:27Z">
+        <changelog><![CDATA[- Multitracks: no modo Editar, marque as tracks de áudio de cada música (bateria, baixo, vozes…); elas ganham fader, medidor e botão Ligado num grupo próprio, ao lado das camadas, na Performance e no Palco
+- Controlador: novas actions "Multitrack 1–8 volume (CC)" (com soft takeover) e "Multitrack 1–8 liga-desliga" (LED aceso com a multitrack tocando)
+- Cor das colunas: camadas e multitracks usam a cor da track no REAPER; clique direito no nome para escolher outra
+- Biblioteca: exportar e "+ Da biblioteca" levam as multitracks da música
 ]]></changelog>
         <source file="livesections.html">https://live-sections.igor-jacauna-cloudflare.workers.dev/LiveSections/www/livesections.html.txt</source>
       </version>

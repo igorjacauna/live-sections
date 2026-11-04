@@ -1,3 +1,4 @@
-- Biblioteca de músicas: Exportar (barra de músicas do modo Editar) salva a música configurada (seções, tempo, fórmula, cifra, anotação, Kontakt com o timbre, camadas, parâmetros e áudios) numa pasta da biblioteca
-- Montar setlist: "+ Da biblioteca" (setlist da Performance e modo Editar) adiciona várias músicas na ordem escolhida, no fim do projeto, cada uma numa pasta de tracks e com o seu tempo; avisa antes os plugins que faltam e depois as linhas do Mapeamento que precisam de Learn
-- Configurações: pasta da biblioteca (padrão nos recursos do REAPER, ou escolhida); em outro computador, leve a pasta e tenha o Kontakt e as bibliotecas instalados
+- Multitracks: no modo Editar, marque as tracks de áudio de cada música (bateria, baixo, vozes…); elas ganham fader, medidor e botão Ligado num grupo próprio, ao lado das camadas, na Performance e no Palco
+- Controlador: novas actions "Multitrack 1–8 volume (CC)" (com soft takeover) e "Multitrack 1–8 liga-desliga" (LED aceso com a multitrack tocando)
+- Cor das colunas: camadas e multitracks usam a cor da track no REAPER; clique direito no nome para escolher outra
+- Biblioteca: exportar e "+ Da biblioteca" levam as multitracks da música
