@@ -381,32 +381,37 @@ local function chart_modal(ctx)
   ImGui.SetNextWindowSize(ctx, 900, 620, ImGui.Cond_Appearing)
   if not ImGui.BeginPopupModal(ctx, "Cifra da música", true) then return end
   local song = st.chart_song
-  local w, h = ImGui.GetContentRegionAvail(ctx)
   ImGui.TextColored(ctx, theme.C.muted, (song and song.name or ""):upper())
   ImGui.PushTextWrapPos(ctx, 0)
   ImGui.TextColored(ctx, theme.C.faint, CHART_HELP)
   ImGui.PopTextWrapPos(ctx)
 
+  -- o texto e a lista de seções ocupam o que sobra depois da ajuda (que
+  -- quebra conforme a largura) e da linha dos botões, sempre visível
+  local w, h = ImGui.GetContentRegionAvail(ctx)
+  local _, spacing = ImGui.GetStyleVar(ctx, ImGui.StyleVar_ItemSpacing)
+  local body_h = math.max(120, h - ImGui.GetFrameHeightWithSpacing(ctx) - 2 * spacing - 2)
   local list_w = 230
   local mono = theme.font(ctx, "num")
-  local _, buf = ImGui.InputTextMultiline(ctx, "##chart_text", st.chart_buf or "", w - list_w - 12, h - 130)
+  local _, buf = ImGui.InputTextMultiline(ctx, "##chart_text", st.chart_buf or "", w - list_w - 12, body_h)
   theme.pop_font(ctx, mono)
   st.chart_buf = buf
   ImGui.SameLine(ctx)
 
   -- seções da música e se cada uma achou o trecho dela
-  ImGui.BeginGroup(ctx)
-  ImGui.Text(ctx, "Seções")
-  local parsed = chart.parse(st.chart_buf or "")
-  for _, sec in ipairs(song and song.sections or {}) do
-    local units = chart.units_for(parsed, sec)
-    if units then
-      ImGui.TextColored(ctx, theme.C.ok, sec.name .. "  ok")
-    else
-      ImGui.TextColored(ctx, theme.C.queue, sec.name .. "  sem cifra")
+  if ImGui.BeginChild(ctx, "##chart_sections", list_w, body_h) then
+    ImGui.Text(ctx, "Seções")
+    local parsed = chart.parse(st.chart_buf or "")
+    for _, sec in ipairs(song and song.sections or {}) do
+      local units = chart.units_for(parsed, sec)
+      if units then
+        ImGui.TextColored(ctx, theme.C.ok, sec.name .. "  ok")
+      else
+        ImGui.TextColored(ctx, theme.C.queue, sec.name .. "  sem cifra")
+      end
     end
+    ImGui.EndChild(ctx)
   end
-  ImGui.EndGroup(ctx)
 
   ImGui.Separator(ctx)
   if ImGui.Button(ctx, "Salvar") and song then

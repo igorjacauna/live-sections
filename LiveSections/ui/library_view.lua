@@ -265,11 +265,25 @@ function M.add_anyway() return add_all(li.pending or {}) end
 
 -- ------------------------------------------------------------------ desenho
 
+-- Diálogo com largura fixa e altura ajustada ao conteúdo a cada quadro:
+-- avisos e listas aumentam o diálogo em vez de esconder os botões, e os
+-- textos quebram na borda.
+local function begin_modal(ctx, name, w)
+  ImGui.SetNextWindowSize(ctx, w, 0, ImGui.Cond_Always)
+  if not ImGui.BeginPopupModal(ctx, name, true) then return false end
+  ImGui.PushTextWrapPos(ctx, 0)
+  return true
+end
+
+local function end_modal(ctx)
+  ImGui.PopTextWrapPos(ctx)
+  ImGui.EndPopup(ctx)
+end
+
 local function draw_export(ctx)
   if want_open then ImGui.OpenPopup(ctx, EXPORT); want_open = false end
   if not ex then return nil end
-  ImGui.SetNextWindowSize(ctx, 560, 0, ImGui.Cond_Appearing)
-  if not ImGui.BeginPopupModal(ctx, EXPORT, true) then return nil end
+  if not begin_modal(ctx, EXPORT, 560) then return nil end
   local msg
 
   if ex.result then
@@ -278,7 +292,7 @@ local function draw_export(ctx)
     if ImGui.Button(ctx, "Abrir pasta") and ex.result.ok then library.open_folder((library.dir())) end
     ImGui.SameLine(ctx)
     if ImGui.Button(ctx, "Fechar") then ex = nil; ImGui.CloseCurrentPopup(ctx) end
-    ImGui.EndPopup(ctx)
+    end_modal(ctx)
     return nil
   end
 
@@ -306,29 +320,28 @@ local function draw_export(ctx)
     ImGui.TextColored(ctx, theme.C.queue, '"' .. ex.name .. '" já está na biblioteca. Exportar de novo substitui.')
   end
   ImGui.Separator(ctx)
-  if ImGui.Button(ctx, "Cancelar") then ex = nil; ImGui.CloseCurrentPopup(ctx); ImGui.EndPopup(ctx); return nil end
+  if ImGui.Button(ctx, "Cancelar") then ex = nil; ImGui.CloseCurrentPopup(ctx); end_modal(ctx); return nil end
   ImGui.SameLine(ctx)
   if ImGui.Button(ctx, ex.confirm and "Substituir" or "Exportar") then
     local res, text = M.export()
     if res == "done" then msg = text
     elseif res == "error" and not ex.result then msg = text end
   end
-  ImGui.EndPopup(ctx)
+  end_modal(ctx)
   return msg
 end
 
 local function draw_list(ctx)
   if want_list then ImGui.OpenPopup(ctx, LIST); want_list = false end
   if not li then return nil end
-  ImGui.SetNextWindowSize(ctx, 620, 0, ImGui.Cond_Appearing)
-  if not ImGui.BeginPopupModal(ctx, LIST, true) then return nil end
+  if not begin_modal(ctx, LIST, 620) then return nil end
   local msg
 
   if li.result then
     ImGui.TextColored(ctx, theme.C.text, li.result)
     ImGui.Separator(ctx)
     if ImGui.Button(ctx, "Fechar") then li = nil; ImGui.CloseCurrentPopup(ctx) end
-    ImGui.EndPopup(ctx)
+    end_modal(ctx)
     return nil
   end
 
@@ -340,7 +353,7 @@ local function draw_list(ctx)
     if ImGui.Button(ctx, "Cancelar") then li.missing, li.pending = nil, nil end
     ImGui.SameLine(ctx)
     if ImGui.Button(ctx, "Adicionar mesmo assim") then msg = select(2, M.add_anyway()) end
-    ImGui.EndPopup(ctx)
+    end_modal(ctx)
     return msg
   end
 
@@ -380,13 +393,13 @@ local function draw_list(ctx)
   ImGui.Separator(ctx)
   if ImGui.Button(ctx, "Abrir pasta") and li.dir_ok then library.open_folder(li.dir) end
   ImGui.SameLine(ctx)
-  if ImGui.Button(ctx, "Cancelar") then li = nil; ImGui.CloseCurrentPopup(ctx); ImGui.EndPopup(ctx); return nil end
+  if ImGui.Button(ctx, "Cancelar") then li = nil; ImGui.CloseCurrentPopup(ctx); end_modal(ctx); return nil end
   ImGui.SameLine(ctx)
   if ImGui.Button(ctx, #li.picked > 1 and ("Adicionar " .. #li.picked .. " músicas") or "Adicionar") then
     local res, text = M.add()
     if res == "done" then msg = text end
   end
-  ImGui.EndPopup(ctx)
+  end_modal(ctx)
   return msg
 end
 

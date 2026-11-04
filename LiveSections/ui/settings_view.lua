@@ -367,7 +367,7 @@ local function mappings_card(ctx, x, y, w)
       ImGui.DrawList_AddLine(dl, ix, cy - 4, ix + iw, cy - 4, theme.C.line)
       ImGui.DrawList_PushClipRect(dl, ix, cy, ix + iw - 100, cy + 30, true)
       kit.txt(ctx, dl, "button", cols[1], cy + 6, theme.C.text, M.label(m))
-      kit.txt(ctx, dl, "num", cols[2], cy + 6, theme.C.muted, require("ui.widgets").describe(m))
+      kit.txt(ctx, dl, "num", cols[2], cy + 6, theme.C.muted, (require("ui.widgets").describe(m):match("^[^\n]*")))
       kit.txt(ctx, dl, "small", cols[3], cy + 7, theme.C.muted, m.port_name)
       ImGui.DrawList_PopClipRect(dl)
       local rw = kit.size(ctx, "button", "Remover") + 24

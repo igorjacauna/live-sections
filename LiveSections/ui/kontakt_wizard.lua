@@ -140,8 +140,11 @@ end
 
 function M.draw(ctx)
   if st.want_open then ImGui.OpenPopup(ctx, POPUP); st.want_open = false end
-  ImGui.SetNextWindowSize(ctx, 520, 0, ImGui.Cond_Appearing)
+  -- largura fixa e altura do conteúdo a cada quadro, textos quebrando na
+  -- borda: o diálogo cresce com as camadas em vez de esconder os botões
+  ImGui.SetNextWindowSize(ctx, 520, 0, ImGui.Cond_Always)
   if not ImGui.BeginPopupModal(ctx, POPUP, true) then return nil end
+  ImGui.PushTextWrapPos(ctx, 0)
   local msg
   local song = st.song
 
@@ -222,6 +225,7 @@ function M.draw(ctx)
       or ("Não foi possível: " .. tostring(err))
     ImGui.CloseCurrentPopup(ctx)
   end
+  ImGui.PopTextWrapPos(ctx)
   ImGui.EndPopup(ctx)
   return msg
 end
