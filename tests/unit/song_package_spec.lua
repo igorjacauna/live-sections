@@ -7,7 +7,7 @@ local stub = require("stubs.reaper")
 describe("song_package", function()
   local r, model, layers, sp, a, b
   local banda, guia, bateria, kt, piano, orgao, kt_b
-  local params, rows
+  local params, rows, stems
 
   local fake_lp = { list = function() return params end }
   local fake_kcc = { get = function(id) return rows[id] end }
@@ -31,7 +31,8 @@ describe("song_package", function()
 
   before_each(function()
     r = stub.install()
-    for _, m in ipairs({ "core.project_model", "core.layers", "core.chart", "core.song_notes", "core.tempo_align", "core.song_package" }) do
+    for _, m in ipairs({ "core.project_model", "core.layers", "core.chart", "core.song_notes", "core.tempo_align", "core.song_package",
+      "core.stems" }) do
       package.loaded[m] = nil
     end
     model = require("core.project_model")
@@ -59,6 +60,8 @@ describe("song_package", function()
     a, b = model.songs()[1], model.songs()[2]
     layers.link(a, kt)
     layers.link(b, kt_b)
+    stems = require("core.stems")
+    stems.init({ layers = layers })
     params, rows = {}, {
       k1 = { id = "k1", name = "Reverb", cc = 21, kind = "knob" },
       k2 = { id = "k2", name = "Rotary", cc = 22, kind = "toggle" },
@@ -66,7 +69,7 @@ describe("song_package", function()
     sp.init({
       layers = layers, layer_params = fake_lp, chart = require("core.chart"),
       song_notes = require("core.song_notes"), kontakt_cc = fake_kcc,
-      tempo_align = require("core.tempo_align"),
+      tempo_align = require("core.tempo_align"), stems = stems,
     })
   end)
 
@@ -265,6 +268,14 @@ describe("song_package", function()
         { id = "k1", name = "Reverb", cc = 21, kind = "knob" },
         { id = "k2", name = "Rotary", cc = 22, kind = "toggle" },
       }, pkg.mapping_rows)
+    end)
+
+    it("multitracks pelo índice no pacote; a escolhida sem itens entra na detecção", function()
+      stems.set(a, { guia, bateria })
+      local tracks = sp.detect_tracks(a)
+      assert.same({ banda, guia, bateria, kt, piano, orgao }, tracks)
+      assert.same({ 2, 3 }, sp.build(a, tracks).stems)
+      assert.same({}, sp.build(b, sp.detect_tracks(b)).stems)
     end)
 
     it("sem o Kontakt no pacote: sem camadas nem parâmetros", function()

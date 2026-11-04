@@ -102,7 +102,7 @@ library.init({ mappings = mappings })
 local song_deps = {
   layers = layers, layer_params = layer_params, chart = require("core.chart"),
   song_notes = require("core.song_notes"), kontakt_cc = kontakt_cc,
-  tempo_align = require("core.tempo_align"), jsfx = kontakt_jsfx,
+  tempo_align = require("core.tempo_align"), jsfx = kontakt_jsfx, stems = stems,
 }
 require("core.song_package").init(song_deps)
 require("core.song_import").init(song_deps)

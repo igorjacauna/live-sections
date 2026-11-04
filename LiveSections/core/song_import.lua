@@ -10,7 +10,7 @@
 -- GUIDs novos (RF-199); linhas do Mapeamento que faltam são criadas (RF-202).
 -- Tudo num passo de undo (RF-204).
 --
--- M.init({ layers, layer_params, chart, song_notes, kontakt_cc, tempo_align, jsfx })
+-- M.init({ layers, layer_params, chart, song_notes, kontakt_cc, tempo_align, jsfx, stems? })
 -- M.position(pkg) -> bar_line, start_pos
 -- M.add(pkg) -> ok, report     pkg lido por core/library (pkg.folder, audio[i].path)
 --   report = { song = { marker_idx, name, start_pos },
@@ -25,11 +25,12 @@ local SEP = package.config:sub(1, 1)
 local UNDO = "Live Sections: adicionar música da biblioteca"
 local OWN_JSFX = "JS: LiveSections/"
 
-local layers, layer_params, chart, song_notes, kcc, tempo_align, jsfx
+local layers, layer_params, chart, song_notes, kcc, tempo_align, jsfx, stems
 
 function M.init(deps)
   layers, layer_params, chart = deps.layers, deps.layer_params, deps.chart
   song_notes, kcc, tempo_align, jsfx = deps.song_notes, deps.kontakt_cc, deps.tempo_align, deps.jsfx
+  stems = deps.stems
 end
 
 -- ------------------------------------------------------------------ posição
@@ -175,6 +176,14 @@ function M.add(pkg)
   if (pkg.chart or "") ~= "" then chart.set_text(song, pkg.chart) end
   if (pkg.note or "") ~= "" then song_notes.set(song, pkg.note) end
   add_params(pkg, song, new, report)
+  -- multitracks com as tracks novas (RF-231); pacote antigo não tem (RF-235)
+  if stems and type(pkg.stems) == "table" and #pkg.stems > 0 then
+    local list = {}
+    for _, n in ipairs(pkg.stems) do
+      if new[n] and #list < stems.MAX then list[#list + 1] = new[n] end
+    end
+    stems.set(song, list)
+  end
   reaper.PreventUIRefresh(-1)
   reaper.UpdateArrange()
   reaper.TrackList_AdjustWindows(false)

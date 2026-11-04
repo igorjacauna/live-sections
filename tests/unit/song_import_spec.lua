@@ -4,7 +4,7 @@ local stub = require("stubs.reaper")
 -- Pacote "Igreja" a 129 BPM começando no tempo 3 do compasso (fase 2):
 --   1 Banda (pasta) > 2 Guia;  3 Kontakt;  4 Piano e 5 Órgão (recebem do 3)
 describe("song_import", function()
-  local r, si, layers, lp, rows, created, jsfx_writes
+  local r, si, layers, lp, rows, created, jsfx_writes, stems
 
   local fake_kcc = {
     get = function(id) return rows[id] end,
@@ -55,7 +55,8 @@ describe("song_import", function()
 
   before_each(function()
     r = stub.install()
-    for _, m in ipairs({ "core.layers", "core.layer_params", "core.chart", "core.song_notes", "core.tempo_align", "core.song_import" }) do
+    for _, m in ipairs({ "core.layers", "core.layer_params", "core.chart", "core.song_notes", "core.tempo_align", "core.song_import",
+      "core.stems" }) do
       package.loaded[m] = nil
     end
     layers = require("core.layers")
@@ -63,9 +64,11 @@ describe("song_import", function()
     si = require("core.song_import")
     rows, created, jsfx_writes = { k2 = { id = "k2", name = "Rotary", cc = 22, kind = "toggle" } }, {}, 0
     lp.init({ layers = layers, kontakt_cc = fake_kcc })
+    stems = require("core.stems")
+    stems.init({ layers = layers })
     si.init({
       layers = layers, layer_params = lp, chart = require("core.chart"), song_notes = require("core.song_notes"),
-      kontakt_cc = fake_kcc, tempo_align = require("core.tempo_align"), jsfx = fake_jsfx,
+      kontakt_cc = fake_kcc, tempo_align = require("core.tempo_align"), jsfx = fake_jsfx, stems = stems,
     })
     r.set_project_length(40)
     r.add_marker(0, "SONG: A")
@@ -165,6 +168,16 @@ describe("song_import", function()
       assert.same({ "Live Sections: adicionar música da biblioteca", -1 }, { ends[#ends][1], ends[#ends][2] })
       assert.same({ 1, -1 }, { r.calls_to("PreventUIRefresh")[1][1], r.calls_to("PreventUIRefresh")[2][1] })
     end)
+  end)
+
+  it("multitracks do pacote valem com as tracks novas; pacote antigo vem sem", function()
+    local p = pkg()
+    p.stems = { 2 }
+    local _, report = si.add(p)
+    assert.same({ r._tracks[4] }, stems.list(report.song))
+    assert.equal("Guia", r._tracks[4].name)
+    local _, old = si.add(pkg())
+    assert.same({}, stems.list(old.song))
   end)
 
   it("música sem Kontakt entra sem vínculo nem parâmetros", function()

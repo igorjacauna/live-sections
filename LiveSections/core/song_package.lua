@@ -18,7 +18,7 @@
 --   - FILE vira "audio/<nome>", sem repetir nome entre arquivos (RF-187);
 --   - ISBUS vira "0 0": a hierarquia vai em `level` e o import refaz a pasta.
 --
--- M.init({ layers, layer_params, chart, song_notes, kontakt_cc, tempo_align })
+-- M.init({ layers, layer_params, chart, song_notes, kontakt_cc, tempo_align, stems? })
 -- M.detect_tracks(song) -> { track }   na ordem do projeto (RF-179)
 -- M.filter_chunk(chunk, start_pos, end_pos, index_of, name_of)
 --     -> chunk, files, plugins
@@ -36,11 +36,12 @@ M.FORMAT = 1
 local PROJ = 0
 local EPS = 1e-6
 
-local layers, layer_params, chart, song_notes, kcc, tempo_align
+local layers, layer_params, chart, song_notes, kcc, tempo_align, stems
 
 function M.init(deps)
   layers, layer_params, chart = deps.layers, deps.layer_params, deps.chart
   song_notes, kcc, tempo_align = deps.song_notes, deps.kontakt_cc, deps.tempo_align
+  stems = deps.stems
 end
 
 -- ------------------------------------------------------------------ detecção
@@ -63,6 +64,7 @@ function M.detect_tracks(song)
     local tr = reaper.GetTrack(PROJ, i)
     if has_item_in(tr, song) then picked[tr] = true end
   end
+  for _, tr in ipairs(stems and stems.list(song) or {}) do picked[tr] = true end
   local kontakt = layers.track_of(song)
   if kontakt then
     picked[kontakt] = true
@@ -288,6 +290,13 @@ function M.build(song, tracks, opts)
     for _, pl in ipairs(plugins) do
       if not seen_plugin[pl] then seen_plugin[pl] = true; pkg.plugins[#pkg.plugins + 1] = pl end
     end
+  end
+
+  -- multitracks que estão no pacote, pelo índice (RF-230)
+  pkg.stems = {}
+  for _, tr in ipairs(stems and stems.list(song) or {}) do
+    local n = by_guid[reaper.GetTrackGUID(tr)]
+    if n then pkg.stems[#pkg.stems + 1] = n end
   end
 
   -- Kontakt, parâmetros e linhas do Mapeamento (RF-183, RF-188, RF-211)
