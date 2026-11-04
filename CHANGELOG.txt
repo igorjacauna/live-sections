@@ -1,4 +1,1 @@
-- Cifra: o botão Salvar fica sempre visível, sem precisar redimensionar ou rolar a janela
-- Diálogos de exportar, da biblioteca e do assistente de Kontakt crescem com o conteúdo e quebram textos longos, sem esconder os botões
-- Configurações: a lista de mapeamentos não corta mais a coluna Mensagem; o cartão da biblioteca não confere a pasta no disco a cada quadro
-- Desempenho: os engasgos no modo Editar e nas Configurações dizem qual painel demorou
+- Cifra no celular/tablet: a tela fica acesa enquanto a página está aberta, depois do primeiro toque; o botão "Tela acesa" no rodapé desliga e religa
