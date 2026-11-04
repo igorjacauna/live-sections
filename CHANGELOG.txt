@@ -1,1 +1,1 @@
-- Cifra no celular/tablet: a tela fica acesa enquanto a página está aberta, depois do primeiro toque; o botão "Tela acesa" no rodapé desliga e religa
+- Configurações: novo cartão "Abrir mais rápido", com o passo a passo para pôr o Live Sections no menu Extensions, numa barra de ferramentas ou num atalho, e um botão que copia o nome da ação
