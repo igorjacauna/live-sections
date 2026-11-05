@@ -1,1 +1,1 @@
-- Configurações: novo cartão "Abrir mais rápido", com o passo a passo para pôr o Live Sections no menu Extensions, numa barra de ferramentas ou num atalho, e um botão que copia o nome da ação
+- Performance e Palco: com muitas seções, os cards encolhem e, se ainda não couberem, a grade rola sozinha até a seção atual; camadas, multitracks e botões de controle continuam sempre visíveis
